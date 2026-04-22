@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #F5F0E8; font-family: 'DM Sans', sans-serif; }
+nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; background: #F5F0E8; border-bottom: 1px solid #E2D9C5; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo img { height: 36px; }
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.nav-links a { font-size: 13px; font-weight: 400; color: #2C2C28; text-decoration: none; letter-spacing: 0.01em; transition: color 200ms; }
+.nav-links a:hover { color: #1C3829; }
+.nav-links a.active { color: #1C3829; font-weight: 500; }
+.nav-cta { font-size: 13px; font-weight: 500; background: #1C3829; color: #F5F0E8; padding: 8px 18px; border-radius: 4px; text-decoration: none; }
+.nav-dark { background: #1C3829; border-bottom-color: #2E5339; margin-top: 0; }
+.nav-dark a { color: #B4CCBA; }
+.nav-dark a.active, .nav-dark a:hover { color: #F5F0E8; }
+.nav-dark .nav-cta { background: #C4714A; color: white; }
+</style></head>
+<body>
+  <nav>
+    <div class="logo"><img src="../assets/logo.svg" alt="Von Kaiser Farms"></div>
+    <div class="nav-links">
+      <a href="#" class="active">The Farm</a>
+      <a href="#">Produce</a>
+      <a href="#">Journal</a>
+      <a href="#">Our Story</a>
+      <a class="nav-cta" href="#">Order Fresh</a>
+    </div>
+  </nav>
+  <nav class="nav-dark">
+    <div class="logo"><img src="../assets/logo-light.svg" alt="Von Kaiser Farms"></div>
+    <div class="nav-links">
+      <a href="#" class="active">The Farm</a>
+      <a href="#">Produce</a>
+      <a href="#">Journal</a>
+      <a href="#">Our Story</a>
+      <a class="nav-cta" href="#">Order Fresh</a>
+    </div>
+  </nav>
+</body></html>

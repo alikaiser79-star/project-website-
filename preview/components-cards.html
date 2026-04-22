@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,300&family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #EDE6D6; padding: 24px 28px; font-family: 'DM Sans', sans-serif; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.card { background: white; border: 1px solid #D8D0C0; border-radius: 4px; overflow: hidden; box-shadow: 0 2px 12px rgba(26,26,24,0.07); }
+.img-placeholder { background: #1C3829; height: 90px; display: flex; align-items: center; justify-content: center; }
+.img-placeholder span { font-family: 'DM Mono', monospace; font-size: 10px; color: #7A9E87; letter-spacing: 0.1em; }
+.card-body { padding: 14px; }
+.card-tag { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #7A9E87; margin-bottom: 5px; }
+.card-title { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 400; color: #1A1A18; letter-spacing: -0.01em; margin-bottom: 6px; }
+.card-meta { font-size: 11px; color: #7A7870; font-family: 'DM Mono', monospace; }
+.card-price { font-size: 14px; font-weight: 500; color: #1A1A18; margin-top: 10px; }
+</style></head>
+<body>
+<div class="grid">
+  <div class="card">
+    <div class="img-placeholder"><span>PRODUCT IMAGE</span></div>
+    <div class="card-body">
+      <div class="card-tag">Leafy Greens</div>
+      <div class="card-title">Baby Romaine</div>
+      <div class="card-meta">Tower 3 · Day 28 · 250g</div>
+      <div class="card-price">EGP 45</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="img-placeholder" style="background:#2E5339"><span>PRODUCT IMAGE</span></div>
+    <div class="card-body">
+      <div class="card-tag">Herbs</div>
+      <div class="card-title">Fresh Basil</div>
+      <div class="card-meta">Tower 1 · Day 21 · 80g</div>
+      <div class="card-price">EGP 30</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="img-placeholder" style="background:#6B4E35"><span>PRODUCT IMAGE</span></div>
+    <div class="card-body">
+      <div class="card-tag" style="color:#B8973A">Premium</div>
+      <div class="card-title">Cherry Tomatoes</div>
+      <div class="card-meta">Tower 2 · Day 42 · 300g</div>
+      <div class="card-price">EGP 65</div>
+    </div>
+  </div>
+</div>
+</body></html>

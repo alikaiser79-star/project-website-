@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #F5F0E8; padding: 24px 28px; font-family: 'DM Sans', sans-serif; }
+.grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 20px; }
+.token { background: white; border: 1px solid #E2D9C5; border-radius: 4px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.block { background: #1C3829; border-radius: 2px; width: 100%; }
+.name { font-size: 10px; font-weight: 500; color: #1A1A18; }
+.val { font-size: 9px; color: #7A7870; font-family: 'DM Mono', monospace; }
+.radius-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.r-token { background: white; border: 1px solid #E2D9C5; padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.r-box { width: 40px; height: 40px; background: #2E5339; }
+</style></head>
+<body>
+<div class="grid">
+  <div class="token"><div class="block" style="height:4px"></div><div class="name">space-1</div><div class="val">4px</div></div>
+  <div class="token"><div class="block" style="height:8px"></div><div class="name">space-2</div><div class="val">8px</div></div>
+  <div class="token"><div class="block" style="height:12px"></div><div class="name">space-3</div><div class="val">12px</div></div>
+  <div class="token"><div class="block" style="height:16px"></div><div class="name">space-4</div><div class="val">16px</div></div>
+  <div class="token"><div class="block" style="height:24px"></div><div class="name">space-6</div><div class="val">24px</div></div>
+  <div class="token"><div class="block" style="height:32px"></div><div class="name">space-8</div><div class="val">32px</div></div>
+</div>
+<div class="radius-grid">
+  <div class="r-token"><div class="r-box" style="border-radius:2px"></div><div class="name" style="font-size:10px;font-weight:500;color:#1A1A18">radius-sm</div><div class="val" style="font-size:9px;color:#7A7870;font-family:monospace">2px</div></div>
+  <div class="r-token"><div class="r-box" style="border-radius:4px"></div><div class="name" style="font-size:10px;font-weight:500;color:#1A1A18">radius-md</div><div class="val" style="font-size:9px;color:#7A7870;font-family:monospace">4px</div></div>
+  <div class="r-token"><div class="r-box" style="border-radius:8px"></div><div class="name" style="font-size:10px;font-weight:500;color:#1A1A18">radius-lg</div><div class="val" style="font-size:9px;color:#7A7870;font-family:monospace">8px</div></div>
+  <div class="r-token"><div class="r-box" style="border-radius:9999px"></div><div class="name" style="font-size:10px;font-weight:500;color:#1A1A18">radius-full</div><div class="val" style="font-size:9px;color:#7A7870;font-family:monospace">9999px</div></div>
+</div>
+</body></html>

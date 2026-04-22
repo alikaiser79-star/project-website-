@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #F5F0E8; padding: 24px 28px; font-family: 'DM Sans', sans-serif; }
+.grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.item { display: flex; align-items: center; gap: 12px; background: white; border: 1px solid #E2D9C5; border-radius: 4px; padding: 12px 14px; }
+.icon-wrap { width: 36px; height: 36px; border-radius: 4px; background: #EDE6D6; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+svg { width: 18px; height: 18px; stroke: #1C3829; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.info .name { font-size: 12px; font-weight: 500; color: #1A1A18; }
+.info .usage { font-size: 10px; color: #7A7870; font-family: 'DM Mono', monospace; margin-top: 2px; }
+</style></head>
+<body>
+<div class="grid">
+  <div class="item">
+    <div class="icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+    <div class="info"><div class="name">Chemical-Free</div><div class="usage">quality · trust</div></div>
+  </div>
+  <div class="item">
+    <div class="icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 017 7c0 5-7 13-7 13S5 14 5 9a7 7 0 017-7z"/><circle cx="12" cy="9" r="2.5"/></svg></div>
+    <div class="info"><div class="name">Traceability</div><div class="usage">origin · tower ID</div></div>
+  </div>
+  <div class="item">
+    <div class="icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 20.94c1.5.05 7-1.44 7-8.94a7 7 0 00-7-7 7 7 0 00-7 7c0 7.5 5.5 8.99 7 8.94z"/><path d="M12 7v5l3 3"/></svg></div>
+    <div class="info"><div class="name">Grow Cycle</div><div class="usage">days · timeline</div></div>
+  </div>
+  <div class="item">
+    <div class="icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+    <div class="info"><div class="name">Farm</div><div class="usage">location · facility</div></div>
+  </div>
+  <div class="item">
+    <div class="icon-wrap"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+    <div class="info"><div class="name">Growing Conditions</div><div class="usage">light · sun · climate</div></div>
+  </div>
+  <div class="item">
+    <div class="icon-wrap"><svg viewBox="0 0 24 24"><path d="M12 22V12M12 12C12 7 7 3 3 3c0 4 2 9 9 9zM12 12c0-5 5-9 9-9-1 4-3 9-9 9z"/></svg></div>
+    <div class="info"><div class="name">Organic / Leaf</div><div class="usage">produce · nature</div></div>
+  </div>
+  <div class="item">
+    <div class="icon-wrap"><svg viewBox="0 0 24 24"><path d="M15 10l-4 4 4 4M5 12h14"/></svg></div>
+    <div class="info"><div class="name">Navigation</div><div class="usage">arrows · back/forward</div></div>
+  </div>
+  <div class="item">
+    <div class="icon-wrap"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+    <div class="info"><div class="name">Video / Journal</div><div class="usage">content · documentation</div></div>
+  </div>
+</div>
+</body></html>

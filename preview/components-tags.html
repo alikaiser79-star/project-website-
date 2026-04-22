@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #F5F0E8; padding: 24px 28px; font-family: 'DM Sans', sans-serif; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.section-label { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #7A7870; margin-bottom: 10px; }
+/* Tags */
+.tag { display: inline-flex; align-items: center; gap: 5px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+.tag-default { background: #EDE6D6; color: #2C2C28; padding: 4px 10px; border: 1px solid #D8D0C0; }
+.tag-green { background: #1C3829; color: #B4CCBA; padding: 4px 10px; }
+.tag-sage { background: #E8F0EA; color: #2E5339; padding: 4px 10px; }
+.tag-terra { background: #F5E8E0; color: #A85D39; padding: 4px 10px; }
+.tag-gold { background: #F5F0E0; color: #8B6F2A; padding: 4px 10px; }
+/* Mono tag */
+.tag-mono { font-family: 'DM Mono', monospace; font-size: 10px; background: #EDE6D6; color: #7A7870; padding: 3px 8px; border-radius: 2px; border: 1px solid #D8D0C0; }
+/* Status dot */
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #2C2C28; }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+</style></head>
+<body>
+  <div class="section-label">Category Tags</div>
+  <div class="row">
+    <span class="tag tag-green">Leafy Greens</span>
+    <span class="tag tag-sage">Hydroponic</span>
+    <span class="tag tag-terra">New Harvest</span>
+    <span class="tag tag-gold">Premium</span>
+    <span class="tag tag-default">Chemical-Free</span>
+  </div>
+  <div class="section-label">Data / Mono Tags</div>
+  <div class="row">
+    <span class="tag-mono">Day 14</span>
+    <span class="tag-mono">pH 6.2</span>
+    <span class="tag-mono">Tower 3</span>
+    <span class="tag-mono">28-day cycle</span>
+  </div>
+  <div class="section-label">Status</div>
+  <div class="row">
+    <span class="status"><span class="dot" style="background:#2E5339"></span>In Season</span>
+    <span class="status"><span class="dot" style="background:#B8973A"></span>Limited</span>
+    <span class="status"><span class="dot" style="background:#C4714A"></span>Sold Out</span>
+    <span class="status"><span class="dot" style="background:#D8D0C0"></span>Pre-order</span>
+  </div>
+</body></html>

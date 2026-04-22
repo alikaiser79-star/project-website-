@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #F5F0E8; padding: 24px 28px; font-family: 'DM Sans', sans-serif; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+label { font-size: 12px; font-weight: 500; color: #1A1A18; }
+input, textarea, select { font-family: 'DM Sans', sans-serif; font-size: 14px; color: #1A1A18; background: white; border: 1px solid #D8D0C0; border-radius: 4px; padding: 10px 12px; width: 100%; outline: none; transition: border-color 200ms; }
+input::placeholder { color: #7A7870; }
+input:focus { border-color: #1C3829; box-shadow: 0 0 0 3px rgba(28,56,41,0.08); }
+input.error { border-color: #C4714A; }
+input:disabled { background: #F5F0E8; color: #7A7870; cursor: not-allowed; }
+.hint { font-size: 11px; color: #7A7870; }
+.error-msg { font-size: 11px; color: #C4714A; }
+textarea { resize: vertical; min-height: 72px; }
+select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237A7870' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+</style></head>
+<body>
+<div class="grid">
+  <div class="field"><label>Full Name</label><input type="text" placeholder="Your name"><div class="hint">As it appears on your order</div></div>
+  <div class="field"><label>Email</label><input type="email" value="invalid-email" class="error"><div class="error-msg">Please enter a valid email address</div></div>
+  <div class="field"><label>Delivery Area</label>
+    <select><option>New Cairo</option><option>Maadi</option><option>Zamalek</option></select>
+  </div>
+  <div class="field"><label>Disabled</label><input type="text" value="Not editable" disabled></div>
+  <div class="field" style="grid-column:1/-1"><label>Special Instructions</label><textarea placeholder="Any dietary preferences or delivery notes…"></textarea></div>
+</div>
+</body></html>
