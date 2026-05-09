@@ -1,10 +1,25 @@
+import { Routes, Route } from "react-router-dom";
+import Navbar from "./components/Navbar.jsx";
+import Footer from "./components/Footer.jsx";
+import AuthModal from "./components/AuthModal.jsx";
+import WhatsAppButton from "./components/WhatsAppButton.jsx";
+import Home from "./pages/Home.jsx";
+import MemberPortal from "./pages/MemberPortal.jsx";
+import MembershipCheck from "./pages/MembershipCheck.jsx";
+
 export default function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-      <div className="text-center">
-        <h1 className="text-5xl font-bold mb-4">Vite + React + Tailwind</h1>
-        <p className="text-slate-300">Scaffold ready. Edit <code className="px-1 bg-slate-800 rounded">src/App.jsx</code> to start.</p>
-      </div>
+    <div className="min-h-screen bg-navy text-white">
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/portal" element={<MemberPortal />} />
+        <Route path="/membership" element={<MembershipCheck />} />
+        <Route path="*" element={<Home />} />
+      </Routes>
+      <Footer />
+      <AuthModal />
+      <WhatsAppButton />
     </div>
-  )
+  );
 }

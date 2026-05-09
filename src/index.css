@@ -1,3 +1,47 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-navy text-white font-sans antialiased;
+  }
+  h1, h2, h3, h4, h5 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-aqua px-6 py-3 font-medium text-navy transition-all duration-300 hover:bg-aqua-light hover:shadow-glow hover:-translate-y-0.5 active:scale-[0.98];
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-aqua/60 bg-transparent px-6 py-3 font-medium text-aqua transition-all duration-300 hover:bg-aqua/10 hover:border-aqua active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white/80 transition hover:text-white hover:bg-white/10;
+  }
+  .section-title {
+    @apply font-display text-4xl md:text-5xl font-semibold text-white;
+  }
+  .eyebrow {
+    @apply inline-block text-xs font-semibold uppercase tracking-[0.25em] text-aqua;
+  }
+  .card-glass {
+    @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-card;
+  }
+  .input-field {
+    @apply w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/40 outline-none transition focus:border-aqua focus:bg-white/10;
+  }
+  .label-field {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/60;
+  }
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0a1628; }
+::-webkit-scrollbar-thumb { background: #0e4d8c; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #00b4d8; }
