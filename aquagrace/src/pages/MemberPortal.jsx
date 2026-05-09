@@ -24,10 +24,7 @@ export default function MemberPortal() {
 
   const goBookSection = () => {
     setBookingPrefill({});
-    navigate("/");
-    requestAnimationFrame(() => {
-      document.getElementById("booking")?.scrollIntoView({ behavior: "smooth" });
-    });
+    navigate("/booking");
   };
 
   return (
@@ -55,7 +52,7 @@ export default function MemberPortal() {
             <button onClick={goBookSection} className="btn-primary">
               <Plus className="h-4 w-4" /> Add Reservation
             </button>
-            <button onClick={() => navigate("/membership")} className="btn-outline">
+            <button onClick={() => navigate("/membership/status")} className="btn-outline">
               <Star className="h-4 w-4" /> My Membership
             </button>
           </div>

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import Logo from "./Logo.jsx";
 import { Instagram, Facebook, VK, Telegram, Pin, Phone, Mail } from "./Icons.jsx";
 
@@ -9,7 +10,6 @@ const SOCIALS = [
 ];
 
 export default function Footer() {
-  const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   return (
     <footer className="relative mt-12 border-t border-white/10 bg-navy">
       <div className="absolute inset-x-0 top-0 -translate-y-px overflow-hidden">
@@ -44,16 +44,17 @@ export default function Footer() {
             <h4 className="text-xs font-semibold uppercase tracking-[0.25em] text-aqua">Quick Links</h4>
             <ul className="mt-4 space-y-2 text-sm">
               {[
-                ["programs", "Programs"],
-                ["membership", "Membership"],
-                ["booking", "Booking"],
-                ["safety", "Safety"],
-                ["careers", "Careers"],
-              ].map(([id, label]) => (
-                <li key={id}>
-                  <button onClick={() => go(id)} className="text-white/70 transition hover:text-aqua">
+                ["/programs", "Programs"],
+                ["/membership", "Membership"],
+                ["/booking", "Booking"],
+                ["/safety", "Safety"],
+                ["/careers", "Careers"],
+                ["/contact", "Contact"],
+              ].map(([to, label]) => (
+                <li key={to}>
+                  <Link to={to} className="text-white/70 transition hover:text-aqua">
                     {label}
-                  </button>
+                  </Link>
                 </li>
               ))}
             </ul>

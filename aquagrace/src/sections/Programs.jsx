@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import SectionHeading from "../components/SectionHeading.jsx";
 import { ChevronRight, Drop, Trophy, Heart, Sparkle } from "../components/Icons.jsx";
 import { PROGRAMS } from "../data/content.js";
@@ -6,7 +7,6 @@ import { PROGRAMS } from "../data/content.js";
 const ICON_MAP = { Drop, Trophy, Heart, Sparkle };
 
 export default function Programs() {
-  const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   return (
     <section id="programs" className="relative py-24 md:py-32">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
@@ -40,9 +40,9 @@ export default function Programs() {
                     <h3 className="mt-3 font-display text-xl font-semibold text-white">{p.title}</h3>
                     <p className="mt-2 text-sm text-white/60">{p.desc}</p>
                   </div>
-                  <button onClick={() => scrollTo("booking")} className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-aqua transition group-hover:gap-2">
+                  <Link to="/booking" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-aqua transition group-hover:gap-2">
                     Reserve a spot <ChevronRight className="h-4 w-4" />
-                  </button>
+                  </Link>
                 </div>
               </motion.article>
             );

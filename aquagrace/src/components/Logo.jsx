@@ -1,6 +1,6 @@
 export default function Logo({ className = "" }) {
   return (
-    <a href="#home" className={`group inline-flex items-center gap-2.5 ${className}`} aria-label="AquaGrace home">
+    <span className={`group inline-flex items-center gap-2.5 ${className}`}>
       <span className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-aqua to-ocean shadow-glow">
         <svg viewBox="0 0 32 32" className="h-6 w-6 text-navy">
           <path
@@ -14,6 +14,6 @@ export default function Logo({ className = "" }) {
         <span className="block font-display text-lg font-semibold text-white">AquaGrace</span>
         <span className="block text-[10px] uppercase tracking-[0.28em] text-aqua/80">Swimming Academy</span>
       </span>
-    </a>
+    </span>
   );
 }

@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import SectionHeading from "../components/SectionHeading.jsx";
 import { Shield, LifeBuoy, Users, Sparkle, Check } from "../components/Icons.jsx";
 import { SAFER } from "../data/content.js";
@@ -49,7 +50,7 @@ export default function Safety() {
                 family communication standards.
               </p>
             </div>
-            <a href="#contact" className="btn-outline">Request the document</a>
+            <Link to="/contact" className="btn-outline">Request the document</Link>
           </div>
         </div>
       </div>

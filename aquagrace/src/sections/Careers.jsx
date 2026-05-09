@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import SectionHeading from "../components/SectionHeading.jsx";
 import { Briefcase, ChevronRight } from "../components/Icons.jsx";
 import { CAREERS } from "../data/content.js";
@@ -36,9 +37,9 @@ export default function Careers() {
                   </div>
                 </div>
               </div>
-              <a href="#contact" className="btn-outline px-5 py-2 text-sm">
+              <Link to="/contact" className="btn-outline px-5 py-2 text-sm">
                 Apply Now <ChevronRight className="h-4 w-4" />
-              </a>
+              </Link>
             </motion.div>
           ))}
         </div>

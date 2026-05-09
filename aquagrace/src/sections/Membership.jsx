@@ -14,7 +14,7 @@ export default function Membership() {
   const choose = (tier) => {
     if (!isAuthed) return openSignup();
     updateUser({ tier: tier.name });
-    navigate("/membership");
+    navigate("/membership/status");
   };
 
   return (

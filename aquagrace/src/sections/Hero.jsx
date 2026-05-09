@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { ChevronRight, Calendar, Sparkle } from "../components/Icons.jsx";
 import { STATS } from "../data/content.js";
 
@@ -15,8 +16,6 @@ export default function Hero() {
       })),
     []
   );
-
-  const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
   return (
     <section id="home" className="relative isolate min-h-screen overflow-hidden pt-28 md:pt-36">
@@ -67,12 +66,12 @@ export default function Hero() {
             premium coaching, water ballet artistry and a safety promise we live by.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <button onClick={() => scrollTo("booking")} className="btn-primary">
+            <Link to="/booking" className="btn-primary">
               <Calendar className="h-4 w-4" /> Book a Trial
-            </button>
-            <button onClick={() => scrollTo("programs")} className="btn-outline">
+            </Link>
+            <Link to="/programs" className="btn-outline">
               View Programs <ChevronRight className="h-4 w-4" />
-            </button>
+            </Link>
           </div>
 
           <motion.dl
