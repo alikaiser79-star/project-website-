@@ -341,6 +341,26 @@ export const SAFER = [
   { letter: "R", word: "Response", desc: "Quarterly emergency drills with documented response times we share with parents." },
 ];
 
+// Member portal — achievements & inspiration
+export const ACHIEVEMENTS = [
+  { id: "first-float", icon: "Heart", title: "First Float", desc: "Held a back float for 10 seconds.", rarity: "Common", earned: true },
+  { id: "bubble-blower", icon: "Sparkle", title: "Bubble Blower", desc: "Blew bubbles below the waterline.", rarity: "Common", earned: true },
+  { id: "ballet-leg", icon: "Music", title: "Ballet Leg", desc: "Held a vertical ballet-leg position.", rarity: "Rare", earned: true },
+  { id: "showcase-debut", icon: "Star", title: "Showcase Debut", desc: "First performance in front of family.", rarity: "Rare", earned: true },
+  { id: "eggbeater-1min", icon: "Trophy", title: "1-Min Eggbeater", desc: "Held an eggbeater for a full minute.", rarity: "Epic", earned: false, progress: 0.7 },
+  { id: "lift-anchor", icon: "Shield", title: "Lift Anchor", desc: "Be the base of a successful 3-person lift.", rarity: "Epic", earned: false, progress: 0.4 },
+  { id: "mentor", icon: "Users", title: "Junior Mentor", desc: "Helped at a Tiny Swans class.", rarity: "Legendary", earned: false, progress: 0 },
+  { id: "regionals", icon: "Trophy", title: "Regional Medalist", desc: "Earned a medal at the regional invitational.", rarity: "Legendary", earned: false, progress: 0 },
+];
+
+export const INSPIRATIONS = [
+  "Grace is the practice of moving with intention — and you practice it every week.",
+  "The pool doesn't care how you started. It only celebrates that you showed up today.",
+  "You used to be scared of putting your head under. Look at you now.",
+  "Every great water-ballet routine started as one count, repeated until it shined.",
+  "Sparkle is not a thing you wear. It's a thing you do.",
+];
+
 // Annual = 10 × monthly (two months free)
 export const TIERS = [
   {

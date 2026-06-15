@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useBooking } from "../context/BookingContext.jsx";
 import { Calendar, Clock, Plus, Star, ChevronRight, X, Sparkle } from "../components/Icons.jsx";
 import BookingPanel from "../components/BookingPanel.jsx";
+import JourneyPanel from "../components/JourneyPanel.jsx";
 
 export default function MemberPortal() {
   const { user, isAuthed } = useAuth();
@@ -101,6 +102,17 @@ export default function MemberPortal() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <JourneyPanel
+          user={user}
+          onBook={openBooking}
+          onRsvp={() => {
+            navigate("/");
+            requestAnimationFrame(() => {
+              document.getElementById("showcases")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
+          }}
+        />
 
         <div className="mt-10 rounded-3xl border border-white/15 bg-white/[0.04] p-6 md:p-8">
           <div className="flex items-center justify-between">
