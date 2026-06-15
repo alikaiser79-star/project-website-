@@ -38,6 +38,42 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherSna
 
 export type MarketTick = { id: string; symbol: string; price: number; change24: number };
 
+export type PrayerSnap = {
+  byName: Record<string, string>;  // "Fajr" → "04:18"
+  nextName: string;
+  nextAt: Date;
+};
+
+export async function fetchPrayer(lat: number, lon: number): Promise<PrayerSnap> {
+  /* Aladhan: method 5 = Egyptian General Authority of Survey. */
+  const url = `https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lon}&method=5`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('prayer ' + res.status);
+  const j = await res.json();
+  const t = j?.data?.timings || {};
+  const want = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+  const byName: Record<string, string> = {};
+  for (const k of want) if (t[k]) byName[k] = String(t[k]).slice(0, 5);
+
+  const now = new Date();
+  let nextName = '', nextAt: Date | null = null;
+  for (const k of want) {
+    if (k === 'Sunrise') continue;
+    const hhmm = byName[k];
+    if (!hhmm) continue;
+    const [h, m] = hhmm.split(':').map(Number);
+    const cand = new Date(now); cand.setHours(h, m, 0, 0);
+    if (+cand > +now && (!nextAt || +cand < +nextAt)) { nextAt = cand; nextName = k; }
+  }
+  if (!nextAt) {
+    // After Isha → next prayer is Fajr tomorrow
+    const [h, m] = byName['Fajr'].split(':').map(Number);
+    const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1); tomorrow.setHours(h, m, 0, 0);
+    nextName = 'Fajr'; nextAt = tomorrow;
+  }
+  return { byName, nextName, nextAt };
+}
+
 export async function fetchMarkets(): Promise<MarketTick[]> {
   const url = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana' +
     '&vs_currencies=usd&include_24hr_change=true';

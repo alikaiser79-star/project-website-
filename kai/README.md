@@ -158,6 +158,43 @@ drawer. Type a thought, `⌘↵` to save. Entries are persisted to
 `localStorage`, listed newest-first, deletable on hover. The drawer
 shows total entry count and timestamps each.
 
+## KAI can take actions (tool use)
+
+When an Anthropic key is wired, KAI's streaming endpoint is set up
+with a tool surface — Claude can call real functions instead of just
+talking about them. Available tools:
+
+- `get_state_snapshot` — read your full live state (income, debt,
+  garden, makadi, instagram, priorities, journal, habits, reminders).
+  KAI calls this before answering anything fact-based, so it never
+  invents numbers.
+- `get_briefing` — generate the daily narrative briefing.
+- `add_reminder(text, minutes)` — schedule a future reminder.
+- `add_journal(text)` — capture a thought.
+- `add_priority(text)` — add to the priority list.
+- `start_focus(minutes, kind)` — begin a focus block.
+- `apply_debt_payment(amount_egp)` — subtract from the credit-card
+  balance and persist.
+
+The command bar runs a multi-round tool-use loop (up to 4 rounds) and
+surfaces every tool call inline in italics so you can see what KAI
+actually did. Each tool execution also fires a small toast badge with
+the result.
+
+Try:
+
+> "Remind me in 20 minutes to water the towers, and add a priority to
+> book the locksmith."
+
+KAI will call `add_reminder` and `add_priority` in the same turn, then
+confirm in one sentence.
+
+## Prayer times (Cairo)
+
+Aladhan keyless feed (method 5 — Egyptian General Authority of
+Survey). Six daily timings render as a row of cells with the next
+prayer glowing amber and a relative countdown ("in 42 min").
+
 ## Wake word
 
 A wake-word toggle in Settings → Voice. When ON (default), KAI only

@@ -10,6 +10,7 @@ import InsightsTile from './InsightsTile';
 import HabitsTile from './HabitsTile';
 import AgendaTile from './AgendaTile';
 import GoalsTile from './GoalsTile';
+import PrayerTile from './PrayerTile';
 
 function iconForCode(code: number, isDay: boolean) {
   if ([0, 1].includes(code)) return isDay ? Sun : Moon;
@@ -130,8 +131,11 @@ export default function IntelStrip({ delay = 0 }: { delay?: number }) {
       {/* Long-term goals */}
       <GoalsTile delay={delay + 0.35} />
 
+      {/* Cairo prayer times */}
+      <PrayerTile delay={delay + 0.40} />
+
       {/* KAI uptime */}
-      <Tile delay={delay + 0.40}>
+      <Tile delay={delay + 0.45}>
         <UptimeBlock />
       </Tile>
     </div>

@@ -94,6 +94,11 @@ export default function CommandBar({ open, onClose, settings }: Props) {
         speechBuf += chunk;
         setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai: acc, streamed: true } : t));
         flushSpeech(false);
+      }, (call) => {
+        // Surface tool calls inline so the user sees what KAI actually did.
+        const marker = `\n\n_◊ ${call.name}(${JSON.stringify(call.input).slice(0, 60)})_\n\n`;
+        acc += marker;
+        setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai: acc, streamed: true } : t));
       });
       flushSpeech(true);
       setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai: reply || acc, streamed: true } : t));
