@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import SectionHeading from "../components/SectionHeading.jsx";
-import { Check, Sparkle, Heart } from "../components/Icons.jsx";
+import { Check, Sparkle, Heart, Users, Star } from "../components/Icons.jsx";
 import { TIERS } from "../data/content.js";
 import { useUI } from "../context/UIContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -150,8 +150,78 @@ export default function Membership() {
           })}
         </div>
 
+        {/* Family Plan card */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.5 }}
+          className="mt-10 grid gap-6 overflow-hidden rounded-[2rem] border border-sparkle/30 bg-gradient-to-br from-sparkle/10 via-blossom/10 to-lavender/10 p-6 md:grid-cols-5 md:p-10"
+        >
+          <div className="md:col-span-3">
+            <span className="inline-flex items-center gap-2 rounded-full bg-sparkle/20 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-sparkle">
+              <Star className="h-3.5 w-3.5" /> New · Family Plan
+            </span>
+            <h3 className="mt-4 font-display text-3xl font-semibold text-white md:text-4xl">
+              All the sparkle, for the whole family
+            </h3>
+            <p className="mt-3 text-white/80">
+              One plan covers up to <span className="font-semibold text-sparkle">four members</span> — any
+              combination of girls and adults. Includes everything in Shimmer for each member, plus a
+              shared family lounge pass and priority showcase seating.
+            </p>
+
+            <ul className="mt-5 grid gap-2 text-sm text-white/85 sm:grid-cols-2">
+              {[
+                "Up to 4 members (girls + adults)",
+                "Each gets Shimmer-level access",
+                "Shared family lounge pass",
+                "Priority showcase seating",
+                "Sibling skill-tracker view",
+                "Cancel any time, no fees",
+              ].map((line) => (
+                <li key={line} className="flex items-start gap-2">
+                  <span className="mt-0.5 grid h-5 w-5 flex-none place-items-center rounded-full bg-gradient-to-br from-blossom to-coral text-white">
+                    <Check className="h-3 w-3" />
+                  </span>
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="md:col-span-2">
+            <div className="rounded-3xl border border-white/15 bg-navy-soft/70 p-6 backdrop-blur">
+              <div className="flex items-center gap-3">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-blossom to-coral text-white shadow-glow">
+                  <Users className="h-6 w-6" />
+                </span>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-blossom">Family</p>
+                  <p className="font-display text-lg font-semibold text-white">Plan</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-baseline gap-1">
+                <span className="font-display text-5xl font-bold text-white">$429</span>
+                <span className="text-white/65">/month</span>
+              </div>
+              <p className="mt-1 text-xs text-sparkle">
+                Save up to ${149 * 4 - 429}/mo vs four individual Shimmer plans
+              </p>
+
+              <button onClick={() => choose({ name: "Family" })} className="btn-primary mt-5 w-full">
+                <Heart className="h-4 w-4" /> Start Family Plan
+              </button>
+              <p className="mt-3 text-center text-[10px] text-white/55">
+                Want more than 4 members? Email us — we'll build a custom plan.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
         <p className="mt-8 text-center text-xs text-white/55">
-          Prices in USD. Family discounts available for siblings — ask at signup.
+          Prices in USD. Sibling discounts also available on individual plans — ask at signup.
         </p>
       </div>
     </section>
