@@ -27,9 +27,9 @@ export default function Contact() {
     <section id="contact" className="relative py-24 md:py-32 bg-navy">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <SectionHeading
-          eyebrow="Contact"
-          title="Visit us, call us, write us"
-          subtitle="We answer every message within one business day."
+          eyebrow="Say hi"
+          title="Visit, call or message us"
+          subtitle="We answer every parent message within one business day — promise."
         />
 
         <div className="mt-12 grid gap-8 lg:grid-cols-12">

@@ -8,6 +8,9 @@
   }
   body {
     @apply bg-navy text-white font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse at top left, rgba(167, 139, 250, 0.18), transparent 55%),
+      radial-gradient(ellipse at bottom right, rgba(249, 168, 212, 0.12), transparent 60%);
   }
   h1, h2, h3, h4, h5 {
     @apply font-display tracking-tight;
@@ -16,32 +19,43 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-aqua px-6 py-3 font-medium text-navy transition-all duration-300 hover:bg-aqua-light hover:shadow-glow hover:-translate-y-0.5 active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-blossom via-coral to-sparkle px-7 py-3 font-semibold text-navy transition-all duration-300 hover:-translate-y-0.5 hover:shadow-glow active:scale-[0.98];
   }
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-aqua/60 bg-transparent px-6 py-3 font-medium text-aqua transition-all duration-300 hover:bg-aqua/10 hover:border-aqua active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-blossom/60 bg-transparent px-6 py-3 font-semibold text-blossom transition-all duration-300 hover:bg-blossom/10 hover:border-blossom hover:text-white active:scale-[0.98];
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white/80 transition hover:text-white hover:bg-white/10;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white/85 transition hover:text-white hover:bg-white/10;
   }
   .section-title {
     @apply font-display text-4xl md:text-5xl font-semibold text-white;
   }
   .eyebrow {
-    @apply inline-block text-xs font-semibold uppercase tracking-[0.25em] text-aqua;
+    @apply inline-block text-xs font-bold uppercase tracking-[0.28em] text-blossom;
   }
   .card-glass {
-    @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-card;
+    @apply rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl shadow-card;
   }
   .input-field {
-    @apply w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/40 outline-none transition focus:border-aqua focus:bg-white/10;
+    @apply w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/40 outline-none transition focus:border-blossom focus:bg-white/10;
   }
   .label-field {
-    @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-white/60;
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/65;
+  }
+  .gradient-text {
+    @apply bg-gradient-to-r from-lavender via-blossom to-coral bg-clip-text text-transparent;
+  }
+  .sparkle-bg {
+    background-image:
+      radial-gradient(2px 2px at 12% 18%, rgba(253,230,138,.85) 50%, transparent 60%),
+      radial-gradient(1.5px 1.5px at 85% 30%, rgba(249,168,212,.85) 50%, transparent 60%),
+      radial-gradient(2px 2px at 35% 80%, rgba(196,181,253,.85) 50%, transparent 60%),
+      radial-gradient(1.5px 1.5px at 70% 65%, rgba(255,138,149,.7) 50%, transparent 60%),
+      radial-gradient(2px 2px at 50% 12%, rgba(207,250,254,.85) 50%, transparent 60%);
   }
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #0a1628; }
-::-webkit-scrollbar-thumb { background: #0e4d8c; border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: #00b4d8; }
+::-webkit-scrollbar-track { background: #1a0e2e; }
+::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #f9a8d4; }

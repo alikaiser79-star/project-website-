@@ -4,16 +4,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        navy: "#0a1628",
-        ocean: "#0e4d8c",
-        aqua: "#00b4d8",
-        "aqua-light": "#caf0f8",
-        gold: "#f4a261",
-        "navy-soft": "#102a44",
+        // Deep magical twilight purple (kept under the legacy "navy" key
+        // so existing utility classes keep working without churn)
+        navy: "#1a0e2e",
+        "navy-soft": "#2a1845",
+        ocean: "#7c3aed",
+        aqua: "#5ee0f0",
+        "aqua-light": "#cffafe",
+        gold: "#fb7185",
+        // New explicit palette for girls 6–16
+        lavender: "#c4b5fd",
+        blossom: "#f9a8d4",
+        coral: "#ff8a95",
+        sparkle: "#fde68a",
+        plum: "#5b21b6",
       },
       fontFamily: {
-        display: ['"Playfair Display"', "serif"],
-        sans: ['"DM Sans"', "system-ui", "sans-serif"],
+        display: ['"Fredoka"', '"Quicksand"', "system-ui", "sans-serif"],
+        sans: ['"Quicksand"', '"DM Sans"', "system-ui", "sans-serif"],
       },
       keyframes: {
         wave: {
@@ -37,6 +45,14 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        twinkle: {
+          "0%, 100%": { opacity: "0.2", transform: "scale(0.85)" },
+          "50%": { opacity: "1", transform: "scale(1.1)" },
+        },
+        drift: {
+          "0%, 100%": { transform: "translateY(0) rotate(0deg)" },
+          "50%": { transform: "translateY(-14px) rotate(6deg)" },
+        },
       },
       animation: {
         wave: "wave 12s ease-in-out infinite",
@@ -45,10 +61,19 @@ export default {
         pulseRing: "pulseRing 1.8s ease-out infinite",
         float: "float 4s ease-in-out infinite",
         shimmer: "shimmer 3s linear infinite",
+        twinkle: "twinkle 2.6s ease-in-out infinite",
+        drift: "drift 7s ease-in-out infinite",
       },
       boxShadow: {
-        glow: "0 0 40px rgba(0,180,216,0.35)",
-        card: "0 12px 40px -12px rgba(10,22,40,0.35)",
+        glow: "0 0 40px rgba(249,168,212,0.45)",
+        card: "0 18px 50px -18px rgba(26,14,46,0.55)",
+        sparkle: "0 0 30px rgba(253,230,138,0.6)",
+      },
+      backgroundImage: {
+        "girl-gradient":
+          "linear-gradient(135deg,#a78bfa 0%,#f9a8d4 45%,#fdba74 100%)",
+        "dreamy-night":
+          "radial-gradient(ellipse at top,#3b1768 0%,#1a0e2e 60%,#0e0820 100%)",
       },
     },
   },

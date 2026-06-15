@@ -22,8 +22,8 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-3">
           <div>
             <Logo />
-            <p className="mt-4 max-w-xs text-sm text-white/55">
-              AquaGrace Swimming Academy — premium swim coaching, water ballet and aquatic safety.
+            <p className="mt-4 max-w-xs text-sm text-white/65">
+              AquaGrace Swimming Academy — a magical home for water ballet &amp; swim lessons for girls ages 6–16.
             </p>
             <ul className="mt-6 flex items-center gap-2.5">
               {SOCIALS.map(({ name, href, Icon, hover }) => (
@@ -31,7 +31,7 @@ export default function Footer() {
                   <a
                     href={href}
                     aria-label={name}
-                    className={`grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/5 text-white/70 transition ${hover}`}
+                    className={`grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/5 text-white/75 transition ${hover}`}
                   >
                     <Icon className="h-4 w-4" />
                   </a>
@@ -41,17 +41,17 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-[0.25em] text-aqua">Quick Links</h4>
+            <h4 className="text-xs font-bold uppercase tracking-[0.28em] text-blossom">Quick Links</h4>
             <ul className="mt-4 space-y-2 text-sm">
               {[
+                ["ballet", "Water Ballet"],
                 ["programs", "Programs"],
-                ["membership", "Membership"],
-                ["booking", "Booking"],
+                ["membership", "Memberships"],
                 ["safety", "Safety"],
                 ["careers", "Careers"],
               ].map(([id, label]) => (
                 <li key={id}>
-                  <button onClick={() => go(id)} className="text-white/70 transition hover:text-aqua">
+                  <button onClick={() => go(id)} className="text-white/75 transition hover:text-blossom">
                     {label}
                   </button>
                 </li>
@@ -60,27 +60,27 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-[0.25em] text-aqua">Contact</h4>
-            <ul className="mt-4 space-y-3 text-sm text-white/70">
+            <h4 className="text-xs font-bold uppercase tracking-[0.28em] text-blossom">Contact</h4>
+            <ul className="mt-4 space-y-3 text-sm text-white/75">
               <li className="flex items-start gap-2.5">
-                <Pin className="mt-0.5 h-4 w-4 flex-none text-aqua/70" />
+                <Pin className="mt-0.5 h-4 w-4 flex-none text-blossom/80" />
                 42 Lakeshore Promenade, Aquatic District
               </li>
               <li className="flex items-center gap-2.5">
-                <Phone className="h-4 w-4 flex-none text-aqua/70" />
-                <a href="tel:+15550100123" className="hover:text-aqua">+1 (555) 010-0123</a>
+                <Phone className="h-4 w-4 flex-none text-blossom/80" />
+                <a href="tel:+15550100123" className="hover:text-blossom">+1 (555) 010-0123</a>
               </li>
               <li className="flex items-center gap-2.5">
-                <Mail className="h-4 w-4 flex-none text-aqua/70" />
-                <a href="mailto:hello@aquagrace.test" className="hover:text-aqua">hello@aquagrace.test</a>
+                <Mail className="h-4 w-4 flex-none text-blossom/80" />
+                <a href="mailto:hello@aquagrace.test" className="hover:text-blossom">hello@aquagrace.test</a>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/45 md:flex-row">
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/55 md:flex-row">
           <p>© {new Date().getFullYear()} AquaGrace Swimming Academy. All rights reserved.</p>
-          <p className="font-display italic text-white/60">"Where Champions Begin"</p>
+          <p className="font-display text-white/70">"Where Every Girl Shines" ✨</p>
         </div>
       </div>
     </footer>

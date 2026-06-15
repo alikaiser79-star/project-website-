@@ -36,8 +36,8 @@ export default function MembershipCheck() {
           transition={{ duration: 0.5 }}
           className="mt-10 grid gap-6 lg:grid-cols-3"
         >
-          <div className="lg:col-span-2 rounded-3xl border border-aqua/30 bg-gradient-to-br from-aqua/15 to-transparent p-6 md:p-8">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-aqua">
+          <div className="lg:col-span-2 rounded-3xl border border-blossom/30 bg-gradient-to-br from-blossom/15 via-lavender/10 to-transparent p-6 md:p-8">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-blossom">
               <Sparkle className="h-3.5 w-3.5" /> Active plan
             </div>
             <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
@@ -46,7 +46,7 @@ export default function MembershipCheck() {
                 <p className="mt-1 text-sm text-white/60">${currentTier.price}{currentTier.period} · renews on {user.renewal}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-aqua/15 px-3 py-1 text-xs uppercase tracking-widest text-aqua">Auto-renew</span>
+                <span className="rounded-full bg-blossom/15 px-3 py-1 text-xs uppercase tracking-widest text-blossom">Auto-renew</span>
               </div>
             </div>
 
@@ -60,7 +60,7 @@ export default function MembershipCheck() {
                   initial={{ width: 0 }}
                   animate={{ width: `${usedPct}%` }}
                   transition={{ duration: 0.7, ease: "easeOut" }}
-                  className="h-full bg-gradient-to-r from-aqua to-aqua-light"
+                  className="h-full bg-gradient-to-r from-blossom via-coral to-sparkle"
                 />
               </div>
               <p className="mt-2 text-xs text-white/50">{remaining} sessions remaining this cycle</p>
@@ -69,7 +69,7 @@ export default function MembershipCheck() {
             <ul className="mt-6 grid gap-2 sm:grid-cols-2">
               {currentTier.features.map((f) => (
                 <li key={f} className="flex items-start gap-2 text-sm text-white/80">
-                  <span className="mt-0.5 grid h-5 w-5 flex-none place-items-center rounded-full bg-aqua text-navy"><Check className="h-3 w-3" /></span>
+                  <span className="mt-0.5 grid h-5 w-5 flex-none place-items-center rounded-full bg-gradient-to-br from-blossom to-coral text-white"><Check className="h-3 w-3" /></span>
                   {f}
                 </li>
               ))}
@@ -85,7 +85,7 @@ export default function MembershipCheck() {
                 {user.payments.map((p) => (
                   <li key={p.id} className="flex items-center justify-between py-3">
                     <span className="flex items-center gap-2.5 text-white/80">
-                      <CreditCard className="h-4 w-4 text-aqua" /> {p.id}
+                      <CreditCard className="h-4 w-4 text-blossom" /> {p.id}
                     </span>
                     <span className="text-white/55">{p.date}</span>
                     <span className="font-medium text-white">${p.amount}</span>
@@ -107,18 +107,18 @@ export default function MembershipCheck() {
                 <div
                   key={t.id}
                   className={`flex flex-col rounded-3xl border p-6 transition ${
-                    isCurrent ? "border-aqua/50 bg-aqua/10" : "border-white/10 bg-white/[0.03] hover:border-white/30"
+                    isCurrent ? "border-blossom/50 bg-blossom/10" : "border-white/10 bg-white/[0.03] hover:border-white/30"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="font-display text-xl font-semibold text-white">{t.name}</h3>
-                    {isCurrent && <span className="rounded-full bg-aqua/20 px-2.5 py-0.5 text-[10px] uppercase tracking-widest text-aqua">Current</span>}
+                    {isCurrent && <span className="rounded-full bg-blossom/20 px-2.5 py-0.5 text-[10px] uppercase tracking-widest text-blossom">Current</span>}
                   </div>
                   <p className="mt-3 font-display text-3xl font-semibold text-white">${t.price}<span className="text-sm font-normal text-white/60">{t.period}</span></p>
                   <ul className="mt-4 flex-1 space-y-2 text-sm text-white/75">
                     {t.features.map((f) => (
                       <li key={f} className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 flex-none text-aqua" /> {f}
+                        <Check className="mt-0.5 h-4 w-4 flex-none text-blossom" /> {f}
                       </li>
                     ))}
                   </ul>

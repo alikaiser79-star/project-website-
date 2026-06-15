@@ -5,12 +5,13 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useUI } from "../context/UIContext.jsx";
 
 const PROGRAMS = [
-  "Kids Swim Lessons",
-  "Swim Clinics & Team Prep",
-  "Family & Fun Events",
-  "Water Ballet — Beginner",
-  "Water Ballet — Advanced",
-  "Adult Lessons",
+  "Tiny Swans (ages 6–8)",
+  "Junior Mermaids (ages 9–11)",
+  "Rising Stars (ages 12–14)",
+  "Elite Corps (ages 15–16)",
+  "Splash & Smile Lessons",
+  "Stroke Stars Clinics",
+  "Family Pool Party",
 ];
 
 export default function AuthModal() {
@@ -43,19 +44,20 @@ export default function AuthModal() {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 10, opacity: 0, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 240, damping: 26 }}
-            className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-navy-soft shadow-card"
+            className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/15 bg-navy-soft shadow-card"
           >
-            <div className="absolute -top-24 -right-24 h-56 w-56 rounded-full bg-aqua/30 blur-3xl" />
+            <div className="absolute -top-24 -right-24 h-56 w-56 rounded-full bg-blossom/30 blur-3xl" />
+            <div className="absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-lavender/25 blur-3xl" />
             <button onClick={closeAuth} className="absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 hover:text-white">
               <X className="h-4 w-4" />
             </button>
 
             <div className="relative p-7">
               <div className="mb-5 flex gap-1 rounded-full bg-white/5 p-1">
-                <button onClick={openLogin} className={`flex-1 rounded-full py-2 text-sm font-medium transition ${authModal === "login" ? "bg-aqua text-navy" : "text-white/70 hover:text-white"}`}>
+                <button onClick={openLogin} className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${authModal === "login" ? "bg-gradient-to-r from-blossom to-coral text-white" : "text-white/70 hover:text-white"}`}>
                   Log In
                 </button>
-                <button onClick={openSignup} className={`flex-1 rounded-full py-2 text-sm font-medium transition ${authModal === "signup" ? "bg-aqua text-navy" : "text-white/70 hover:text-white"}`}>
+                <button onClick={openSignup} className={`flex-1 rounded-full py-2 text-sm font-semibold transition ${authModal === "signup" ? "bg-gradient-to-r from-blossom to-coral text-white" : "text-white/70 hover:text-white"}`}>
                   Sign Up
                 </button>
               </div>
@@ -89,8 +91,8 @@ function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <h2 className="font-display text-3xl font-semibold text-white">Welcome back</h2>
-        <p className="mt-1 text-sm text-white/60">Log in to manage your reservations and membership.</p>
+        <h2 className="font-display text-3xl font-semibold text-white">Welcome back ✨</h2>
+        <p className="mt-1 text-sm text-white/65">Log in to view your bookings and access the member portal.</p>
       </div>
 
       <div>
@@ -113,14 +115,14 @@ function LoginForm() {
       {error && <p className="text-sm text-red-300">{error}</p>}
 
       <div className="flex items-center justify-between text-sm">
-        <label className="flex items-center gap-2 text-white/60">
-          <input type="checkbox" className="accent-aqua" /> Remember me
+        <label className="flex items-center gap-2 text-white/65">
+          <input type="checkbox" className="accent-blossom" /> Remember me
         </label>
-        <button type="button" className="text-aqua hover:underline">Forgot password?</button>
+        <button type="button" className="text-blossom hover:underline">Forgot password?</button>
       </div>
 
       <button type="submit" className="btn-primary w-full">Log In</button>
-      <p className="text-center text-xs text-white/50">Demo only — any email/password lets you in.</p>
+      <p className="text-center text-xs text-white/55">Demo only — any email/password lets you in.</p>
     </form>
   );
 }
@@ -157,8 +159,8 @@ function SignupForm() {
   return (
     <form onSubmit={submit} className="space-y-3">
       <div>
-        <h2 className="font-display text-3xl font-semibold text-white">Create your account</h2>
-        <p className="mt-1 text-sm text-white/60">Begin your journey with AquaGrace.</p>
+        <h2 className="font-display text-3xl font-semibold text-white">Join the magic</h2>
+        <p className="mt-1 text-sm text-white/65">Create your AquaGrace account in under a minute.</p>
       </div>
 
       <Field label="Full Name" error={errors.fullName}>
@@ -178,7 +180,7 @@ function SignupForm() {
           <input value={form.confirm} onChange={(e) => set("confirm", e.target.value)} type="password" className="input-field" placeholder="••••••" />
         </Field>
       </div>
-      <Field label="Program of Interest">
+      <Field label="Class she's most excited about">
         <select value={form.program} onChange={(e) => set("program", e.target.value)} className="input-field">
           {PROGRAMS.map((p) => <option key={p} className="bg-navy">{p}</option>)}
         </select>

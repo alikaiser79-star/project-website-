@@ -39,7 +39,7 @@ export default function Calendar({ value, onChange }) {
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+    <div className="rounded-2xl border border-white/15 bg-white/[0.04] p-5">
       <div className="flex items-center justify-between">
         <button onClick={prev} className="grid h-9 w-9 place-items-center rounded-full border border-white/10 text-white/80 hover:bg-white/10" aria-label="Previous month">
           <ChevronLeft className="h-4 w-4" />
@@ -72,25 +72,25 @@ export default function Calendar({ value, onChange }) {
               onClick={() => !past && onChange(iso)}
               disabled={past}
               className={[
-                "relative aspect-square rounded-xl text-sm font-medium transition",
+                "relative aspect-square rounded-xl text-sm font-semibold transition",
                 past ? "cursor-not-allowed text-white/20" : "text-white hover:bg-white/10",
-                open && !selected ? "bg-aqua/15 ring-1 ring-aqua/30" : "",
-                selected ? "bg-aqua text-navy ring-2 ring-aqua-light shadow-glow" : "",
+                open && !selected ? "bg-blossom/15 ring-1 ring-blossom/30" : "",
+                selected ? "bg-gradient-to-br from-blossom to-coral text-white ring-2 ring-sparkle shadow-glow" : "",
                 iso === todayIso && !selected ? "ring-1 ring-white/30" : "",
               ].filter(Boolean).join(" ")}
               aria-pressed={selected}
             >
               {d}
               {open && !selected && (
-                <span className="pointer-events-none absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-aqua" />
+                <span className="pointer-events-none absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-blossom" />
               )}
             </button>
           );
         })}
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-4 text-[11px] text-white/50">
-        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-aqua" /> Available</span>
+      <div className="mt-4 flex items-center justify-end gap-4 text-[11px] text-white/55">
+        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blossom" /> Available</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-white/30" /> Today</span>
       </div>
     </div>
