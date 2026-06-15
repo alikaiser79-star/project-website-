@@ -154,7 +154,7 @@ const PICKS = {
 };
 
 export default function LevelFinder() {
-  const { levelFinderOpen, closeLevelFinder, openSignup } = useUI();
+  const { levelFinderOpen, closeLevelFinder, openSignup, fireConfetti } = useUI();
   const { isAuthed } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -181,7 +181,11 @@ export default function LevelFinder() {
 
   const pick = (qid, oid) => {
     setAnswers((a) => ({ ...a, [qid]: oid }));
-    setStep((s) => s + 1);
+    setStep((s) => {
+      const nextStep = s + 1;
+      if (nextStep >= QUESTIONS.length) fireConfetti();
+      return nextStep;
+    });
   };
 
   const back = () => setStep((s) => Math.max(0, s - 1));

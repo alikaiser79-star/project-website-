@@ -6,6 +6,8 @@ export function UIProvider({ children }) {
   const [authModal, setAuthModal] = useState(null); // 'login' | 'signup' | null
   const [bookingPrefill, setBookingPrefill] = useState(null);
   const [levelFinderOpen, setLevelFinderOpen] = useState(false);
+  // Incrementing counter — each bump triggers a fresh confetti burst.
+  const [confettiBurst, setConfettiBurst] = useState(0);
 
   const openLogin = useCallback(() => setAuthModal("login"), []);
   const openSignup = useCallback(() => setAuthModal("signup"), []);
@@ -13,6 +15,8 @@ export function UIProvider({ children }) {
 
   const openLevelFinder = useCallback(() => setLevelFinderOpen(true), []);
   const closeLevelFinder = useCallback(() => setLevelFinderOpen(false), []);
+
+  const fireConfetti = useCallback(() => setConfettiBurst((n) => n + 1), []);
 
   const value = useMemo(
     () => ({
@@ -25,6 +29,8 @@ export function UIProvider({ children }) {
       levelFinderOpen,
       openLevelFinder,
       closeLevelFinder,
+      confettiBurst,
+      fireConfetti,
     }),
     [
       authModal,
@@ -35,6 +41,8 @@ export function UIProvider({ children }) {
       levelFinderOpen,
       openLevelFinder,
       closeLevelFinder,
+      confettiBurst,
+      fireConfetti,
     ]
   );
 

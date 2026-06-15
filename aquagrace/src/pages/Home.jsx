@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import Hero from "../sections/Hero.jsx";
 import WaterBallet from "../sections/WaterBallet.jsx";
 import Programs from "../sections/Programs.jsx";
+import HowItWorks from "../sections/HowItWorks.jsx";
 import Adults from "../sections/Adults.jsx";
 import Schedule from "../sections/Schedule.jsx";
 import Safety from "../sections/Safety.jsx";
@@ -29,6 +30,7 @@ export default function Home() {
       <Hero />
       <WaterBallet />
       <Programs />
+      <HowItWorks />
       <Adults />
       <Schedule />
       <Safety />

@@ -7,6 +7,7 @@ import WhatsAppButton from "./components/WhatsAppButton.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import ScrollProgress from "./components/ScrollProgress.jsx";
 import TrialBar from "./components/TrialBar.jsx";
+import Confetti from "./components/Confetti.jsx";
 import Home from "./pages/Home.jsx";
 import MemberPortal from "./pages/MemberPortal.jsx";
 import MembershipCheck from "./pages/MembershipCheck.jsx";
@@ -29,6 +30,7 @@ export default function App() {
       <WhatsAppButton />
       <ScrollToTop />
       <TrialBar />
+      <Confetti />
     </div>
   );
 }

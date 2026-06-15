@@ -133,7 +133,7 @@ function LoginForm() {
 
 function SignupForm() {
   const { signup } = useAuth();
-  const { closeAuth } = useUI();
+  const { closeAuth, fireConfetti } = useUI();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -158,6 +158,7 @@ function SignupForm() {
     if (Object.keys(next).length) return;
     signup(form);
     closeAuth();
+    fireConfetti();
   };
 
   return (
