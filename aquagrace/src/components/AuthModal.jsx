@@ -12,6 +12,10 @@ const PROGRAMS = [
   "Splash & Smile Lessons",
   "Stroke Stars Clinics",
   "Family Pool Party",
+  "Adult Water Ballet",
+  "Aqua Fitness",
+  "Mom & Me Swim",
+  "Adult Swim Lessons",
 ];
 
 export default function AuthModal() {
@@ -180,7 +184,7 @@ function SignupForm() {
           <input value={form.confirm} onChange={(e) => set("confirm", e.target.value)} type="password" className="input-field" placeholder="••••••" />
         </Field>
       </div>
-      <Field label="Class she's most excited about">
+      <Field label="Class you're most excited about">
         <select value={form.program} onChange={(e) => set("program", e.target.value)} className="input-field">
           {PROGRAMS.map((p) => <option key={p} className="bg-navy">{p}</option>)}
         </select>

@@ -1,6 +1,7 @@
 import Hero from "../sections/Hero.jsx";
 import WaterBallet from "../sections/WaterBallet.jsx";
 import Programs from "../sections/Programs.jsx";
+import Adults from "../sections/Adults.jsx";
 import Safety from "../sections/Safety.jsx";
 import Membership from "../sections/Membership.jsx";
 import Testimonials from "../sections/Testimonials.jsx";
@@ -14,6 +15,7 @@ export default function Home() {
       <Hero />
       <WaterBallet />
       <Programs />
+      <Adults />
       <Safety />
       <Membership />
       <Testimonials />

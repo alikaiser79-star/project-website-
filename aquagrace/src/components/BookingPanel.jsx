@@ -13,6 +13,10 @@ const PROGRAMS = [
   "Splash & Smile Lessons",
   "Stroke Stars Clinics",
   "Family Pool Party",
+  "Adult Water Ballet",
+  "Aqua Fitness",
+  "Mom & Me Swim",
+  "Adult Swim Lessons",
 ];
 
 const TUTORS = [

@@ -23,7 +23,7 @@ export default function Footer() {
           <div>
             <Logo />
             <p className="mt-4 max-w-xs text-sm text-white/65">
-              AquaGrace Swimming Academy — a magical home for water ballet &amp; swim lessons for girls ages 6–16.
+              AquaGrace Swimming Academy — a magical home for water ballet &amp; swim lessons. Built for girls ages 6–16, with caring classes for adults too.
             </p>
             <ul className="mt-6 flex items-center gap-2.5">
               {SOCIALS.map(({ name, href, Icon, hover }) => (
@@ -46,6 +46,7 @@ export default function Footer() {
               {[
                 ["ballet", "Water Ballet"],
                 ["programs", "Programs"],
+                ["adults", "For Adults"],
                 ["membership", "Memberships"],
                 ["safety", "Safety"],
                 ["careers", "Careers"],

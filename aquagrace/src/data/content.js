@@ -112,6 +112,79 @@ export const BALLET = [
   },
 ];
 
+// Adult programs — for moms, women, and grown-ups who want
+// to swim, move and find their own water-ballet grace.
+export const ADULTS = [
+  {
+    id: "a1",
+    title: "Adult Water Ballet",
+    tagline: "Grace, music, community",
+    description:
+      "Elegant artistry meets serious conditioning. Open to women of all ages and abilities — no prior experience needed. Discover poise, music and the joy of moving together.",
+    duration: "75 min",
+    sessions: "2 sessions / week",
+    learn: [
+      "Sculling, figures & musicality",
+      "Core, breath and posture work",
+      "Optional seasonal showcase",
+      "A supportive community of women",
+    ],
+    color: "from-blossom/40 via-lavender/30 to-coral/30",
+    icon: "Music",
+  },
+  {
+    id: "a2",
+    title: "Aqua Fitness",
+    tagline: "Low impact, big results",
+    description:
+      "Joint-friendly conditioning set to music. A full-body workout that feels more like dancing than training — perfect for busy parents and anyone returning to fitness.",
+    duration: "45 min",
+    sessions: "3–4 sessions / week",
+    learn: [
+      "Cardio + strength in the water",
+      "Resistance training with foam tools",
+      "Recovery & flexibility work",
+      "Drop-in friendly schedule",
+    ],
+    color: "from-aqua/40 via-lavender/30 to-blossom/30",
+    icon: "Heart",
+  },
+  {
+    id: "a3",
+    title: "Mom & Me Swim",
+    tagline: "Bond in the water",
+    description:
+      "A gentle weekend session for parents and little ones (ages 2–5). Songs, splashes and first floats — guided by a coach so you can simply enjoy the moment.",
+    duration: "30 min",
+    sessions: "Weekend mornings",
+    learn: [
+      "Safe water-introduction games",
+      "Parent-led floats and supports",
+      "Songs, bubbles and laughter",
+      "Coffee + chat in the family lounge",
+    ],
+    color: "from-sparkle/40 via-blossom/20 to-aqua/20",
+    icon: "Sparkle",
+  },
+  {
+    id: "a4",
+    title: "Adult Swim Lessons",
+    tagline: "It is never too late",
+    description:
+      "Small-group lessons (max 4) for adults learning to swim or refining strokes. Calm, judgement-free coaching with the same warmth we bring to our girls.",
+    duration: "60 min",
+    sessions: "1–2 sessions / week",
+    learn: [
+      "Comfort & breath in deep water",
+      "Freestyle, back & breaststroke",
+      "Open-water confidence (optional)",
+      "Private lessons available",
+    ],
+    color: "from-coral/40 via-sparkle/20 to-lavender/30",
+    icon: "Drop",
+  },
+];
+
 export const SAFER = [
   { letter: "S", word: "Supervision", desc: "A lifeguard plus a 1:6 coach ratio every minute girls are in the water — no exceptions." },
   { letter: "A", word: "Awareness", desc: "Continuous head counts and gentle audible signals so every swimmer is always seen." },
@@ -187,6 +260,24 @@ export const TESTIMONIALS = [
     quote:
       "Helping the younger girls in Tiny Swans on Saturdays has changed how I see myself. AquaGrace built me up, and now I get to do that for someone else.",
     color: "from-sparkle/20 to-coral/10",
+  },
+  {
+    id: "t5",
+    voice: "Adult",
+    name: "Diane M.",
+    role: "Adult Water Ballet",
+    quote:
+      "I joined at 52 having never done any kind of dance. Six months in I performed in our first showcase — terrified and beaming. This place changes you.",
+    color: "from-lavender/20 to-blossom/10",
+  },
+  {
+    id: "t6",
+    voice: "Adult",
+    name: "Hannah K.",
+    role: "Adult Swim Lessons",
+    quote:
+      "I couldn't put my face in the water at 34. The coaches met me exactly where I was, never rushed me, never made me feel small. I swim a full lap now.",
+    color: "from-aqua/20 to-lavender/10",
   },
 ];
 

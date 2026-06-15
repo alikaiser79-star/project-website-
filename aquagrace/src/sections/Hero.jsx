@@ -103,7 +103,8 @@ export default function Hero() {
           </p>
           <p className="mt-3 max-w-xl text-sm text-white/55">
             <span className="font-semibold text-blossom">Parents</span> — small classes, careful coaches and
-            a safety promise we live by every single session.
+            a safety promise we live by every single session. <span className="font-semibold text-blossom">Grown-ups</span>{" "}
+            — we have classes for you too.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <button onClick={handlePrimary} className="btn-primary">

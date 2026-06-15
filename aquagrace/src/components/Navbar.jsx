@@ -14,10 +14,10 @@ const PROGRAM_ITEMS = [
 
 const NAV_LINKS = [
   { id: "ballet", label: "Water Ballet", highlight: true },
+  { id: "adults", label: "For Adults" },
   { id: "membership", label: "Memberships" },
   { id: "safety", label: "Safety" },
   { id: "about", label: "About" },
-  { id: "careers", label: "Careers" },
 ];
 
 export default function Navbar() {
