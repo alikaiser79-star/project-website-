@@ -10,6 +10,7 @@ import SettingsDrawer from './components/SettingsDrawer';
 import CheatSheet from './components/CheatSheet';
 import JournalDrawer from './components/JournalDrawer';
 import Spotlight from './components/Spotlight';
+import Onboarding from './components/Onboarding';
 import ToastStack from './components/ToastStack';
 import { resumeReminders } from './lib/reminders';
 import { useIdle } from './hooks/useIdle';
@@ -40,6 +41,7 @@ export default function App() {
   const [journalOpen, setJournalOpen] = useState(false);
   const [spotOpen, setSpotOpen] = useState(false);
   const idle = useIdle(5 * 60_000);
+  const [onbOpen, setOnbOpen] = useState(false);
   const [settings, setSettings] = useState<KaiSettings>(initial.settings);
 
   const onSettings = useCallback((s: KaiSettings) => {
@@ -125,6 +127,11 @@ export default function App() {
 
     // Re-arm any pending reminders from previous sessions
     resumeReminders();
+
+    // First-run onboarding
+    if (!settings.onboarded) {
+      setTimeout(() => setOnbOpen(true), 900);
+    }
 
     setTimeout(() => {
       toast.ok(`Welcome back, ${settings.operatorName}. All systems nominal.`, 'KAI');
@@ -225,7 +232,7 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
             className="glass flex items-center justify-between px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
           >
-            <span>kai · v1.5.0</span>
+            <span>kai · v1.6.0</span>
             <span><kbd>⌘</kbd><kbd>K</kbd> cmd · <kbd>⌘</kbd><kbd>/</kbd> search · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts</span>
             <span className="text-amber">◊ presence stable</span>
           </motion.footer>
@@ -251,6 +258,10 @@ export default function App() {
         }}
       />
       <CheatSheet open={cheatOpen} onClose={() => setCheatOpen(false)} />
+      <Onboarding
+        open={onbOpen}
+        onDone={(next) => { onSettings(next); setOnbOpen(false); toast.ok(`Engaged. Welcome aboard, ${next.operatorName}.`, 'KAI', 5000); }}
+      />
       <ToastStack />
     </>
   );

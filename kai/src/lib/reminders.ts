@@ -37,6 +37,13 @@ function fire(r: Reminder) {
       { rate: settings.voiceRate, pitch: settings.voicePitch, voiceName: settings.voiceName },
     );
   }
+  // Browser notification — only when the user granted permission AND the tab
+  // is hidden (otherwise the toast covers it).
+  if (settings.notifications && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
+    try {
+      new Notification('KAI · Reminder', { body: r.text, silent: false, tag: r.id });
+    } catch {}
+  }
   const s = loadState();
   s.reminders = s.reminders.map(x => x.id === r.id ? { ...x, fired: true } : x);
   saveState(s);

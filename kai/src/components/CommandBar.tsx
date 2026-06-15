@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronRight, Loader2, Sparkles, X, Trash2 } from 'lucide-react';
+import { ChevronRight, Loader2, Sparkles, X, Trash2, Download } from 'lucide-react';
+import Markdown from './Markdown';
 import { runBuiltin } from '../lib/commands';
 import { askClaude, askClaudeStream } from '../lib/claude';
+import { toast } from '../hooks/useToasts';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { claudeConfig } from '../kaiConfig';
@@ -136,6 +138,20 @@ export default function CommandBar({ open, onClose, settings }: Props) {
     setHistory([]);
     sfx.click();
   }
+  function exportChat() {
+    if (!history.length) return;
+    const md = history.map(t => {
+      const ts = new Date(t.at).toLocaleString('en-GB');
+      return `### ${ts}\n\n**You:** ${t.you}\n\n**KAI:** ${t.kai}`;
+    }).join('\n\n---\n\n');
+    const blob = new Blob([`# KAI conversation\n\n${md}\n`], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `kai-chat-${new Date().toISOString().slice(0,10)}.md`;
+    a.click(); URL.revokeObjectURL(url);
+    sfx.confirm();
+    toast.ok('Chat exported.', 'EXPORT', 2400);
+  }
 
   return (
     <AnimatePresence>
@@ -169,9 +185,14 @@ export default function CommandBar({ open, onClose, settings }: Props) {
               />
               {thinking && <Loader2 size={14} className="animate-spin text-amber" />}
               {history.length > 0 && (
-                <button onClick={clearChat} className="text-steel hover:text-danger" title="Clear chat">
-                  <Trash2 size={13} />
-                </button>
+                <>
+                  <button onClick={exportChat} className="text-steel hover:text-amber" title="Export chat as markdown">
+                    <Download size={13} />
+                  </button>
+                  <button onClick={clearChat} className="text-steel hover:text-danger" title="Clear chat">
+                    <Trash2 size={13} />
+                  </button>
+                </>
               )}
               <button onClick={onClose} className="text-steel hover:text-amber"><X size={14} /></button>
             </div>
@@ -208,10 +229,10 @@ export default function CommandBar({ open, onClose, settings }: Props) {
                     <div className="text-amber mt-1.5 pl-3 border-l border-amber/40">
                       {t.kai
                         ? (t.streamed
-                            ? <span>{t.kai}{i === history.length - 1 && thinking && <span className="opacity-50 animate-pulse-soft">▍</span>}</span>
+                            ? <span><Markdown text={t.kai} />{i === history.length - 1 && thinking && <span className="opacity-50 animate-pulse-soft">▍</span>}</span>
                             : i === history.length - 1 && !thinking
                               ? <Typed text={t.kai} />
-                              : <span>{t.kai}</span>)
+                              : <span><Markdown text={t.kai} /></span>)
                         : <span className="text-amber/60">thinking<span className="animate-pulse-soft">…</span></span>}
                     </div>
                   </div>

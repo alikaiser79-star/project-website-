@@ -12,6 +12,8 @@ export const defaults: KaiPersisted = {
     voicePitch: 0.85,
     accent: 'amber',
     operatorName: operator.name,
+    onboarded: false,
+    notifications: false,
   },
   debtCurrent: debt.current,
   history: [],

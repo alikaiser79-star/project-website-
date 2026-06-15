@@ -158,6 +158,40 @@ drawer. Type a thought, `⌘↵` to save. Entries are persisted to
 `localStorage`, listed newest-first, deletable on hover. The drawer
 shows total entry count and timestamps each.
 
+## First-run onboarding
+
+On first launch (no `settings.onboarded` flag yet), KAI plays a small
+5-step welcome wizard: introduction, operator name, accent colour,
+voice toggle (with a live "voice channel online" greeting if you
+enable it), and optional browser-notification permission. Skip any
+step or rerun from scratch by clearing local state in settings.
+
+## Browser notifications
+
+If you accepted notifications during onboarding (or flip the setting
+on later), KAI also fires a real OS-level `Notification` when a
+reminder is due *and* the tab is backgrounded — so you'll see it even
+in another window. When the tab is in focus, the toast handles it.
+
+## Markdown in chat
+
+Streaming Claude responses are now rendered through a tiny in-house
+markdown layer — `**bold**`, `*italic*`, `` `code` ``, bullet and
+numbered lists, and `[link](url)` all format inline as the stream
+arrives.
+
+## Export the chat
+
+A download icon in the command-bar header writes the full conversation
+to `kai-chat-YYYY-MM-DD.md` as proper markdown (one section per turn,
+timestamped, `You:` / `KAI:` framing).
+
+## Habit heatmap
+
+Each habit row in the Habits tile now carries a 7-day strip of segments
+beneath the label — filled segments are days you checked in, faint ones
+are misses. Hover a segment to see the date.
+
 ## Streaming Claude + progressive speech
 
 When an Anthropic key is wired, the command bar uses the Anthropic

@@ -10,6 +10,8 @@ export type KaiSettings = {
   voiceName?: string;
   accent: Accent;
   operatorName: string;
+  onboarded: boolean;
+  notifications: boolean;
 };
 
 export type ChatTurn = { you: string; kai: string; at: string; streamed?: boolean };
