@@ -155,6 +155,68 @@ export const FAQ = [
   },
 ];
 
+// Weekly schedule grid — used by Schedule.jsx
+export const SCHEDULE_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+export const SCHEDULE_TRACKS = [
+  {
+    id: "tiny",
+    name: "Tiny Swans",
+    audience: "Ages 6–8",
+    color: "blossom",
+    slots: { Mon: "16:00", Wed: "16:00", Sat: "10:00" },
+  },
+  {
+    id: "junior",
+    name: "Junior Mermaids",
+    audience: "Ages 9–11",
+    color: "coral",
+    slots: { Tue: "17:00", Thu: "17:00", Sat: "11:30" },
+  },
+  {
+    id: "rising",
+    name: "Rising Stars",
+    audience: "Ages 12–14",
+    color: "lavender",
+    slots: { Mon: "18:00", Wed: "18:00", Fri: "17:30" },
+  },
+  {
+    id: "elite",
+    name: "Elite Corps",
+    audience: "Ages 15–16",
+    color: "sparkle",
+    slots: { Tue: "19:00", Thu: "19:00", Fri: "19:00", Sun: "09:00" },
+  },
+  {
+    id: "ballet-adult",
+    name: "Adult Water Ballet",
+    audience: "Adults",
+    color: "blossom",
+    slots: { Wed: "20:00", Sun: "11:00" },
+  },
+  {
+    id: "aqua-fit",
+    name: "Aqua Fitness",
+    audience: "Adults",
+    color: "aqua",
+    slots: { Mon: "07:00", Tue: "07:00", Thu: "07:00", Sat: "08:30" },
+  },
+  {
+    id: "mom-me",
+    name: "Mom & Me Swim",
+    audience: "Ages 2–5 + parent",
+    color: "sparkle",
+    slots: { Sat: "09:30", Sun: "10:00" },
+  },
+  {
+    id: "adult-swim",
+    name: "Adult Swim Lessons",
+    audience: "Adults",
+    color: "coral",
+    slots: { Tue: "20:00", Thu: "20:00" },
+  },
+];
+
 export const SHOWCASES = [
   {
     id: "s1",
