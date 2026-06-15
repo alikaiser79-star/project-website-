@@ -99,6 +99,55 @@ the Makadi fix-lock reminder (driven by `kaiConfig.makadi.fixLock`),
 voice acknowledgements when it hears a command. Toasts slide in
 top-right and dismiss on click or after their TTL.
 
+## Daily briefing
+
+Once per calendar day, KAI generates a narrative briefing covering
+projected monthly income, debt paydown %, open priorities, today's
+garden tasks, the Makadi fix-lock state, and a countdown to the next
+event. It surfaces as a toast and, if voice is on, is spoken aloud.
+Trigger it any time by typing or saying **"briefing"** in the command
+bar / voice channel.
+
+## Focus / Pomodoro
+
+A focus tile lives in the intel strip. Buttons start a 25-min focus
+block, 5-min break, or 50-min deep-work block; running blocks survive
+a page refresh. On completion KAI confirms with a toast and (if voice
+is on) speaks. From the command bar / voice, say **"focus 45"**,
+**"start a pomodoro"**, **"break"**, **"stop timer"**.
+
+## Audio visualization
+
+The KAI Core has a halo of vertical bars that respond to:
+
+- **Listening** — real microphone spectrum via Web Audio `AnalyserNode`
+  (requires mic permission, granted alongside speech recognition)
+- **Speaking** — a synthesised waveform timed to speech
+- **Idle** — a slow ambient ripple
+
+## News ticker
+
+A marquee below the intel strip streams the Hacker News top stories
+(keyless API). Hover pauses the scroll.
+
+## Priorities — drag to reorder
+
+The Priorities panel uses Framer Motion's `Reorder` — drag the grip
+handle to reorder. Order persists to localStorage.
+
+## Voice intents
+
+Beyond the command-bar built-ins, the following phrasings work over
+voice:
+
+- `"status" / "vitals" / "summary"` — system status
+- `"briefing" / "morning" / "daily"` — daily briefing
+- `"focus 25" / "start a pomodoro" / "deep work 50"` — start a focus block
+- `"break" / "take a break"` — start a 5-min break
+- `"stop timer" / "cancel focus"` — stop running focus block
+- `"convert 1000 eur" / "in euros"` — currency conversion
+- `"debt", "income", "tasks", "garden", "makadi", "instagram", "time"`
+
 ## Voice
 
 Tap the mic chip in the top bar (or press `V`) to enable continuous

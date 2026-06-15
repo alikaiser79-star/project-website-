@@ -6,6 +6,7 @@ import {
   monthlyTotalEGP, debtClearedPct, toEGP, currency, operator,
 } from '../kaiConfig';
 import { loadState } from './store';
+import { focusTimer } from './focusTimer';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -70,9 +71,66 @@ export function runBuiltin(cmd: string): CmdResult | null {
     return `${g}, ${operator.name}. KAI here. What's the move?`;
   }
 
+  if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
+    return briefing();
+  }
+
+  // focus timer voice/text controls
+  if (/\b(focus|deep work|start (a )?timer|pomodoro)\b/.test(q)) {
+    const m = q.match(/(\d{1,3})\s*(?:min|mins|minute|m)?/);
+    const mins = m ? Math.max(1, Math.min(180, parseInt(m[1]))) : 25;
+    focusTimer.start(mins, 'focus');
+    return `Focus block started — ${mins} minutes. Heads down.`;
+  }
+  if (/\b(break|rest)\b/.test(q) && /\b(start|begin|take)\b/.test(q)) {
+    focusTimer.start(5, 'break');
+    return 'Break started — five minutes.';
+  }
+  if (/\b(stop|cancel|kill)\b/.test(q) && /\b(timer|focus|pomodoro)\b/.test(q)) {
+    focusTimer.stop();
+    return 'Focus block stopped.';
+  }
+
+  if (/\b(convert|in (eur|euros?))\b/.test(q)) {
+    const amount = parseFloat((q.match(/(\d[\d,.]*)/) || [])[1]?.replace(/,/g, '') || '');
+    if (amount) {
+      if (/\beur\b/.test(q) || /\beuros?\b/.test(q)) {
+        return `${fmt(amount)} EUR is ${fmt(amount * currency.egpPerEur)} EGP.`;
+      }
+      return `${fmt(amount)} EGP is approximately ${fmt(amount / currency.egpPerEur)} EUR.`;
+    }
+  }
+
   if (/\b(help|commands|what can you do)\b/.test(q)) {
-    return `Try: status, debt, income, tasks, garden, makadi, instagram, time. Or just ask me anything — if my API key is wired, I'll think it through.`;
+    return `Try: status, briefing, debt, income, tasks, garden, makadi, instagram, time, focus 25, break, convert 1000 eur. Or just ask me anything — if my API key is wired, I'll think it through.`;
   }
 
   return null;
+}
+
+export function briefing(): string {
+  const s = loadState();
+  const open = s.priorities.filter(p => !p.done);
+  const total = monthlyTotalEGP();
+  const cleared = debtClearedPct();
+  const lines: string[] = [];
+  const h = new Date().getHours();
+  const time = h < 5 ? "You're up late" : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+
+  lines.push(`${time}, ${operator.name}. Daily briefing.`);
+  lines.push(`Throughput projecting ${fmt(total)} EGP this month, roughly ${fmt(total / currency.egpPerEur)} euros.`);
+  lines.push(`Credit card paydown at ${cleared.toFixed(0)} percent.`);
+
+  if (open.length) lines.push(`${open.length} open priorit${open.length === 1 ? 'y' : 'ies'}: ${open.slice(0, 3).map(p => p.text).join('; ')}${open.length > 3 ? '; and more' : ''}.`);
+  else lines.push(`Priority list clear.`);
+
+  lines.push(`Hidden Garden — ${garden.todayTasks.length} task${garden.todayTasks.length === 1 ? '' : 's'} for today.`);
+  if (makadi.fixLock) lines.push(`Reminder — Makadi door lock still needs the locksmith.`);
+
+  const ev = new Date(garden.nextEvent.when);
+  const days = Math.max(0, Math.ceil((+ev - Date.now()) / 86_400_000));
+  lines.push(`Next event: ${garden.nextEvent.title} in ${days} day${days === 1 ? '' : 's'}.`);
+
+  lines.push(`That's the picture. What's the move?`);
+  return lines.join(' ');
 }

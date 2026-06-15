@@ -9,7 +9,9 @@ import CommandBar from './components/CommandBar';
 import SettingsDrawer from './components/SettingsDrawer';
 import CheatSheet from './components/CheatSheet';
 import ToastStack from './components/ToastStack';
-import IntelStrip from './components/IntelStrip';
+import IntelStrip, { NewsRow } from './components/IntelStrip';
+import OrbAudio from './components/OrbAudio';
+import { briefing } from './lib/commands';
 import IncomePanel    from './components/panels/IncomePanel';
 import DebtPanel      from './components/panels/DebtPanel';
 import GardenPanel    from './components/panels/GardenPanel';
@@ -112,6 +114,25 @@ export default function App() {
     if (makadi.fixLock) {
       setTimeout(() => toast.warn('Makadi door lock still flagged — book the locksmith.', 'REMINDER', 7000), 3600);
     }
+
+    // Auto daily briefing — once per calendar day
+    const today = new Date().toDateString();
+    const last = localStorage.getItem('kai.lastBriefing');
+    if (last !== today) {
+      setTimeout(() => {
+        const text = briefing();
+        toast.ok('Daily briefing ready — say or type "briefing" to hear it.', 'BRIEFING', 6500);
+        if (settings.voiceEnabled) {
+          emit('speak-start');
+          voice.speak(
+            text,
+            { rate: settings.voiceRate, pitch: settings.voicePitch, voiceName: settings.voiceName },
+            () => emit('speak-end'),
+          );
+        }
+        localStorage.setItem('kai.lastBriefing', today);
+      }, 5200);
+    }
   }, [booted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -146,7 +167,10 @@ export default function App() {
                 animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.6 } }}
               >
                 <Suspense fallback={<div className="text-amber font-mono text-xs">spinning up core…</div>}>
-                  <KaiCore size={420} accent={settings.accent} />
+                  <div className="relative" style={{ width: 420, height: 420 }}>
+                    <KaiCore size={420} accent={settings.accent} />
+                    <OrbAudio accent={settings.accent} />
+                  </div>
                 </Suspense>
                 <div className="absolute inset-x-0 bottom-2 text-center pointer-events-none">
                   <div className="font-mono text-[10px] tracking-[0.4em] text-steel uppercase">KAI CORE</div>
@@ -164,8 +188,9 @@ export default function App() {
             </div>
           </div>
 
-          {/* Live intel strip — weather, markets, uptime */}
+          {/* Live intel strip + HN ticker */}
           <IntelStrip delay={1.1} />
+          <NewsRow />
 
           {/* Footer ribbon */}
           <motion.footer

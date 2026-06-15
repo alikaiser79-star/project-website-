@@ -1,7 +1,7 @@
 import Panel from '../Panel';
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Plus, Trash2 } from 'lucide-react';
+import { Reorder, AnimatePresence, motion } from 'framer-motion';
+import { Check, Plus, Trash2, GripVertical } from 'lucide-react';
 import { loadState, saveState } from '../../lib/store';
 import type { Priority } from '../../types';
 import { sfx } from '../../lib/sound';
@@ -30,6 +30,9 @@ export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
     persist(items.filter(p => p.id !== id));
     sfx.click();
   }
+  function reorder(next: Priority[]) {
+    persist(next);
+  }
 
   const open = items.filter(p => !p.done).length;
 
@@ -48,17 +51,22 @@ export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
           <Plus size={14} />
         </button>
       </div>
-      <ul className="space-y-1.5 overflow-y-auto flex-1">
+      <Reorder.Group axis="y" values={items} onReorder={reorder} className="space-y-1.5 overflow-y-auto flex-1">
         <AnimatePresence initial={false}>
           {items.map(p => (
-            <motion.li
+            <Reorder.Item
               key={p.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10, transition: { duration: 0.2 } }}
-              className="group flex items-center gap-2.5 p-2 rounded border border-amber/10 hover:border-amber/30"
-              onMouseEnter={() => sfx.hover()}
+              value={p}
+              as="li"
+              whileDrag={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,179,0,0.4)' }}
+              className="group flex items-center gap-2.5 p-2 rounded border border-amber/10 hover:border-amber/30 bg-ink2/40 cursor-grab active:cursor-grabbing"
             >
+              <motion.span
+                onMouseEnter={() => sfx.hover()}
+                className="text-steel/60 group-hover:text-amber/70 cursor-grab"
+              >
+                <GripVertical size={12} />
+              </motion.span>
               <button
                 onClick={() => toggle(p.id)}
                 className={'w-5 h-5 rounded-sm border flex items-center justify-center transition ' +
@@ -75,10 +83,13 @@ export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
               <button onClick={() => remove(p.id)} className="opacity-0 group-hover:opacity-100 text-steel hover:text-danger transition">
                 <Trash2 size={12} />
               </button>
-            </motion.li>
+            </Reorder.Item>
           ))}
         </AnimatePresence>
-      </ul>
+      </Reorder.Group>
+      <div className="mt-2 pt-2 border-t border-amber/10 font-mono text-[10px] tracking-[0.18em] uppercase text-steel">
+        drag to reorder
+      </div>
     </Panel>
   );
 }

@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, Sun, Moon, Wind, Cloud, CloudRain, CloudFog, CloudLightning, CloudSnow } from 'lucide-react';
 import { fetchWeather, fetchMarkets, WeatherSnap, MarketTick } from '../lib/external';
 import { operator } from '../kaiConfig';
+import FocusTile from './FocusTile';
+import NewsTicker from './NewsTicker';
 
 function iconForCode(code: number, isDay: boolean) {
   if ([0, 1].includes(code)) return isDay ? Sun : Moon;
@@ -105,13 +107,18 @@ export default function IntelStrip({ delay = 0 }: { delay?: number }) {
         )}
       </Tile>
 
+      {/* Focus / Pomodoro */}
+      <FocusTile delay={delay + 0.10} />
+
       {/* KAI uptime */}
-      <Tile delay={delay + 0.10}>
+      <Tile delay={delay + 0.15}>
         <UptimeBlock />
       </Tile>
     </div>
   );
 }
+
+export function NewsRow() { return <NewsTicker />; }
 
 function UptimeBlock() {
   const [boot] = useState<number>(() => {
