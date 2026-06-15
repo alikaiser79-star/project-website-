@@ -1,0 +1,182 @@
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronRight, Loader2, Sparkles, X } from 'lucide-react';
+import { runBuiltin } from '../lib/commands';
+import { askClaude } from '../lib/claude';
+import { sfx } from '../lib/sound';
+import { voice } from '../lib/speech';
+import { claudeConfig } from '../kaiConfig';
+import { emit } from '../hooks/useKaiPulse';
+
+type Turn = { you: string; kai: string; typing?: boolean };
+
+const suggestions = ['status', 'debt', 'income', 'tasks', 'garden', 'makadi', 'instagram'];
+
+type Props = { open: boolean; onClose: () => void; voiceOn: boolean };
+
+export default function CommandBar({ open, onClose, voiceOn }: Props) {
+  const [input, setInput] = useState('');
+  const [history, setHistory] = useState<Turn[]>([]);
+  const [thinking, setThinking] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 30);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && open) { onClose(); }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  async function submit(rawText?: string) {
+    const text = (rawText ?? input).trim();
+    if (!text || thinking) return;
+    setInput('');
+    emit('command');
+
+    // Built-in first
+    const built = runBuiltin(text);
+    if (built) {
+      addTurn(text, built);
+      return;
+    }
+
+    // Claude fallback
+    if (!claudeConfig.apiKey) {
+      addTurn(
+        text,
+        "I don't have an API key wired. Try: status, debt, income, tasks, garden, makadi, instagram. Or add VITE_ANTHROPIC_API_KEY to .env.local and I'll think it through.",
+      );
+      return;
+    }
+
+    setThinking(true);
+    addTurn(text, '', true);
+    try {
+      const reply = await askClaude(text);
+      replaceLast(reply);
+    } catch (e: any) {
+      replaceLast('API trouble — ' + (e?.message?.slice(0, 100) || 'unknown'));
+      sfx.error();
+    } finally {
+      setThinking(false);
+    }
+  }
+
+  function addTurn(you: string, kai: string, typing = false) {
+    setHistory(h => [...h, { you, kai, typing }]);
+    if (kai && !typing) speakIfOn(kai);
+  }
+  function replaceLast(kai: string) {
+    setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai, typing: false } : t));
+    speakIfOn(kai);
+  }
+  function speakIfOn(text: string) {
+    if (!voiceOn) return;
+    emit('speak-start');
+    sfx.speak();
+    voice.speak(text, undefined, () => emit('speak-end'));
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="cmd"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-[300] flex items-start justify-center pt-[12vh] px-4"
+          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+          style={{ background: 'rgba(10,14,20,0.7)', backdropFilter: 'blur(6px)' }}
+        >
+          <motion.div
+            initial={{ y: -10, scale: 0.97, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: -10, scale: 0.97, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="glass w-full max-w-[680px] rounded-md overflow-hidden"
+          >
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-amber/15">
+              <ChevronRight size={16} className="text-amber drop-shadow-[0_0_6px_rgba(255,179,0,0.5)]" />
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submit()}
+                placeholder="ask KAI anything — try “status”, “debt”, “tasks”…"
+                className="flex-1 bg-transparent outline-none font-mono text-bone text-[15px] tracking-wide placeholder:text-steel"
+              />
+              {thinking && <Loader2 size={14} className="animate-spin text-amber" />}
+              <button onClick={onClose} className="text-steel hover:text-amber"><X size={14} /></button>
+            </div>
+
+            {history.length === 0 && (
+              <div className="p-4">
+                <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel mb-2">suggested</div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => submit(s)}
+                      onMouseEnter={() => sfx.hover()}
+                      className="font-mono text-[11px] tracking-[0.15em] uppercase px-2.5 py-1 border border-amber/25 hover:border-amber hover:bg-amber/10 text-amber rounded"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                {!claudeConfig.apiKey && (
+                  <div className="mt-4 font-mono text-[11px] text-steel leading-relaxed flex gap-2">
+                    <Sparkles size={12} className="text-cyan mt-0.5 shrink-0" />
+                    Wire an Anthropic key in <span className="text-amber">.env.local</span> as <span className="text-amber">VITE_ANTHROPIC_API_KEY</span> and KAI will answer freely beyond these built-ins.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {history.length > 0 && (
+              <div className="max-h-[55vh] overflow-y-auto p-4 space-y-4">
+                {history.map((t, i) => (
+                  <div key={i} className="font-mono text-[13px] leading-relaxed">
+                    <div className="text-cyan/80"><span className="text-cyan">›</span> {t.you}</div>
+                    <div className="text-amber mt-1.5 pl-3 border-l border-amber/40">
+                      {t.typing ? <span className="text-amber/60">thinking<span className="animate-pulse-soft">…</span></span> : <Typed text={t.kai} />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-between px-4 py-2 border-t border-amber/15 font-mono text-[10px] tracking-[0.16em] uppercase text-steel">
+              <span><kbd>↵</kbd> send</span>
+              <span><kbd>Esc</kbd> close</span>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function Typed({ text }: { text: string }) {
+  const [shown, setShown] = useState('');
+  useEffect(() => {
+    setShown('');
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setShown(text.slice(0, i));
+      if (i >= text.length) clearInterval(id);
+    }, 14);
+    return () => clearInterval(id);
+  }, [text]);
+  return <span>{shown}<span className="opacity-50 animate-pulse-soft">▍</span></span>;
+}
