@@ -7,6 +7,7 @@ import { useUI } from "../context/UIContext.jsx";
 
 const PROGRAM_ITEMS = [
   { id: "programs", label: "Swim Programs", desc: "Lessons, clinics & family events" },
+  { id: "showcases", label: "Showcases & Events", desc: "Upcoming nights, competitions & brunches" },
   { id: "testimonials", label: "From Our Families", desc: "What girls, parents & adults say" },
   { id: "faq", label: "Common Questions", desc: "Trial, fit, schedule, cancellation" },
   { id: "careers", label: "Careers", desc: "Coach with us" },

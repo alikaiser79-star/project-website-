@@ -155,6 +155,49 @@ export const FAQ = [
   },
 ];
 
+export const SHOWCASES = [
+  {
+    id: "s1",
+    date: "2026-07-19",
+    time: "6:00 PM",
+    title: "Summer Sparkle Showcase",
+    subtitle: "Tiny Swans & Junior Mermaids",
+    desc: "Our youngest swimmers' first big night under the lights — with parent seating, photo wall and a sparkle-themed afterparty.",
+    accent: "from-blossom/40 to-lavender/30",
+    badge: "Family Event",
+  },
+  {
+    id: "s2",
+    date: "2026-08-23",
+    time: "7:30 PM",
+    title: "Rising Stars Showcase",
+    subtitle: "Pre-competitive team",
+    desc: "An evening of choreographed routines, group lifts and original music — a celebration of months of careful work.",
+    accent: "from-coral/40 to-blossom/30",
+    badge: "Showcase",
+  },
+  {
+    id: "s3",
+    date: "2026-09-14",
+    time: "All weekend",
+    title: "Regional Invitational",
+    subtitle: "Elite Corps competes",
+    desc: "Our top tier travels for the annual regional invitational. Families are invited to come cheer — bus + accommodation block available.",
+    accent: "from-aqua/40 to-lavender/30",
+    badge: "Competition",
+  },
+  {
+    id: "s4",
+    date: "2026-10-26",
+    time: "10:00 AM",
+    title: "Adult Showcase & Brunch",
+    subtitle: "Adult Water Ballet",
+    desc: "A relaxed Sunday-morning showcase by our adult ballet members — followed by mimosas, pastries and lots of celebration.",
+    accent: "from-lavender/40 to-sparkle/30",
+    badge: "Adults",
+  },
+];
+
 // Adult programs — for moms, women, and grown-ups who want
 // to swim, move and find their own water-ballet grace.
 export const ADULTS = [

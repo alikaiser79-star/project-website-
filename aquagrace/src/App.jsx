@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer.jsx";
 import AuthModal from "./components/AuthModal.jsx";
 import WhatsAppButton from "./components/WhatsAppButton.jsx";
+import ScrollToTop from "./components/ScrollToTop.jsx";
 import Home from "./pages/Home.jsx";
 import MemberPortal from "./pages/MemberPortal.jsx";
 import MembershipCheck from "./pages/MembershipCheck.jsx";
@@ -20,6 +21,7 @@ export default function App() {
       <Footer />
       <AuthModal />
       <WhatsAppButton />
+      <ScrollToTop />
     </div>
   );
 }

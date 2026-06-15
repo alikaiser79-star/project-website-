@@ -5,6 +5,7 @@ import Adults from "../sections/Adults.jsx";
 import Safety from "../sections/Safety.jsx";
 import Membership from "../sections/Membership.jsx";
 import Testimonials from "../sections/Testimonials.jsx";
+import Showcases from "../sections/Showcases.jsx";
 import About from "../sections/About.jsx";
 import Faq from "../sections/Faq.jsx";
 import Careers from "../sections/Careers.jsx";
@@ -20,6 +21,7 @@ export default function Home() {
       <Safety />
       <Membership />
       <Testimonials />
+      <Showcases />
       <About />
       <Faq />
       <Careers />

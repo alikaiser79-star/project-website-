@@ -47,9 +47,9 @@ export default function Footer() {
                 ["ballet", "Water Ballet"],
                 ["programs", "Programs"],
                 ["adults", "For Adults"],
+                ["showcases", "Showcases"],
                 ["membership", "Memberships"],
                 ["faq", "Common Questions"],
-                ["careers", "Careers"],
               ].map(([id, label]) => (
                 <li key={id}>
                   <button onClick={() => go(id)} className="text-white/75 transition hover:text-blossom">
