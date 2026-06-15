@@ -151,6 +151,45 @@ export const TIERS = [
   },
 ];
 
+export const TESTIMONIALS = [
+  {
+    id: "t1",
+    voice: "Parent",
+    name: "Priya R.",
+    role: "Mom of Aria, age 10",
+    quote:
+      "Aria came home from her first Junior Mermaids class glowing — and she's been counting down to Tuesdays ever since. The coaches are warm, attentive, and clearly love what they do.",
+    color: "from-blossom/20 to-lavender/10",
+  },
+  {
+    id: "t2",
+    voice: "Swimmer",
+    name: "Layla, age 13",
+    role: "Rising Stars",
+    quote:
+      "I used to be scared of putting my head underwater. Now I'm doing lifts and choreography with my best friends on the team. I feel really brave here.",
+    color: "from-coral/20 to-blossom/10",
+  },
+  {
+    id: "t3",
+    voice: "Parent",
+    name: "Marcus &amp; Elena T.",
+    role: "Dads of Sofia, age 7",
+    quote:
+      "What sold us was the safety walk-through on day one — ratios, drills, the AED on deck. Sofia has so much fun she doesn't even notice how thoughtful everything is.",
+    color: "from-lavender/20 to-aqua/10",
+  },
+  {
+    id: "t4",
+    voice: "Swimmer",
+    name: "Yumi, age 15",
+    role: "Elite Corps",
+    quote:
+      "Helping the younger girls in Tiny Swans on Saturdays has changed how I see myself. AquaGrace built me up, and now I get to do that for someone else.",
+    color: "from-sparkle/20 to-coral/10",
+  },
+];
+
 export const COACHES = [
   { name: "Marina Voss", role: "Head Coach", spec: "Olympic-distance freestyle", initials: "MV" },
   { name: "Daniel Park", role: "Performance Coach", spec: "Sprint & race strategy", initials: "DP" },

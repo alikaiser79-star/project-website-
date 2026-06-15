@@ -6,11 +6,10 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useUI } from "../context/UIContext.jsx";
 
 const PROGRAM_ITEMS = [
-  { id: "programs", label: "Splash & Smile Lessons", desc: "Confident first lessons for ages 4–12" },
-  { id: "programs", label: "Stroke Stars Clinics", desc: "Coaching for rising swimmers" },
-  { id: "programs", label: "Family Pool Parties", desc: "Themed swim nights & open swim" },
-  { id: "programs", label: "Find My Level", desc: "Match her to the right program in 90 sec" },
+  { id: "programs", label: "Swim Programs", desc: "Lessons, clinics & family events" },
+  { id: "testimonials", label: "From Our Families", desc: "What girls and parents say" },
   { id: "safety", label: "S.A.F.E.R. Promise", desc: "Our 5-pillar safety covenant for parents" },
+  { id: "contact", label: "Visit Us", desc: "Location, phone, and contact form" },
 ];
 
 const NAV_LINKS = [
@@ -53,8 +52,7 @@ export default function Navbar() {
     setMobileOpen(false);
     if (window.location.pathname !== "/") navigate("/");
     requestAnimationFrame(() => {
-      const target = id.startsWith("programs") ? "programs" : id;
-      const el = document.getElementById(target);
+      const el = document.getElementById(id);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   };
