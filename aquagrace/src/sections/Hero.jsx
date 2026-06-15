@@ -106,7 +106,11 @@ export default function Hero() {
             a safety promise we live by every single session. <span className="font-semibold text-blossom">Grown-ups</span>{" "}
             — we have classes for you too.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-sparkle/40 bg-sparkle/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-sparkle">
+            <Sparkle className="h-3.5 w-3.5" /> Your first class is always free
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
             <button onClick={handlePrimary} className="btn-primary">
               <Heart className="h-4 w-4" /> {isAuthed ? "Open Member Portal" : "Join the Magic"}
             </button>

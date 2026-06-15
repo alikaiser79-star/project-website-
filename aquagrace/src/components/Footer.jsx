@@ -48,7 +48,7 @@ export default function Footer() {
                 ["programs", "Programs"],
                 ["adults", "For Adults"],
                 ["membership", "Memberships"],
-                ["safety", "Safety"],
+                ["faq", "Common Questions"],
                 ["careers", "Careers"],
               ].map(([id, label]) => (
                 <li key={id}>

@@ -7,8 +7,9 @@ import { useUI } from "../context/UIContext.jsx";
 
 const PROGRAM_ITEMS = [
   { id: "programs", label: "Swim Programs", desc: "Lessons, clinics & family events" },
-  { id: "testimonials", label: "From Our Families", desc: "What girls and parents say" },
-  { id: "safety", label: "S.A.F.E.R. Promise", desc: "Our 5-pillar safety covenant for parents" },
+  { id: "testimonials", label: "From Our Families", desc: "What girls, parents & adults say" },
+  { id: "faq", label: "Common Questions", desc: "Trial, fit, schedule, cancellation" },
+  { id: "careers", label: "Careers", desc: "Coach with us" },
   { id: "contact", label: "Visit Us", desc: "Location, phone, and contact form" },
 ];
 

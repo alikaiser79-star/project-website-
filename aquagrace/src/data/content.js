@@ -112,6 +112,49 @@ export const BALLET = [
   },
 ];
 
+export const FAQ = [
+  {
+    id: "f1",
+    q: "Is the first class really free?",
+    a: "Yes. Every new family or adult swimmer gets one complimentary trial class — no payment info needed up front. Book it from your member portal after creating a free account.",
+  },
+  {
+    id: "f2",
+    q: "My daughter has never swum before. Is that okay?",
+    a: "Absolutely. Our Tiny Swans and Splash & Smile classes are designed for first-timers. Coaches start in the shallow end and only progress when she feels ready — no pressure, ever.",
+  },
+  {
+    id: "f3",
+    q: "What does she need to wear or bring?",
+    a: "A one-piece swimsuit, goggles and a towel. For water-ballet tiers we provide nose clips and group-specific accessories at no extra cost during her first month.",
+  },
+  {
+    id: "f4",
+    q: "How big are the classes?",
+    a: "Group classes are capped at six girls per coach. Adult classes cap at eight per coach. We never compromise on the 1:6 ratio, and there is always a dedicated lifeguard on deck.",
+  },
+  {
+    id: "f5",
+    q: "Can adults really do water ballet without dance experience?",
+    a: "Yes — about 70% of our Adult Water Ballet members started with zero dance background. We coach the fundamentals from week one and ease into choreography over the season.",
+  },
+  {
+    id: "f6",
+    q: "What is your cancellation policy?",
+    a: "Cancel any class up to 4 hours in advance from your member portal — no penalty, the session credit goes back to your balance. Memberships can be paused or cancelled any time with no fees.",
+  },
+  {
+    id: "f7",
+    q: "Do you accommodate accessibility needs?",
+    a: "Yes. We have pool lifts, sensory-friendly session slots and coaches trained in adaptive swim instruction. Tell us about your needs at signup or in the booking notes and we'll plan together.",
+  },
+  {
+    id: "f8",
+    q: "Are showcases mandatory?",
+    a: "Never. Showcases are a beautiful tradition, but every girl and adult chooses for herself. Coaches help her decide what feels right — and there is no pressure either way.",
+  },
+];
+
 // Adult programs — for moms, women, and grown-ups who want
 // to swim, move and find their own water-ballet grace.
 export const ADULTS = [
