@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Volume2, Mic, Palette, RotateCcw, User } from 'lucide-react';
+import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload } from 'lucide-react';
 import { loadState, saveState, defaults } from '../lib/store';
 import type { KaiSettings, Accent } from '../types';
 import { sfx } from '../lib/sound';
@@ -38,6 +38,33 @@ export default function SettingsDrawer({ open, onClose, onSettings }: Props) {
     try { localStorage.removeItem('kai.state.v1'); } catch {}
     toast.warn('Local state cleared. Reloading…');
     setTimeout(() => location.reload(), 700);
+  }
+
+  function exportState() {
+    const payload = loadState();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kai-state-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.ok('State exported.', 'BACKUP', 3000);
+  }
+
+  function importState(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        localStorage.setItem('kai.state.v1', JSON.stringify(parsed));
+        toast.ok('State imported. Reloading…');
+        setTimeout(() => location.reload(), 700);
+      } catch {
+        toast.err('Could not parse that file.');
+      }
+    };
+    reader.readAsText(file);
   }
 
   return (
@@ -134,6 +161,29 @@ export default function SettingsDrawer({ open, onClose, onSettings }: Props) {
                 </div>
                 <p className="mt-2 text-[10px] text-steel leading-relaxed">
                   Recolours the KAI Core orb and a few highlights. The UI palette stays amber.
+                </p>
+              </Section>
+
+              <Section icon={<Download size={12} />} title="Backup">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={exportState}
+                    className="flex items-center justify-center gap-1.5 px-2 py-2 border border-amber/40 text-amber hover:border-amber hover:shadow-glow-amber rounded text-[11px] tracking-[0.14em] uppercase"
+                  >
+                    <Download size={12} /> Export
+                  </button>
+                  <label className="flex items-center justify-center gap-1.5 px-2 py-2 border border-amber/40 text-amber hover:border-amber hover:shadow-glow-amber rounded text-[11px] tracking-[0.14em] uppercase cursor-pointer">
+                    <Upload size={12} /> Import
+                    <input
+                      type="file"
+                      accept="application/json"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) importState(f); }}
+                    />
+                  </label>
+                </div>
+                <p className="mt-2 text-[10px] text-steel leading-relaxed">
+                  Download a JSON snapshot of all KAI state, or load one back.
                 </p>
               </Section>
 

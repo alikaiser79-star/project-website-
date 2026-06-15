@@ -8,6 +8,7 @@ import NewsTicker from './NewsTicker';
 import MapTile from './MapTile';
 import InsightsTile from './InsightsTile';
 import HabitsTile from './HabitsTile';
+import AgendaTile from './AgendaTile';
 
 function iconForCode(code: number, isDay: boolean) {
   if ([0, 1].includes(code)) return isDay ? Sun : Moon;
@@ -122,8 +123,11 @@ export default function IntelStrip({ delay = 0 }: { delay?: number }) {
       {/* Holdings map */}
       <MapTile delay={delay + 0.25} />
 
+      {/* Agenda — next events + reminders */}
+      <AgendaTile delay={delay + 0.30} />
+
       {/* KAI uptime */}
-      <Tile delay={delay + 0.30}>
+      <Tile delay={delay + 0.35}>
         <UptimeBlock />
       </Tile>
     </div>

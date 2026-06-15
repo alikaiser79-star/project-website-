@@ -3,6 +3,7 @@ import { X, Keyboard } from 'lucide-react';
 
 const rows: Array<[string[], string]> = [
   [['⌘', 'K'],  'Open command bar'],
+  [['⌘', '/'],  'Spotlight search'],
   [['Esc'],     'Close any overlay'],
   [['V'],       'Toggle voice recognition'],
   [['M'],       'Toggle UI sound'],

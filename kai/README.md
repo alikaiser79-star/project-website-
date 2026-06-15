@@ -62,15 +62,17 @@ The default model is `claude-sonnet-4-6` (Sonnet 4.6). Edit
 
 ## Keyboard
 
-| Key             | Action                  |
-| --------------- | ----------------------- |
-| `⌘K` / `Ctrl-K` | Open command bar        |
-| `S`             | Open settings drawer    |
-| `V`             | Toggle voice            |
-| `M`             | Mute / unmute sound     |
-| `?`             | Keyboard cheatsheet     |
-| `Esc`           | Close any overlay       |
-| `Enter`         | Send command            |
+| Key             | Action                              |
+| --------------- | ----------------------------------- |
+| `⌘K` / `Ctrl-K` | Open command bar                    |
+| `⌘/` / `Ctrl-/` | Spotlight search (everything)       |
+| `⌘J` / `Ctrl-J` | Journal · quick capture             |
+| `S`             | Open settings drawer                |
+| `V`             | Toggle voice                        |
+| `M`             | Mute / unmute sound                 |
+| `?`             | Keyboard cheatsheet                 |
+| `Esc`           | Close any overlay                   |
+| `Enter`         | Send command                        |
 
 ## Settings & live intel
 
@@ -156,20 +158,38 @@ drawer. Type a thought, `⌘↵` to save. Entries are persisted to
 `localStorage`, listed newest-first, deletable on hover. The drawer
 shows total entry count and timestamps each.
 
-## Insights, Habits, Map
+## Spotlight search
 
-The intel strip below the main grid now includes:
+`⌘/` (or `Ctrl-/`) opens a unified search across priorities, journal
+entries, habits, chat history, pending reminders, and built-in
+commands. Arrow keys navigate, `↵` opens (commands run immediately
+through the built-in resolver and KAI replies as a toast / voice).
+
+## Reminders
+
+Type or say **"remind me in 30 minutes to call Mira"** —
+KAI schedules a future toast + voice ping. Reminders persist to
+`localStorage` and are re-armed on the next boot, so closing the tab
+won't lose them. Pending reminders surface in the Agenda tile in the
+intel strip.
+
+## Backup
+
+`Settings → Backup` exports the entire KAI state as a JSON file
+(`kai-state-YYYY-MM-DD.json`). Import the same shape back to restore.
+A "danger zone" reset wipes everything.
+
+## Insights, Habits, Map, Agenda
+
+The intel strip below the main grid includes:
 
 - **Insights** — KAI rotates through data-driven observations
-  computed locally from your state (debt pace, open priority count,
-  income runway in EUR, fix-lock reminder, event countdown, top habit
-  streak).
+  computed locally from your state.
 - **Habits** — four daily habits, tap to check, streak counter on each.
-  Defaults are editable in `kaiConfig.ts → defaultPriorities` (and
-  habits seed in `store.ts → defaults.habits`).
 - **Holdings map** — a hand-traced SVG of Egypt with animated pulsing
-  pins on Cairo (Hidden Garden) and Makadi (Airbnb) and a dashed
-  travel route between them.
+  pins on Cairo (Hidden Garden) and Makadi (Airbnb).
+- **Agenda** — next few items (garden event, Makadi check-in, pending
+  reminders), with relative day tags.
 
 ## Voice
 

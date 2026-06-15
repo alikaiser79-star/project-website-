@@ -19,6 +19,8 @@ export type JournalEntry = { id: string; text: string; at: string };
 /* habit.history: ISO-day strings the habit was checked on */
 export type Habit = { id: string; label: string; history: string[] };
 
+export type Reminder = { id: string; text: string; at: string; fired?: boolean };
+
 export type KaiPersisted = {
   priorities: Priority[];
   settings: KaiSettings;
@@ -26,4 +28,5 @@ export type KaiPersisted = {
   history: ChatTurn[];
   journal: JournalEntry[];
   habits: Habit[];
+  reminders: Reminder[];
 };

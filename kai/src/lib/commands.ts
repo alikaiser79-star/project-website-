@@ -8,6 +8,7 @@ import {
 import { loadState } from './store';
 import { focusTimer } from './focusTimer';
 import { addJournal } from './journal';
+import { addReminder, parseDuration } from './reminders';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -74,6 +75,18 @@ export function runBuiltin(cmd: string): CmdResult | null {
 
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
     return briefing();
+  }
+
+  /* Reminders: "remind me in 30 minutes to call Mira" */
+  const remM = cmd.match(/^(?:remind me|reminder)\s+(?:in\s+)?(.+?)\s+(?:to|that|about)\s+(.+)$/i);
+  if (remM) {
+    const ms = parseDuration(remM[1]);
+    if (ms) {
+      const at = new Date(Date.now() + ms).toISOString();
+      addReminder(remM[2], at);
+      const minutes = Math.round(ms / 60_000);
+      return `Reminder set for ${minutes} minute${minutes === 1 ? '' : 's'} from now — ${remM[2]}.`;
+    }
   }
 
   /* Journal capture: "note that …", "journal …", "log …", "remember …" */

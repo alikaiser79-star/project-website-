@@ -22,6 +22,7 @@ export const defaults: KaiPersisted = {
     { id: 'h3', label: 'Garden visit', history: [] },
     { id: 'h4', label: 'No takeaway',  history: [] },
   ],
+  reminders: [],
 };
 
 export function loadState(): KaiPersisted {
@@ -36,6 +37,7 @@ export function loadState(): KaiPersisted {
       priorities: parsed.priorities && parsed.priorities.length ? parsed.priorities : defaults.priorities,
       journal: parsed.journal ?? [],
       habits: parsed.habits && parsed.habits.length ? parsed.habits : defaults.habits,
+      reminders: parsed.reminders ?? [],
     };
   } catch { return { ...defaults }; }
 }

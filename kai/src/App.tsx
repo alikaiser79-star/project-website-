@@ -9,7 +9,9 @@ import CommandBar from './components/CommandBar';
 import SettingsDrawer from './components/SettingsDrawer';
 import CheatSheet from './components/CheatSheet';
 import JournalDrawer from './components/JournalDrawer';
+import Spotlight from './components/Spotlight';
 import ToastStack from './components/ToastStack';
+import { resumeReminders } from './lib/reminders';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import OrbAudio from './components/OrbAudio';
 import { briefing } from './lib/commands';
@@ -35,6 +37,7 @@ export default function App() {
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [spotOpen, setSpotOpen] = useState(false);
   const [settings, setSettings] = useState<KaiSettings>(initial.settings);
 
   const onSettings = useCallback((s: KaiSettings) => {
@@ -90,6 +93,12 @@ export default function App() {
         sfx.whoosh();
         return;
       }
+      if (mod && e.key === '/') {
+        e.preventDefault();
+        setSpotOpen(o => !o);
+        sfx.whoosh();
+        return;
+      }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const k = e.key.toLowerCase();
       if (k === 'm') { const next = { ...settings, soundEnabled: !settings.soundEnabled }; saveSettings(next); sfx.click(); }
@@ -111,6 +120,9 @@ export default function App() {
     if (!booted) return;
     const tl = gsap.timeline();
     tl.from('.kai-core-wrap', { scale: 0.6, opacity: 0, duration: 1.1, ease: 'power3.out' });
+
+    // Re-arm any pending reminders from previous sessions
+    resumeReminders();
 
     setTimeout(() => {
       toast.ok(`Welcome back, ${settings.operatorName}. All systems nominal.`, 'KAI');
@@ -207,8 +219,8 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
             className="glass flex items-center justify-between px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
           >
-            <span>kai · v1.3.0</span>
-            <span><kbd>⌘</kbd><kbd>K</kbd> commands · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts</span>
+            <span>kai · v1.4.0</span>
+            <span><kbd>⌘</kbd><kbd>K</kbd> cmd · <kbd>⌘</kbd><kbd>/</kbd> search · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts</span>
             <span className="text-amber">◊ presence stable</span>
           </motion.footer>
         </div>
@@ -217,6 +229,21 @@ export default function App() {
       <CommandBar open={cmdOpen} onClose={() => setCmdOpen(false)} settings={settings} />
       <SettingsDrawer open={setOpen} onClose={() => setSetOpen(false)} onSettings={onSettings} />
       <JournalDrawer open={journalOpen} onClose={() => setJournalOpen(false)} />
+      <Spotlight
+        open={spotOpen}
+        onClose={() => setSpotOpen(false)}
+        runCommand={(q) => {
+          const reply = runBuiltin(q);
+          if (reply) {
+            emit('command');
+            toast.ok(reply, 'KAI', 6500);
+            if (settings.voiceEnabled) {
+              emit('speak-start');
+              voice.speak(reply, { rate: settings.voiceRate, pitch: settings.voicePitch, voiceName: settings.voiceName }, () => emit('speak-end'));
+            }
+          }
+        }}
+      />
       <CheatSheet open={cheatOpen} onClose={() => setCheatOpen(false)} />
       <ToastStack />
     </>
