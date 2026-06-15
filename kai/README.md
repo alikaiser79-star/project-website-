@@ -158,6 +158,34 @@ drawer. Type a thought, `⌘↵` to save. Entries are persisted to
 `localStorage`, listed newest-first, deletable on hover. The drawer
 shows total entry count and timestamps each.
 
+## Streaming Claude + progressive speech
+
+When an Anthropic key is wired, the command bar uses the Anthropic
+**streaming** endpoint. KAI's reply renders progressively as deltas
+arrive (with a caret marker until the stream closes). If voice is on,
+KAI **speaks sentence-by-sentence** — each completed sentence is queued
+to `speechSynthesis` as soon as the punctuation lands, instead of
+waiting for the full reply. The orb pulses in sync the whole way
+through, and a watcher emits `speak-end` when the synthesis queue
+drains.
+
+## Long-term goals
+
+A Goals tile in the intel strip tracks four headline objectives —
+clear the credit card, build an emergency fund, scale Hidden Garden
+plants and grow `@hiddengarden.eg`. Each row has a progress bar that
+glows green when complete. Hover a row to reveal a quick `+1k` / `-1k`
+button. Defaults live in `kaiConfig.ts → defaultGoals`; current values
+persist to `localStorage`.
+
+## Idle / standby
+
+After 5 minutes of no mouse, keyboard, touch or scroll input, the HUD
+slips into standby — panels dim and blur, the orb keeps its glow, and
+a soft "STANDBY — MOVE TO WAKE" watermark pulses near the bottom. Any
+input wakes the HUD back up; hovering a panel temporarily restores it
+without a full wake.
+
 ## Spotlight search
 
 `⌘/` (or `Ctrl-/`) opens a unified search across priorities, journal

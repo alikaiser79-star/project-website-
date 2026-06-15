@@ -12,7 +12,7 @@ export type KaiSettings = {
   operatorName: string;
 };
 
-export type ChatTurn = { you: string; kai: string; at: string };
+export type ChatTurn = { you: string; kai: string; at: string; streamed?: boolean };
 
 export type JournalEntry = { id: string; text: string; at: string };
 
@@ -20,6 +20,9 @@ export type JournalEntry = { id: string; text: string; at: string };
 export type Habit = { id: string; label: string; history: string[] };
 
 export type Reminder = { id: string; text: string; at: string; fired?: boolean };
+
+/* Track in-progress numbers per goal (target/label live in kaiConfig). */
+export type GoalState = { id: string; current: number };
 
 export type KaiPersisted = {
   priorities: Priority[];
@@ -29,4 +32,5 @@ export type KaiPersisted = {
   journal: JournalEntry[];
   habits: Habit[];
   reminders: Reminder[];
+  goals: GoalState[];
 };

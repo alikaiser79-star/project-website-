@@ -78,6 +78,24 @@ export const instagram = {
   ],
 };
 
+/* ── LONG-TERM GOALS ──────────────────────────────────── */
+export type Goal = {
+  id: string;
+  label: string;
+  current: number;
+  target: number;
+  unit: string;
+  /* Lower current is "better" for paydown-style goals. */
+  lowerIsBetter?: boolean;
+};
+
+export const defaultGoals: Goal[] = [
+  { id: 'g-debt',     label: 'Clear credit card',    current: 41500, target: 0,    unit: 'EGP', lowerIsBetter: true },
+  { id: 'g-savings',  label: 'Emergency fund',       current: 32000, target: 100000, unit: 'EGP' },
+  { id: 'g-plants',   label: 'Hidden Garden plants', current: 112,   target: 200,    unit: '' },
+  { id: 'g-ig',       label: '@hiddengarden.eg',     current: 8640,  target: 25000,  unit: 'followers' },
+];
+
 /* ── PRIORITIES (default list when KAI first boots) ───── */
 export const defaultPriorities = [
   { id: 'p1', text: 'Pay 6,000 EGP toward credit card',     done: false },

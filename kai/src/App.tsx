@@ -12,6 +12,7 @@ import JournalDrawer from './components/JournalDrawer';
 import Spotlight from './components/Spotlight';
 import ToastStack from './components/ToastStack';
 import { resumeReminders } from './lib/reminders';
+import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import OrbAudio from './components/OrbAudio';
 import { briefing } from './lib/commands';
@@ -38,6 +39,7 @@ export default function App() {
   const [cheatOpen, setCheatOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
   const [spotOpen, setSpotOpen] = useState(false);
+  const idle = useIdle(5 * 60_000);
   const [settings, setSettings] = useState<KaiSettings>(initial.settings);
 
   const onSettings = useCallback((s: KaiSettings) => {
@@ -162,8 +164,12 @@ export default function App() {
 
       {!booted && <Boot onDone={() => setBooted(true)} />}
 
+      {booted && idle && (
+        <div className="idle-watermark">◊ standby — move to wake</div>
+      )}
+
       {booted && (
-        <div className="relative z-10 h-full p-4 flex flex-col gap-4">
+        <div className={'relative z-10 h-full p-4 flex flex-col gap-4 ' + (idle ? 'idle-mode' : '')}>
           <TopBar
             onCmdK={() => setCmdOpen(true)}
             onSettings={() => setSetOpen(true)}
@@ -219,7 +225,7 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
             className="glass flex items-center justify-between px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
           >
-            <span>kai · v1.4.0</span>
+            <span>kai · v1.5.0</span>
             <span><kbd>⌘</kbd><kbd>K</kbd> cmd · <kbd>⌘</kbd><kbd>/</kbd> search · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts</span>
             <span className="text-amber">◊ presence stable</span>
           </motion.footer>

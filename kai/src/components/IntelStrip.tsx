@@ -9,6 +9,7 @@ import MapTile from './MapTile';
 import InsightsTile from './InsightsTile';
 import HabitsTile from './HabitsTile';
 import AgendaTile from './AgendaTile';
+import GoalsTile from './GoalsTile';
 
 function iconForCode(code: number, isDay: boolean) {
   if ([0, 1].includes(code)) return isDay ? Sun : Moon;
@@ -126,8 +127,11 @@ export default function IntelStrip({ delay = 0 }: { delay?: number }) {
       {/* Agenda — next events + reminders */}
       <AgendaTile delay={delay + 0.30} />
 
+      {/* Long-term goals */}
+      <GoalsTile delay={delay + 0.35} />
+
       {/* KAI uptime */}
-      <Tile delay={delay + 0.35}>
+      <Tile delay={delay + 0.40}>
         <UptimeBlock />
       </Tile>
     </div>

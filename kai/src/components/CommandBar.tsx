@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronRight, Loader2, Sparkles, X, Trash2 } from 'lucide-react';
 import { runBuiltin } from '../lib/commands';
-import { askClaude } from '../lib/claude';
+import { askClaude, askClaudeStream } from '../lib/claude';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { claudeConfig } from '../kaiConfig';
@@ -64,11 +64,51 @@ export default function CommandBar({ open, onClose, settings }: Props) {
     setThinking(true);
     pushTurn(text, '');
     try {
-      const reply = await askClaude(text, history);
-      replaceLast(reply);
+      // Streaming path: KAI talks sentence-by-sentence as deltas arrive.
+      if (settings.voiceEnabled) emit('speak-start');
+      let acc = '';
+      let speechBuf = '';
+      const flushSpeech = (force = false) => {
+        if (!settings.voiceEnabled) return;
+        // Speak whenever the buffer ends with sentence punctuation,
+        // or when forced (end of stream).
+        const m = force
+          ? [speechBuf]
+          : speechBuf.match(/[^.!?\n]+[.!?]+["')\]]?/g);
+        if (!m) return;
+        for (const piece of m) {
+          const trimmed = piece.trim();
+          if (!trimmed) continue;
+          voice.enqueue(trimmed, {
+            rate: settings.voiceRate, pitch: settings.voicePitch, voiceName: settings.voiceName,
+          });
+          speechBuf = speechBuf.replace(piece, '');
+        }
+        if (force) speechBuf = '';
+      };
+
+      const reply = await askClaudeStream(text, history, (chunk) => {
+        acc += chunk;
+        speechBuf += chunk;
+        setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai: acc, streamed: true } : t));
+        flushSpeech(false);
+      });
+      flushSpeech(true);
+      setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai: reply || acc, streamed: true } : t));
+
+      // When the synthesis queue drains, emit speak-end.
+      if (settings.voiceEnabled) {
+        const watch = setInterval(() => {
+          if (!('speechSynthesis' in window) || (!speechSynthesis.speaking && !speechSynthesis.pending)) {
+            clearInterval(watch);
+            emit('speak-end');
+          }
+        }, 250);
+      }
     } catch (e: any) {
       replaceLast('API trouble — ' + (e?.message?.slice(0, 100) || 'unknown'));
       sfx.error();
+      if (settings.voiceEnabled) emit('speak-end');
     } finally {
       setThinking(false);
     }
@@ -78,9 +118,9 @@ export default function CommandBar({ open, onClose, settings }: Props) {
     setHistory(h => [...h, { you, kai, at: new Date().toISOString() }]);
     if (kai) speakIfOn(kai);
   }
-  function replaceLast(kai: string) {
+  function replaceLast(kai: string, skipSpeak = false) {
     setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai } : t));
-    speakIfOn(kai);
+    if (!skipSpeak) speakIfOn(kai);
   }
   function speakIfOn(text: string) {
     if (!settings.voiceEnabled) return;
@@ -167,9 +207,11 @@ export default function CommandBar({ open, onClose, settings }: Props) {
                     <div className="text-cyan/80"><span className="text-cyan">›</span> {t.you}</div>
                     <div className="text-amber mt-1.5 pl-3 border-l border-amber/40">
                       {t.kai
-                        ? (i === history.length - 1 && !thinking
-                            ? <Typed text={t.kai} />
-                            : <span>{t.kai}</span>)
+                        ? (t.streamed
+                            ? <span>{t.kai}{i === history.length - 1 && thinking && <span className="opacity-50 animate-pulse-soft">▍</span>}</span>
+                            : i === history.length - 1 && !thinking
+                              ? <Typed text={t.kai} />
+                              : <span>{t.kai}</span>)
                         : <span className="text-amber/60">thinking<span className="animate-pulse-soft">…</span></span>}
                     </div>
                   </div>

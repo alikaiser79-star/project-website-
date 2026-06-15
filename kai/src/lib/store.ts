@@ -1,5 +1,5 @@
 import type { KaiPersisted } from '../types';
-import { defaultPriorities, debt, operator } from '../kaiConfig';
+import { defaultPriorities, defaultGoals, debt, operator } from '../kaiConfig';
 
 const KEY = 'kai.state.v1';
 
@@ -23,6 +23,7 @@ export const defaults: KaiPersisted = {
     { id: 'h4', label: 'No takeaway',  history: [] },
   ],
   reminders: [],
+  goals: defaultGoals.map(g => ({ id: g.id, current: g.current })),
 };
 
 export function loadState(): KaiPersisted {
@@ -38,6 +39,7 @@ export function loadState(): KaiPersisted {
       journal: parsed.journal ?? [],
       habits: parsed.habits && parsed.habits.length ? parsed.habits : defaults.habits,
       reminders: parsed.reminders ?? [],
+      goals: parsed.goals && parsed.goals.length ? parsed.goals : defaults.goals,
     };
   } catch { return { ...defaults }; }
 }

@@ -53,6 +53,12 @@ export class Voice {
   speak(text: string, opts: { rate?: number; pitch?: number; voiceName?: string } = {}, onEnd?: () => void) {
     if (!('speechSynthesis' in window)) { onEnd?.(); return; }
     speechSynthesis.cancel();
+    const u = this.buildUtterance(text, opts);
+    u.onend = () => onEnd?.();
+    speechSynthesis.speak(u);
+  }
+
+  private buildUtterance(text: string, opts: { rate?: number; pitch?: number; voiceName?: string }) {
     const u = new SpeechSynthesisUtterance(text);
     u.rate = opts.rate ?? 1.0;
     u.pitch = opts.pitch ?? 0.85;
@@ -63,7 +69,15 @@ export class Voice {
       if (match) chosen = match;
     }
     if (chosen) u.voice = chosen;
-    u.onend = () => onEnd?.();
+    return u;
+  }
+
+  /* Queue a sentence to be appended onto the currently speaking
+     stream — used by Claude streaming so the orb keeps speaking
+     sentence by sentence as the response arrives. */
+  enqueue(text: string, opts: { rate?: number; pitch?: number; voiceName?: string } = {}) {
+    if (!text.trim() || !('speechSynthesis' in window)) return;
+    const u = this.buildUtterance(text, opts);
     speechSynthesis.speak(u);
   }
 
