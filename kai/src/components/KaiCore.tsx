@@ -4,9 +4,17 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useKaiPulse } from '../hooks/useKaiPulse';
+import type { Accent } from '../types';
 
-function Orb() {
+const ACCENT_HEX: Record<Accent, string> = {
+  amber: '#FFB300',
+  cyan:  '#5FE3FF',
+  emerald: '#7AE6A8',
+};
+
+function Orb({ accent }: { accent: Accent }) {
   const { speaking, pulseTick, listening } = useKaiPulse();
+  const targetHex = ACCENT_HEX[accent];
   const ref = useRef<THREE.Mesh>(null!);
   const matRef = useRef<any>(null!);
   const pulseRef = useRef(0);
@@ -32,7 +40,8 @@ function Orb() {
       matRef.current.emissiveIntensity = 1.1 + Math.sin(t * 1.2) * 0.15
         + (speaking ? 0.5 : 0) + pulseRef.current * 0.6;
       if (listening) matRef.current.color.lerp(new THREE.Color('#5FE3FF'), 0.04);
-      else           matRef.current.color.lerp(new THREE.Color('#FFB300'), 0.04);
+      else           matRef.current.color.lerp(new THREE.Color(targetHex), 0.04);
+      matRef.current.emissive.lerp(new THREE.Color(targetHex), 0.05);
     }
   });
 
@@ -64,7 +73,7 @@ function Orb() {
   );
 }
 
-function Particles() {
+function Particles({ color = '#FFB300' }: { color?: string }) {
   const count = 900;
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);
@@ -87,7 +96,7 @@ function Particles() {
   });
   return (
     <Points ref={ref} positions={positions} stride={3}>
-      <PointMaterial transparent color="#FFB300" size={0.015} sizeAttenuation depthWrite={false} opacity={0.85} />
+      <PointMaterial transparent color={color} size={0.015} sizeAttenuation depthWrite={false} opacity={0.85} />
     </Points>
   );
 }
@@ -103,23 +112,24 @@ function Ring({ radius, color, tilt, speed, dashed }: { radius: number; color: s
   );
 }
 
-export default function KaiCore({ size = 460 }: { size?: number }) {
+export default function KaiCore({ size = 460, accent = 'amber' as Accent }: { size?: number; accent?: Accent }) {
+  const hex = ACCENT_HEX[accent];
+  const rgba = (a: number) => hex + Math.floor(a * 255).toString(16).padStart(2, '0');
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      {/* Soft outer glow halo */}
       <div
         className="absolute inset-0 rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(255,179,0,0.25) 0%, rgba(255,179,0,0.08) 30%, transparent 65%)', filter: 'blur(8px)' }}
+        style={{ background: `radial-gradient(circle, ${rgba(0.25)} 0%, ${rgba(0.08)} 30%, transparent 65%)`, filter: 'blur(8px)' }}
       />
       <Canvas camera={{ position: [0, 0, 3.6], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: true }}>
         <ambientLight intensity={0.3} />
-        <pointLight position={[3, 2, 4]}  intensity={1.8} color="#FFB300" />
+        <pointLight position={[3, 2, 4]}  intensity={1.8} color={hex} />
         <pointLight position={[-3, -2, 2]} intensity={0.8} color="#5FE3FF" />
-        <Orb />
-        <Particles />
-        <Ring radius={1.55} color="#FFB300" tilt={Math.PI/2.2} speed={0.04} />
+        <Orb accent={accent} />
+        <Particles color={hex} />
+        <Ring radius={1.55} color={hex} tilt={Math.PI/2.2} speed={0.04} />
         <Ring radius={1.78} color="#5FE3FF" tilt={Math.PI/1.6} speed={-0.03} dashed />
-        <Ring radius={2.05} color="#FFB300" tilt={Math.PI/3}   speed={0.02} dashed />
+        <Ring radius={2.05} color={hex} tilt={Math.PI/3}   speed={0.02} dashed />
         <EffectComposer>
           <Bloom intensity={0.9} luminanceThreshold={0.2} luminanceSmoothing={0.7} mipmapBlur />
         </EffectComposer>

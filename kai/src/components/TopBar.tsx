@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Command, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Command, Mic, MicOff, Volume2, VolumeX, Settings } from 'lucide-react';
 import { operator } from '../kaiConfig';
 import { sfx } from '../lib/sound';
 
 type Props = {
   onCmdK: () => void;
+  onSettings: () => void;
   voiceOn: boolean;
   setVoiceOn: (b: boolean) => void;
   soundOn: boolean;
   setSoundOn: (b: boolean) => void;
+  operatorName: string;
 };
 
 function fmtTime(d: Date) {
@@ -25,7 +27,7 @@ function fmtDate(d: Date) {
   }).toUpperCase();
 }
 
-export default function TopBar({ onCmdK, voiceOn, setVoiceOn, soundOn, setSoundOn }: Props) {
+export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundOn, setSoundOn, operatorName }: Props) {
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
@@ -46,7 +48,7 @@ export default function TopBar({ onCmdK, voiceOn, setVoiceOn, soundOn, setSoundO
         <span className="text-amber text-xl drop-shadow-[0_0_10px_rgba(255,179,0,0.55)]">◊</span>
         <div>
           <div className="font-mono text-[10px] tracking-[0.32em] text-steel uppercase">KAI · COMMAND CORE</div>
-          <div className="text-bone text-sm">{greet}<span className="text-amber">{operator.name}.</span></div>
+          <div className="text-bone text-sm">{greet}<span className="text-amber">{operatorName || operator.name}.</span></div>
         </div>
       </div>
 
@@ -78,6 +80,14 @@ export default function TopBar({ onCmdK, voiceOn, setVoiceOn, soundOn, setSoundO
           title="Toggle voice (V)"
         >
           {voiceOn ? <Mic size={14} /> : <MicOff size={14} />}
+        </button>
+        <button
+          onClick={() => { sfx.click(); onSettings(); }}
+          onMouseEnter={() => sfx.hover()}
+          className="px-2.5 py-1.5 rounded border border-amber/25 hover:border-amber hover:shadow-glow-amber text-amber/80 hover:text-amber transition"
+          title="Settings (S)"
+        >
+          <Settings size={14} />
         </button>
         <button
           onClick={() => { sfx.whoosh(); onCmdK(); }}

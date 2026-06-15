@@ -1,24 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronRight, Loader2, Sparkles, X } from 'lucide-react';
+import { ChevronRight, Loader2, Sparkles, X, Trash2 } from 'lucide-react';
 import { runBuiltin } from '../lib/commands';
 import { askClaude } from '../lib/claude';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { claudeConfig } from '../kaiConfig';
 import { emit } from '../hooks/useKaiPulse';
-
-type Turn = { you: string; kai: string; typing?: boolean };
+import { loadState, saveState } from '../lib/store';
+import type { ChatTurn, KaiSettings } from '../types';
 
 const suggestions = ['status', 'debt', 'income', 'tasks', 'garden', 'makadi', 'instagram'];
 
-type Props = { open: boolean; onClose: () => void; voiceOn: boolean };
+type Props = { open: boolean; onClose: () => void; settings: KaiSettings };
 
-export default function CommandBar({ open, onClose, voiceOn }: Props) {
+export default function CommandBar({ open, onClose, settings }: Props) {
   const [input, setInput] = useState('');
-  const [history, setHistory] = useState<Turn[]>([]);
+  const [history, setHistory] = useState<ChatTurn[]>(() => loadState().history || []);
   const [thinking, setThinking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -28,11 +29,17 @@ export default function CommandBar({ open, onClose, voiceOn }: Props) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && open) { onClose(); }
+      if (e.key === 'Escape' && open) onClose();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  // persist + autoscroll
+  useEffect(() => {
+    const s = loadState(); s.history = history.slice(-30); saveState(s);
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [history]);
 
   async function submit(rawText?: string) {
     const text = (rawText ?? input).trim();
@@ -40,16 +47,14 @@ export default function CommandBar({ open, onClose, voiceOn }: Props) {
     setInput('');
     emit('command');
 
-    // Built-in first
     const built = runBuiltin(text);
     if (built) {
-      addTurn(text, built);
+      pushTurn(text, built);
       return;
     }
 
-    // Claude fallback
     if (!claudeConfig.apiKey) {
-      addTurn(
+      pushTurn(
         text,
         "I don't have an API key wired. Try: status, debt, income, tasks, garden, makadi, instagram. Or add VITE_ANTHROPIC_API_KEY to .env.local and I'll think it through.",
       );
@@ -57,9 +62,9 @@ export default function CommandBar({ open, onClose, voiceOn }: Props) {
     }
 
     setThinking(true);
-    addTurn(text, '', true);
+    pushTurn(text, '');
     try {
-      const reply = await askClaude(text);
+      const reply = await askClaude(text, history);
       replaceLast(reply);
     } catch (e: any) {
       replaceLast('API trouble — ' + (e?.message?.slice(0, 100) || 'unknown'));
@@ -69,19 +74,27 @@ export default function CommandBar({ open, onClose, voiceOn }: Props) {
     }
   }
 
-  function addTurn(you: string, kai: string, typing = false) {
-    setHistory(h => [...h, { you, kai, typing }]);
-    if (kai && !typing) speakIfOn(kai);
+  function pushTurn(you: string, kai: string) {
+    setHistory(h => [...h, { you, kai, at: new Date().toISOString() }]);
+    if (kai) speakIfOn(kai);
   }
   function replaceLast(kai: string) {
-    setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai, typing: false } : t));
+    setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai } : t));
     speakIfOn(kai);
   }
   function speakIfOn(text: string) {
-    if (!voiceOn) return;
+    if (!settings.voiceEnabled) return;
     emit('speak-start');
     sfx.speak();
-    voice.speak(text, undefined, () => emit('speak-end'));
+    voice.speak(
+      text,
+      { rate: settings.voiceRate, pitch: settings.voicePitch, voiceName: settings.voiceName },
+      () => emit('speak-end'),
+    );
+  }
+  function clearChat() {
+    setHistory([]);
+    sfx.click();
   }
 
   return (
@@ -115,6 +128,11 @@ export default function CommandBar({ open, onClose, voiceOn }: Props) {
                 className="flex-1 bg-transparent outline-none font-mono text-bone text-[15px] tracking-wide placeholder:text-steel"
               />
               {thinking && <Loader2 size={14} className="animate-spin text-amber" />}
+              {history.length > 0 && (
+                <button onClick={clearChat} className="text-steel hover:text-danger" title="Clear chat">
+                  <Trash2 size={13} />
+                </button>
+              )}
               <button onClick={onClose} className="text-steel hover:text-amber"><X size={14} /></button>
             </div>
 
@@ -143,12 +161,16 @@ export default function CommandBar({ open, onClose, voiceOn }: Props) {
             )}
 
             {history.length > 0 && (
-              <div className="max-h-[55vh] overflow-y-auto p-4 space-y-4">
+              <div ref={scrollRef} className="max-h-[55vh] overflow-y-auto p-4 space-y-4">
                 {history.map((t, i) => (
                   <div key={i} className="font-mono text-[13px] leading-relaxed">
                     <div className="text-cyan/80"><span className="text-cyan">›</span> {t.you}</div>
                     <div className="text-amber mt-1.5 pl-3 border-l border-amber/40">
-                      {t.typing ? <span className="text-amber/60">thinking<span className="animate-pulse-soft">…</span></span> : <Typed text={t.kai} />}
+                      {t.kai
+                        ? (i === history.length - 1 && !thinking
+                            ? <Typed text={t.kai} />
+                            : <span>{t.kai}</span>)
+                        : <span className="text-amber/60">thinking<span className="animate-pulse-soft">…</span></span>}
                     </div>
                   </div>
                 ))}
@@ -157,7 +179,7 @@ export default function CommandBar({ open, onClose, voiceOn }: Props) {
 
             <div className="flex justify-between px-4 py-2 border-t border-amber/15 font-mono text-[10px] tracking-[0.16em] uppercase text-steel">
               <span><kbd>↵</kbd> send</span>
-              <span><kbd>Esc</kbd> close</span>
+              <span>{history.length} turn{history.length === 1 ? '' : 's'} · <kbd>Esc</kbd> close</span>
             </div>
           </motion.div>
         </motion.div>

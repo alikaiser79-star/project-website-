@@ -1,11 +1,18 @@
 import type { KaiPersisted } from '../types';
-import { defaultPriorities, debt } from '../kaiConfig';
+import { defaultPriorities, debt, operator } from '../kaiConfig';
 
 const KEY = 'kai.state.v1';
 
 export const defaults: KaiPersisted = {
   priorities: defaultPriorities,
-  settings: { voiceEnabled: false, soundEnabled: true },
+  settings: {
+    voiceEnabled: false,
+    soundEnabled: true,
+    voiceRate: 1.0,
+    voicePitch: 0.85,
+    accent: 'amber',
+    operatorName: operator.name,
+  },
   debtCurrent: debt.current,
   history: [],
 };

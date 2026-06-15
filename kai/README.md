@@ -62,13 +62,42 @@ The default model is `claude-sonnet-4-6` (Sonnet 4.6). Edit
 
 ## Keyboard
 
-| Key            | Action                |
-| -------------- | --------------------- |
-| `⌘K` / `Ctrl-K` | Open command bar     |
-| `V`            | Toggle voice          |
-| `M`            | Mute / unmute sound   |
-| `Esc`          | Close command bar     |
-| `Enter`        | Send command          |
+| Key             | Action                  |
+| --------------- | ----------------------- |
+| `⌘K` / `Ctrl-K` | Open command bar        |
+| `S`             | Open settings drawer    |
+| `V`             | Toggle voice            |
+| `M`             | Mute / unmute sound     |
+| `?`             | Keyboard cheatsheet     |
+| `Esc`           | Close any overlay       |
+| `Enter`         | Send command            |
+
+## Settings & live intel
+
+Press `S` (or tap the gear in the top bar) to open the settings drawer.
+From there: rename the operator, switch the KAI Core accent
+(amber / cyan / emerald), pick a voice and tune rate/pitch (with a
+"test voice" button), toggle sound + recognition, or reset all local
+state.
+
+The HUD pulls **live Cairo weather** from Open-Meteo and **live crypto
+prices** from CoinGecko — both keyless, both refresh on a timer. They
+render in the "intel strip" beneath the main grid, along with a session
+uptime tile.
+
+## Chat memory
+
+The command bar remembers the last 30 turns and feeds the last 6 back
+to Claude on each call, so KAI can carry context between questions. The
+trash icon clears the history. All chat is persisted to
+`localStorage` under `kai.state.v1`.
+
+## Proactive notifications
+
+KAI fires toast alerts on boot — welcome, count of open priorities,
+the Makadi fix-lock reminder (driven by `kaiConfig.makadi.fixLock`),
+voice acknowledgements when it hears a command. Toasts slide in
+top-right and dismiss on click or after their TTL.
 
 ## Voice
 

@@ -7,6 +7,10 @@ export const operator = {
   name: 'Ali',
   timezone: 'Africa/Cairo',
   locale: 'en-GB',
+  /* Cairo coordinates — used by the weather feed in IntelStrip. */
+  lat: 30.0444,
+  lon: 31.2357,
+  cityLabel: 'Cairo',
 };
 
 /* Currency — KAI normalises everything to EGP for the headline. */

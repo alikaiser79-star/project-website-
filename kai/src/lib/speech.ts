@@ -50,13 +50,19 @@ export class Voice {
     this.rec = null;
   }
 
-  speak(text: string, onBoundary?: () => void, onEnd?: () => void) {
+  speak(text: string, opts: { rate?: number; pitch?: number; voiceName?: string } = {}, onEnd?: () => void) {
     if (!('speechSynthesis' in window)) { onEnd?.(); return; }
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.0; u.pitch = 0.85; u.volume = 0.9;
-    if (this.preferredVoice) u.voice = this.preferredVoice;
-    u.onboundary = () => onBoundary?.();
+    u.rate = opts.rate ?? 1.0;
+    u.pitch = opts.pitch ?? 0.85;
+    u.volume = 0.9;
+    let chosen = this.preferredVoice;
+    if (opts.voiceName) {
+      const match = speechSynthesis.getVoices().find(v => v.name === opts.voiceName);
+      if (match) chosen = match;
+    }
+    if (chosen) u.voice = chosen;
     u.onend = () => onEnd?.();
     speechSynthesis.speak(u);
   }

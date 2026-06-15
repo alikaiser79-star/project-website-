@@ -13,11 +13,19 @@
 ───────────────────────────────────────────────────────── */
 
 import { claudeConfig } from '../kaiConfig';
+import type { ChatTurn } from '../types';
 
-export async function askClaude(prompt: string): Promise<string> {
+export async function askClaude(prompt: string, history: ChatTurn[] = []): Promise<string> {
   if (!claudeConfig.enabled || !claudeConfig.apiKey) {
     throw new Error('NO_API_KEY');
   }
+  const turns: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  for (const h of history.slice(-6)) {
+    if (h.you) turns.push({ role: 'user',      content: h.you });
+    if (h.kai) turns.push({ role: 'assistant', content: h.kai });
+  }
+  turns.push({ role: 'user', content: prompt });
+
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -30,7 +38,7 @@ export async function askClaude(prompt: string): Promise<string> {
       model: claudeConfig.model,
       max_tokens: 400,
       system: claudeConfig.systemPrompt,
-      messages: [{ role: 'user', content: prompt }],
+      messages: turns,
     }),
   });
   if (!res.ok) {
