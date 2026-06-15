@@ -341,11 +341,13 @@ export const SAFER = [
   { letter: "R", word: "Response", desc: "Quarterly emergency drills with documented response times we share with parents." },
 ];
 
+// Annual = 10 × monthly (two months free)
 export const TIERS = [
   {
     id: "basic",
     name: "Sparkle",
     price: 89,
+    annualPrice: 890,
     period: "/month",
     blurb: "A gentle start with everything she needs to fall in love with the water.",
     features: ["8 group lessons / month", "Online level finder", "Locker access", "Family swim weekends"],
@@ -355,6 +357,7 @@ export const TIERS = [
     id: "pro",
     name: "Shimmer",
     price: 149,
+    annualPrice: 1490,
     period: "/month",
     blurb: "Our most-loved plan — flexible coaching, video reviews and priority booking.",
     features: ["16 group lessons / month", "1 private session / month", "Priority booking", "Stroke video review", "Friend pass × 1"],
@@ -365,6 +368,7 @@ export const TIERS = [
     id: "elite",
     name: "Starlight",
     price: 249,
+    annualPrice: 2490,
     period: "/month",
     blurb: "Unlimited training, personal coaching and a dedicated head coach.",
     features: ["Unlimited lessons", "4 private sessions / month", "Dedicated head coach", "Performance lab access", "Open-water clinics"],
@@ -430,12 +434,66 @@ export const TESTIMONIALS = [
 ];
 
 export const COACHES = [
-  { name: "Marina Voss", role: "Head Coach", spec: "Olympic-distance freestyle", initials: "MV" },
-  { name: "Daniel Park", role: "Performance Coach", spec: "Sprint & race strategy", initials: "DP" },
-  { name: "Lena Aliyeva", role: "Lead Choreographer", spec: "Artistic swimming & ballet", initials: "LA" },
-  { name: "Omar Rashid", role: "Junior Program Lead", spec: "Tiny Swans & Junior Mermaids", initials: "OR" },
-  { name: "Sofia Marin", role: "Stroke Specialist", spec: "Butterfly & IM", initials: "SM" },
-  { name: "James Whitlock", role: "Aquatic Director", spec: "Operations & safety", initials: "JW" },
+  {
+    name: "Marina Voss",
+    role: "Head Coach",
+    spec: "Olympic-distance freestyle",
+    initials: "MV",
+    years: 14,
+    certs: ["NCAA D1 alum", "Red Cross WSI", "AED-certified"],
+    bio: "Marina swam D1 at university and competed at the national level for five seasons. She founded AquaGrace's coaching program in 2019 and personally interviews every coach who joins the team.",
+    favorite: "A perfectly timed flip turn",
+  },
+  {
+    name: "Daniel Park",
+    role: "Performance Coach",
+    spec: "Sprint & race strategy",
+    initials: "DP",
+    years: 9,
+    certs: ["ASCA Level 3", "Strength & Conditioning"],
+    bio: "Dan coaches the technical side of Elite Corps and Rising Stars — pacing, race plans, video review and dry-land conditioning. Calm, precise, and deeply patient.",
+    favorite: "Sub-25s 50-free splits on a Friday",
+  },
+  {
+    name: "Lena Aliyeva",
+    role: "Lead Choreographer",
+    spec: "Artistic swimming & ballet",
+    initials: "LA",
+    years: 12,
+    certs: ["Former national synchro team", "RAD ballet"],
+    bio: "Lena designs every showcase routine from the first count to the last sequin. She trained with the national synchronized swimming team and brings a true dancer's eye to the pool.",
+    favorite: "The moment the music drops and 12 hands rise as one",
+  },
+  {
+    name: "Omar Rashid",
+    role: "Junior Program Lead",
+    spec: "Tiny Swans & Junior Mermaids",
+    initials: "OR",
+    years: 8,
+    certs: ["Adapted swim instructor", "Pediatric first aid"],
+    bio: "Omar runs our youngest tiers with warmth, silly songs and endless patience. He's the reason so many of our girls remember their first lesson as the best day of the week.",
+    favorite: "First-time blowing-bubbles giggles",
+  },
+  {
+    name: "Sofia Marin",
+    role: "Stroke Specialist",
+    spec: "Butterfly & IM",
+    initials: "SM",
+    years: 7,
+    certs: ["ASCA Level 2", "USA Swimming"],
+    bio: "Sofia coaches stroke clinics across all ages and runs our Adult Swim Lessons program. Her judgement-free style is why adult beginners feel safe enough to try again.",
+    favorite: "Helping a grown-up swim a full lap for the first time",
+  },
+  {
+    name: "James Whitlock",
+    role: "Aquatic Director",
+    spec: "Operations & safety",
+    initials: "JW",
+    years: 18,
+    certs: ["Pool Operator Certified", "EMS background"],
+    bio: "James runs our daily operations — staffing, safety drills, equipment audits, and the S.A.F.E.R. covenant. If something is humming smoothly in the building, it's because of him.",
+    favorite: "A clean monthly safety audit",
+  },
 ];
 
 export const CAREERS = [

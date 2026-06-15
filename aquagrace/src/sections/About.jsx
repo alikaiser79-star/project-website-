@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import SectionHeading from "../components/SectionHeading.jsx";
+import CoachModal from "../components/CoachModal.jsx";
 import { COACHES } from "../data/content.js";
 
 export default function About() {
+  const [active, setActive] = useState(null);
+
   return (
     <section id="about" className="relative py-24 md:py-32 bg-navy">
       <div className="mx-auto max-w-7xl px-4 md:px-8">
@@ -29,16 +33,21 @@ export default function About() {
           </div>
 
           <div className="lg:col-span-7">
-            <p className="mb-6 text-xs font-bold uppercase tracking-[0.28em] text-blossom">Meet the team</p>
+            <div className="mb-6 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-blossom">Meet the team</p>
+              <p className="hidden text-xs text-white/55 sm:block">Tap a coach for their story</p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {COACHES.map((c, i) => (
-                <motion.article
+                <motion.button
                   key={c.name}
+                  type="button"
+                  onClick={() => setActive(c)}
                   initial={{ opacity: 0, y: 18 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.3 }}
                   transition={{ duration: 0.45, delay: i * 0.05 }}
-                  className="group overflow-hidden rounded-3xl border border-white/15 bg-white/[0.04] transition hover:border-blossom/40"
+                  className="group overflow-hidden rounded-3xl border border-white/15 bg-white/[0.04] text-left transition hover:border-blossom/40"
                 >
                   <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-lavender/40 via-blossom/30 to-navy">
                     <div className="absolute inset-0 grid place-items-center">
@@ -53,12 +62,14 @@ export default function About() {
                     <h4 className="mt-1 font-display text-lg font-semibold text-white">{c.name}</h4>
                     <p className="mt-0.5 text-sm text-white/60">{c.spec}</p>
                   </div>
-                </motion.article>
+                </motion.button>
               ))}
             </div>
           </div>
         </div>
       </div>
+
+      <CoachModal coach={active} onClose={() => setActive(null)} />
     </section>
   );
 }
