@@ -16,6 +16,11 @@ const STORE_KEY = 'kai.core.state.v1';
 /* ─────────────────────────────────────────────────────────
    STATE
 ───────────────────────────────────────────────────────── */
+function nowStamp() {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 const defaultState = {
   name: 'commander',
   theme: 'green',          // green | terra | gold
@@ -39,6 +44,8 @@ const defaultState = {
     { f: 'logistics',      b: 'truck-04 in transit',      s: 'ok',   t: '6m' },
     { f: 'analytics',      b: 'weekly summary ready',     s: 'ok',   t: '11m' },
   ],
+  notes: [],
+  timers: [],
 };
 
 function loadState() {
@@ -475,6 +482,181 @@ function bindNetwork() {
 }
 
 /* ─────────────────────────────────────────────────────────
+   TOAST NOTIFICATIONS
+───────────────────────────────────────────────────────── */
+function toast(body, opts = {}) {
+  const stack = $('#toasts'); if (!stack) return;
+  const level = opts.level || 'ok';
+  const title = opts.title || (level === 'warn' ? 'NOTICE' : level === 'err' ? 'ALERT' : 'EVENT');
+  const ic = level === 'warn' ? '!' : level === 'err' ? '×' : '◊';
+  const el = document.createElement('div');
+  el.className = 'toast ' + (level === 'ok' ? '' : level);
+  el.innerHTML = `<span class="t-ic">${ic}</span>
+    <span><span class="t-title">${title}</span><span class="t-body">${body}</span></span>`;
+  stack.appendChild(el);
+  if (level === 'warn') Audio.click(); else if (level === 'err') Audio.error(); else Audio.ok();
+  const ttl = opts.ttl ?? 4200;
+  const timer = setTimeout(() => dismiss(), ttl);
+  function dismiss() {
+    el.classList.add('out');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+  el.addEventListener('click', () => { clearTimeout(timer); dismiss(); });
+}
+
+/* ─────────────────────────────────────────────────────────
+   NOTES — quick capture, persisted
+───────────────────────────────────────────────────────── */
+function addNote(text) {
+  if (!text || !text.trim()) return;
+  const note = { t: text.trim(), at: nowStamp(), d: new Date().toISOString() };
+  state.notes.unshift(note);
+  if (state.notes.length > 50) state.notes.length = 50;
+  saveState();
+  pushLog('note saved: ' + text.trim().slice(0, 40), 'ok');
+  toast('“' + text.trim() + '”', { title: 'NOTE SAVED · ' + note.at });
+}
+function listNotes() {
+  if (!state.notes.length) { toast('No notes captured yet.', { title: 'NOTES' }); return; }
+  state.notes.slice(0, 5).forEach((n, i) => {
+    setTimeout(() => toast(n.t, { title: 'NOTE · ' + n.at, ttl: 6000 }), i * 220);
+  });
+}
+function clearNotes() {
+  state.notes = []; saveState();
+  toast('Notes cleared.', { title: 'NOTES', level: 'warn' });
+}
+
+/* ─────────────────────────────────────────────────────────
+   TIMERS — set, remind, fire toast + speech
+───────────────────────────────────────────────────────── */
+function parseDurationMs(s) {
+  if (!s) return null;
+  s = s.toLowerCase().trim();
+  // formats: "5 minutes", "30s", "1h30m", "10 mins"
+  let total = 0; let matched = false;
+  s.replace(/(\d+)\s*(h(?:ours?|rs?)?|m(?:in(?:ute)?s?)?|s(?:ec(?:ond)?s?)?)/g,
+    (_, n, u) => {
+      matched = true;
+      n = parseInt(n);
+      if (u.startsWith('h')) total += n * 3600_000;
+      else if (u.startsWith('m')) total += n * 60_000;
+      else total += n * 1000;
+    });
+  if (!matched) {
+    const num = parseInt(s);
+    if (!isNaN(num)) total = num * 60_000; // bare number → minutes
+  }
+  return total > 0 ? total : null;
+}
+function setTimer(durMs, label) {
+  const fireAt = Date.now() + durMs;
+  const id = 'tmr-' + Math.random().toString(36).slice(2, 7);
+  state.timers.push({ id, fireAt, label: label || 'timer' });
+  saveState();
+  const human = humanDur(durMs);
+  toast(`“${label || 'timer'}” in ${human}.`, { title: 'TIMER SET' });
+  pushLog(`timer ${id} · ${human}`, 'ok');
+  scheduleTimer(id, fireAt, label);
+}
+function humanDur(ms) {
+  const s = Math.round(ms/1000);
+  if (s < 60) return s + 's';
+  const m = Math.round(s/60);
+  if (m < 60) return m + ' min';
+  return Math.floor(m/60) + 'h ' + (m%60) + 'm';
+}
+function scheduleTimer(id, fireAt, label) {
+  const delay = Math.max(0, fireAt - Date.now());
+  setTimeout(() => {
+    const idx = state.timers.findIndex(t => t.id === id);
+    if (idx < 0) return; // canceled
+    state.timers.splice(idx, 1); saveState();
+    toast(`Timer “${label}” elapsed.`, { title: 'TIMER · DING', level: 'warn', ttl: 8000 });
+    pushLog('timer fired: ' + label, 'warn');
+    Audio.boot();
+    speak(`Time's up. ${label}.`);
+  }, delay);
+}
+function resumeTimers() {
+  state.timers.slice().forEach(t => {
+    if (t.fireAt <= Date.now()) {
+      pushLog('timer missed (during reload): ' + t.label, 'warn');
+      state.timers = state.timers.filter(x => x.id !== t.id);
+    } else {
+      scheduleTimer(t.id, t.fireAt, t.label);
+    }
+  });
+  saveState();
+}
+
+/* ─────────────────────────────────────────────────────────
+   SAFE MATH EVAL
+───────────────────────────────────────────────────────── */
+function safeEval(expr) {
+  const clean = expr.replace(/[^0-9+\-*/().%\s]/g, '');
+  if (!clean.trim()) return null;
+  try {
+    const v = Function('"use strict"; return (' + clean + ')')();
+    return Number.isFinite(v) ? v : null;
+  } catch { return null; }
+}
+
+/* ─────────────────────────────────────────────────────────
+   CHEATSHEET + MATRIX RAIN
+───────────────────────────────────────────────────────── */
+function openCheat() {
+  $('#cheat').classList.remove('hidden');
+  Audio.open();
+}
+function closeCheat() {
+  $('#cheat').classList.add('hidden');
+  Audio.close();
+}
+
+let matrixCtrl = null;
+function startMatrix() {
+  if (matrixCtrl) return;
+  const cv = $('#matrix');
+  cv.classList.remove('hidden');
+  requestAnimationFrame(() => cv.classList.add('on'));
+  const ctx = cv.getContext('2d');
+  let w = cv.width = innerWidth;
+  let h = cv.height = innerHeight;
+  const cols = Math.floor(w / 14);
+  const drops = Array(cols).fill(0).map(() => Math.random() * h / 14);
+  const chars = 'カキクケコサシスセソタチツテトナニヌネノ◊KAIVON01';
+  function frame() {
+    ctx.fillStyle = 'rgba(7,16,11,0.08)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.font = '14px DM Mono, monospace';
+    for (let i = 0; i < cols; i++) {
+      const ch = chars[Math.floor(Math.random() * chars.length)];
+      ctx.fillStyle = Math.random() < 0.04 ? '#F0E7CF' : 'rgba(122,230,168,0.85)';
+      ctx.fillText(ch, i * 14, drops[i] * 14);
+      if (drops[i] * 14 > h && Math.random() > 0.975) drops[i] = 0;
+      drops[i] += 1;
+    }
+    matrixCtrl.raf = requestAnimationFrame(frame);
+  }
+  function resize() {
+    w = cv.width = innerWidth;
+    h = cv.height = innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  matrixCtrl = { raf: requestAnimationFrame(frame), resize, cv };
+  toast('Type “matrix” again or press Esc to exit.', { title: 'EASTER EGG', ttl: 5000 });
+}
+function stopMatrix() {
+  if (!matrixCtrl) return;
+  cancelAnimationFrame(matrixCtrl.raf);
+  window.removeEventListener('resize', matrixCtrl.resize);
+  matrixCtrl.cv.classList.remove('on');
+  setTimeout(() => matrixCtrl?.cv?.classList.add('hidden'), 600);
+  matrixCtrl = null;
+}
+
+/* ─────────────────────────────────────────────────────────
    COMMAND BAR
 ───────────────────────────────────────────────────────── */
 const commands = [
@@ -494,6 +676,13 @@ const commands = [
   { id: 'add-mission',  ic: '+', name: 'Add mission',              sub: 'create new mission entry',         kb: '',      run: cmdAddMission },
   { id: 'snapshot',     ic: '⎘', name: 'Snapshot state',           sub: 'log full snapshot to console',     kb: '',      run: cmdSnapshot },
   { id: 'doc',          ic: '?', name: 'About KAI Core',           sub: 'what is this interface',           kb: '',      run: cmdAbout },
+  { id: 'note',         ic: '✎', name: 'Quick note',                sub: 'capture a thought, persisted',     kb: 'N',     run: cmdNote },
+  { id: 'notes',        ic: '≡', name: 'Recent notes',              sub: 'review the last few notes',        kb: '',      run: listNotes },
+  { id: 'notes-clear',  ic: '⌫', name: 'Clear notes',               sub: 'wipe all captured notes',          kb: '',      run: clearNotes },
+  { id: 'timer',        ic: '⏱', name: 'Set timer',                 sub: 'remind me in N minutes',           kb: '',      run: cmdTimer },
+  { id: 'cheat',        ic: '?', name: 'Keyboard cheatsheet',       sub: 'see all shortcuts',                kb: '?',     run: openCheat },
+  { id: 'matrix',       ic: '◊', name: 'Matrix rain',               sub: 'toggle the easter egg',            kb: '',      run: () => matrixCtrl ? stopMatrix() : startMatrix() },
+  { id: 'calc',         ic: '=', name: 'Calculator',                sub: 'evaluate an expression',           kb: '',      run: cmdCalc },
 ];
 
 let cmdOpen = false;
@@ -601,6 +790,26 @@ function cmdSnapshot() {
 function cmdAbout() {
   speak('This is the KAI Core interface — a personal command shell built on the Von Kaiser design system. Press command K to invoke me, or use voice.');
 }
+function cmdNote() {
+  const t = prompt('Quick note:');
+  if (t) addNote(t);
+}
+function cmdTimer() {
+  const raw = prompt('Timer — e.g. "5 minutes", "30s", or "1h30m":');
+  if (!raw) return;
+  const ms = parseDurationMs(raw);
+  if (!ms) { toast('Could not parse duration.', { level: 'err' }); return; }
+  const label = prompt('Label (optional):') || 'timer';
+  setTimer(ms, label);
+}
+function cmdCalc() {
+  const e = prompt('Expression (e.g. 12*8+4):');
+  if (!e) return;
+  const v = safeEval(e);
+  if (v === null) { toast('Not a valid expression.', { level: 'err' }); return; }
+  toast(e + ' = ' + v, { title: 'CALC' });
+  speak(e + ' equals ' + v);
+}
 
 function setTheme(t) {
   state.theme = t;
@@ -704,6 +913,28 @@ function handleVoice(txt) {
   // Wake word optional — if it starts with "kai", strip it.
   const stripped = t.replace(/^(kai[,\s]*|hey kai[,\s]*|core[,\s]*)/, '').trim();
 
+  // Intent: "take a note: ..." / "remember that ..." / "note ..."
+  const noteM = stripped.match(/^(?:take a note(?:[,:]| that| -)?\s*|note that\s*|remember(?: that)?\s*|note(?:[,:]| -)?\s*)(.+)$/i);
+  if (noteM && noteM[1]) { addNote(noteM[1]); speak('Noted.'); return; }
+
+  // Intent: "set a timer for 5 minutes [labeled X]"
+  const timerM = stripped.match(/(?:set (?:a )?timer|remind me)(?: for| in)?\s+(.+?)(?:\s+(?:for|to|about|called|labeled)\s+(.+))?$/i);
+  if (timerM) {
+    const ms = parseDurationMs(timerM[1]);
+    if (ms) { setTimer(ms, timerM[2] || 'timer'); speak('Timer set.'); return; }
+  }
+
+  // Intent: math — "what is 12 times 8 plus 4"
+  const mathM = stripped.match(/^(?:what(?:'s| is)?|calculate|compute)\s+(.+)$/i);
+  if (mathM) {
+    const expr = mathM[1]
+      .replace(/plus/g, '+').replace(/minus/g, '-')
+      .replace(/times|multiplied by|x/g, '*')
+      .replace(/divided by|over/g, '/');
+    const v = safeEval(expr);
+    if (v !== null) { speak(`${mathM[1]} equals ${v}.`); toast(`${mathM[1]} = ${v}`, { title: 'CALC' }); return; }
+  }
+
   const matchers = [
     [/\b(time|clock|hour)\b/, cmdTime],
     [/\b(status|vitals|how (are|is)|how('s| is) the system)\b/, cmdStatus],
@@ -719,6 +950,9 @@ function handleVoice(txt) {
     [/\b(reset|reboot)\b/, () => speak('Reset requires confirmation. Use command K to confirm.')],
     [/\b(stop|quiet|shut up|silence)\b/, () => { try{speechSynthesis.cancel();}catch{} speak('Standing by.'); }],
     [/\b(thank|thanks)\b/, () => speak('At your service.')],
+    [/\b(matrix|rain|neo)\b/, () => { matrixCtrl ? stopMatrix() : startMatrix(); }],
+    [/\b(cheatsheet|shortcuts|keys)\b/, openCheat],
+    [/\b(notes?|read my notes)\b/, listNotes],
   ];
   for (const [re, fn] of matchers) {
     if (re.test(stripped)) { fn(); return; }
@@ -809,7 +1043,11 @@ function initHud() {
       cmdOpen ? closeCmd() : openCmd();
       return;
     }
-    if (e.key === 'Escape' && cmdOpen) { closeCmd(); return; }
+    if (e.key === 'Escape') {
+      if (cmdOpen)               { closeCmd(); return; }
+      if (!$('#cheat').classList.contains('hidden'))   { closeCheat(); return; }
+      if (matrixCtrl)            { stopMatrix(); return; }
+    }
     if (cmdOpen) {
       if (e.key === 'ArrowDown') { cmdIdx = Math.min(cmdFiltered.length - 1, cmdIdx + 1); renderCmd(); e.preventDefault(); }
       else if (e.key === 'ArrowUp') { cmdIdx = Math.max(0, cmdIdx - 1); renderCmd(); e.preventDefault(); }
@@ -822,10 +1060,32 @@ function initHud() {
     if (k === 'v') toggleVoice();
     else if (k === 't') cmdTime();
     else if (k === 'm') { state.sound = !state.sound; saveState(); pushLog('sound ' + (state.sound ? 'on' : 'off'), 'ok'); }
-    else if (k === '?') cmdHelp();
+    else if (k === '?') openCheat();
+    else if (k === 'n') cmdNote();
   });
 
-  $('#cmd-input').addEventListener('input', (e) => filterCmd(e.target.value));
+  // Cheatsheet close handlers
+  $('#cheat-close').addEventListener('click', closeCheat);
+  $('#cheat').addEventListener('click', (e) => { if (e.target.id === 'cheat') closeCheat(); });
+
+  // Page visibility — dim orb when tab is away
+  document.addEventListener('visibilitychange', () => {
+    $('#hud').classList.toggle('away', document.hidden);
+    if (document.hidden) pushLog('session: backgrounded', 'warn');
+    else                 pushLog('session: foregrounded', 'ok');
+  });
+
+  // Resume any pending timers from previous session
+  resumeTimers();
+
+  // Welcome toast
+  setTimeout(() => toast('KAI Core online. Press ⌘K for commands, ? for shortcuts.', { title: 'WELCOME' }), 800);
+
+  $('#cmd-input').addEventListener('input', (e) => {
+    const v = e.target.value.trim().toLowerCase();
+    if (v === 'matrix' || v === 'neo') { closeCmd(); matrixCtrl ? stopMatrix() : startMatrix(); return; }
+    filterCmd(e.target.value);
+  });
   $('#open-cmd').addEventListener('click', openCmd);
   $('#voice-toggle').addEventListener('click', toggleVoice);
   $('#cmd').addEventListener('click', (e) => { if (e.target.id === 'cmd') closeCmd(); });

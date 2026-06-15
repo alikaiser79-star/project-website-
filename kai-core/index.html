@@ -196,6 +196,35 @@
   </footer>
 </main>
 
+<!-- ───── TOAST STACK ───── -->
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<!-- ───── KEYBOARD CHEATSHEET ───── -->
+<div id="cheat" class="cheat hidden" role="dialog" aria-modal="true">
+  <div class="cheat-shell">
+    <header>
+      <h3>Keyboard reference</h3>
+      <button class="chip" id="cheat-close">esc</button>
+    </header>
+    <div class="cheat-grid">
+      <div><kbd>⌘</kbd><kbd>K</kbd><span>Command bar</span></div>
+      <div><kbd>V</kbd><span>Toggle voice</span></div>
+      <div><kbd>T</kbd><span>Speak time</span></div>
+      <div><kbd>M</kbd><span>Toggle sound</span></div>
+      <div><kbd>N</kbd><span>Quick note</span></div>
+      <div><kbd>?</kbd><span>This cheatsheet</span></div>
+      <div><kbd>Esc</kbd><span>Close any overlay</span></div>
+      <div><kbd>↑</kbd><kbd>↓</kbd><span>Navigate command list</span></div>
+    </div>
+    <footer>
+      <span>type</span> <kbd>matrix</kbd> <span>in the command bar for fun</span>
+    </footer>
+  </div>
+</div>
+
+<!-- ───── MATRIX RAIN (easter egg) ───── -->
+<canvas id="matrix" class="matrix hidden"></canvas>
+
 <!-- ───── COMMAND BAR ───── -->
 <div id="cmd" class="cmd hidden" role="dialog" aria-modal="true">
   <div class="cmd-shell">
