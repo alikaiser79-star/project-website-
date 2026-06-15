@@ -158,6 +158,32 @@ drawer. Type a thought, `⌘↵` to save. Entries are persisted to
 `localStorage`, listed newest-first, deletable on hover. The drawer
 shows total entry count and timestamps each.
 
+## Wake word
+
+A wake-word toggle in Settings → Voice. When ON (default), KAI only
+acts on transcripts that begin with **"Kai"**, **"Hey Kai"** or
+**"Core"** — so background chatter and your own train of thought won't
+trigger commands. When OFF, KAI treats every final transcript as a
+command.
+
+## Guided tour
+
+After onboarding (or on demand via Settings → Tour → "Take the tour"),
+KAI dims the HUD and walks through the six anchor points — the orb,
+the panels, ⌘K, voice, ⌘/ spotlight, and the intel strip — with a
+glowing spotlight cut out of the backdrop and a description card next
+to each. Arrow-keys / Enter advance, Esc skips.
+
+## Reminders manager
+
+Settings → Reminders lists every pending reminder with a relative
+countdown and a cancel button. Rendered live (5s refresh).
+
+## Mouse-reactive background
+
+The drifting grid parallaxes against the cursor (±14px) and a soft
+amber radial highlight follows the cursor across the whole HUD.
+
 ## First-run onboarding
 
 On first launch (no `settings.onboarded` flag yet), KAI plays a small

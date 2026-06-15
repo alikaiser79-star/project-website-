@@ -14,6 +14,7 @@ export const defaults: KaiPersisted = {
     operatorName: operator.name,
     onboarded: false,
     notifications: false,
+    wakeWord: true,
   },
   debtCurrent: debt.current,
   history: [],

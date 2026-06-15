@@ -70,6 +70,7 @@ export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundO
           {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
         </button>
         <button
+          id="tour-voice"
           onClick={() => { sfx.click(); setVoiceOn(!voiceOn); }}
           onMouseEnter={() => sfx.hover()}
           className={"px-2.5 py-1.5 rounded border transition " +
@@ -90,6 +91,7 @@ export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundO
           <Settings size={14} />
         </button>
         <button
+          id="tour-cmdk"
           onClick={() => { sfx.whoosh(); onCmdK(); }}
           onMouseEnter={() => sfx.hover()}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-amber/25 hover:border-amber hover:shadow-glow-amber transition text-bone text-xs"

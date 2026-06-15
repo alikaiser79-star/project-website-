@@ -11,6 +11,7 @@ import CheatSheet from './components/CheatSheet';
 import JournalDrawer from './components/JournalDrawer';
 import Spotlight from './components/Spotlight';
 import Onboarding from './components/Onboarding';
+import Tour from './components/Tour';
 import ToastStack from './components/ToastStack';
 import { resumeReminders } from './lib/reminders';
 import { useIdle } from './hooks/useIdle';
@@ -42,6 +43,7 @@ export default function App() {
   const [spotOpen, setSpotOpen] = useState(false);
   const idle = useIdle(5 * 60_000);
   const [onbOpen, setOnbOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
   const [settings, setSettings] = useState<KaiSettings>(initial.settings);
 
   const onSettings = useCallback((s: KaiSettings) => {
@@ -63,8 +65,19 @@ export default function App() {
     voice.start();
     voice.onResult(({ final, text }) => {
       if (!final) return;
-      const stripped = text.toLowerCase().replace(/^(?:hey )?(?:kai|core)[,.\s]*/i, '').trim();
-      const reply = runBuiltin(stripped);
+      // Wake-word gate: when on, ignore phrases that don't lead with
+      // "kai" / "hey kai" / "core".
+      const lower = text.toLowerCase().trim();
+      const wakeRe = /^(?:hey )?(?:kai|core)[,.\s]+(.+)$/i;
+      let payload = lower;
+      if (settings.wakeWord) {
+        const m = lower.match(wakeRe);
+        if (!m) return;
+        payload = m[1];
+      } else {
+        payload = lower.replace(/^(?:hey )?(?:kai|core)[,.\s]*/i, '').trim();
+      }
+      const reply = runBuiltin(payload);
       if (reply) {
         emit('command');
         sfx.confirm();
@@ -79,7 +92,7 @@ export default function App() {
       }
     });
     return () => { voice.stop(); emit('listen-end'); };
-  }, [settings.voiceEnabled, settings.voiceRate, settings.voicePitch, settings.voiceName]);
+  }, [settings.voiceEnabled, settings.voiceRate, settings.voicePitch, settings.voiceName, settings.wakeWord]);
 
   // global keyboard shortcuts
   useEffect(() => {
@@ -223,8 +236,10 @@ export default function App() {
           </div>
 
           {/* Live intel strip + HN ticker */}
-          <IntelStrip delay={1.1} />
-          <NewsRow />
+          <div className="intel-strip-anchor flex flex-col gap-4">
+            <IntelStrip delay={1.1} />
+            <NewsRow />
+          </div>
 
           {/* Footer ribbon */}
           <motion.footer
@@ -232,15 +247,17 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
             className="glass flex items-center justify-between px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
           >
-            <span>kai · v1.6.0</span>
-            <span><kbd>⌘</kbd><kbd>K</kbd> cmd · <kbd>⌘</kbd><kbd>/</kbd> search · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts</span>
+            <span>kai · v1.7.0</span>
+            <span>
+              <kbd>⌘</kbd><kbd>K</kbd> cmd · <span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd> search</span> · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts
+            </span>
             <span className="text-amber">◊ presence stable</span>
           </motion.footer>
         </div>
       )}
 
       <CommandBar open={cmdOpen} onClose={() => setCmdOpen(false)} settings={settings} />
-      <SettingsDrawer open={setOpen} onClose={() => setSetOpen(false)} onSettings={onSettings} />
+      <SettingsDrawer open={setOpen} onClose={() => setSetOpen(false)} onSettings={onSettings} onTour={() => setTourOpen(true)} />
       <JournalDrawer open={journalOpen} onClose={() => setJournalOpen(false)} />
       <Spotlight
         open={spotOpen}
@@ -260,8 +277,14 @@ export default function App() {
       <CheatSheet open={cheatOpen} onClose={() => setCheatOpen(false)} />
       <Onboarding
         open={onbOpen}
-        onDone={(next) => { onSettings(next); setOnbOpen(false); toast.ok(`Engaged. Welcome aboard, ${next.operatorName}.`, 'KAI', 5000); }}
+        onDone={(next) => {
+          onSettings(next);
+          setOnbOpen(false);
+          toast.ok(`Engaged. Welcome aboard, ${next.operatorName}.`, 'KAI', 5000);
+          setTimeout(() => setTourOpen(true), 1200);
+        }}
       />
+      <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
       <ToastStack />
     </>
   );

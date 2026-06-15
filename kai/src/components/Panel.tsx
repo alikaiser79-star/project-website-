@@ -14,6 +14,7 @@ type Props = {
 export default function Panel({ num, title, tag, delay = 0, children, className = '' }: Props) {
   return (
     <motion.section
+      data-panel={num}
       initial={{ y: 20, opacity: 0, scale: 0.985 }}
       animate={{ y: 0, opacity: 1, scale: 1, transition: { delay, duration: 0.55, ease: [0.25, 0.46, 0.45, 0.94] } }}
       onMouseEnter={() => sfx.hover()}

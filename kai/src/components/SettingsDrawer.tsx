@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload } from 'lucide-react';
+import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass } from 'lucide-react';
 import { loadState, saveState, defaults } from '../lib/store';
 import type { KaiSettings, Accent } from '../types';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { toast } from '../hooks/useToasts';
+import { listReminders, cancelReminder } from '../lib/reminders';
 
 const ACCENTS: { id: Accent; label: string; hex: string }[] = [
   { id: 'amber',   label: 'Amber',   hex: '#FFB300' },
@@ -13,9 +14,9 @@ const ACCENTS: { id: Accent; label: string; hex: string }[] = [
   { id: 'emerald', label: 'Emerald', hex: '#7AE6A8' },
 ];
 
-type Props = { open: boolean; onClose: () => void; onSettings: (s: KaiSettings) => void };
+type Props = { open: boolean; onClose: () => void; onSettings: (s: KaiSettings) => void; onTour: () => void };
 
-export default function SettingsDrawer({ open, onClose, onSettings }: Props) {
+export default function SettingsDrawer({ open, onClose, onSettings, onTour }: Props) {
   const [s, setS] = useState<KaiSettings>(() => loadState().settings);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
@@ -105,6 +106,7 @@ export default function SettingsDrawer({ open, onClose, onSettings }: Props) {
 
               <Section icon={<Mic size={12} />} title="Voice">
                 <Toggle label="Recognition" value={s.voiceEnabled} onChange={v => setS({ ...s, voiceEnabled: v })} />
+                <Toggle label='Wake word ("Hey KAI")' value={s.wakeWord} onChange={v => setS({ ...s, wakeWord: v })} />
                 <label className="block mt-3 text-[10px] tracking-[0.18em] text-steel uppercase mb-1">Rate · {s.voiceRate.toFixed(2)}</label>
                 <input type="range" min={0.6} max={1.4} step={0.05} value={s.voiceRate}
                   onChange={e => setS({ ...s, voiceRate: parseFloat(e.target.value) })}
@@ -141,6 +143,38 @@ export default function SettingsDrawer({ open, onClose, onSettings }: Props) {
 
               <Section icon={<Volume2 size={12} />} title="Sound">
                 <Toggle label="UI sounds" value={s.soundEnabled} onChange={v => setS({ ...s, soundEnabled: v })} />
+              </Section>
+
+              <Section icon={<Bell size={12} />} title="Notifications">
+                <Toggle
+                  label="Browser notifications"
+                  value={s.notifications}
+                  onChange={async (v) => {
+                    if (v && 'Notification' in window) {
+                      const perm = await Notification.requestPermission();
+                      setS({ ...s, notifications: perm === 'granted' });
+                      if (perm !== 'granted') toast.warn('Browser blocked notifications.');
+                    } else {
+                      setS({ ...s, notifications: v });
+                    }
+                  }}
+                />
+                <p className="mt-2 text-[10px] text-steel leading-relaxed">
+                  Reminders ping you in your OS notification center when the tab is in the background.
+                </p>
+              </Section>
+
+              <Section icon={<Clock size={12} />} title="Reminders">
+                <RemindersList />
+              </Section>
+
+              <Section icon={<Compass size={12} />} title="Tour">
+                <button
+                  onClick={() => { sfx.click(); onClose(); setTimeout(onTour, 220); }}
+                  className="w-full px-3 py-2 border border-amber/40 text-amber rounded text-[11px] tracking-[0.16em] uppercase hover:bg-amber/10 hover:shadow-glow-amber"
+                >
+                  Take the tour
+                </button>
               </Section>
 
               <Section icon={<Palette size={12} />} title="Core accent">
@@ -216,6 +250,41 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
       </div>
       <div>{children}</div>
     </div>
+  );
+}
+
+function RemindersList() {
+  const [items, setItems] = useState(() => listReminders());
+  useEffect(() => {
+    const t = setInterval(() => setItems(listReminders()), 5000);
+    return () => clearInterval(t);
+  }, []);
+  if (!items.length) {
+    return <p className="text-[11px] text-steel">No pending reminders. Set one with "Kai, remind me in 30 minutes to call Mira."</p>;
+  }
+  return (
+    <ul className="space-y-1.5">
+      {items.map(r => {
+        const ms = +new Date(r.at) - Date.now();
+        const mins = Math.max(0, Math.round(ms / 60_000));
+        const due = mins < 60 ? `in ${mins}m` : mins < 1440 ? `in ${Math.round(mins/60)}h` : `in ${Math.round(mins/1440)}d`;
+        return (
+          <li key={r.id} className="flex items-center gap-2 px-2 py-1.5 border border-amber/15 rounded">
+            <MapPin size={11} className="text-amber/70 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-bone text-[12px] truncate">{r.text}</div>
+              <div className="font-mono text-[10px] text-steel">{due} · {new Date(r.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+            <button
+              onClick={() => { cancelReminder(r.id); setItems(listReminders()); sfx.click(); }}
+              className="text-steel hover:text-danger transition"
+            >
+              <X size={12} />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

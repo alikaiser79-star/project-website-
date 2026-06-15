@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 export default function Background() {
   const cursorRef = useRef<HTMLDivElement>(null);
   const trailRef  = useRef<HTMLDivElement>(null);
+  const gridRef   = useRef<HTMLDivElement>(null);
+  const glowRef   = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let x = window.innerWidth/2, y = window.innerHeight/2;
@@ -25,6 +27,16 @@ export default function Background() {
         trailRef.current.style.left = x + 'px';
         trailRef.current.style.top  = y + 'px';
       }
+      // Mouse-reactive grid: nudge by a few px proportional to mouse offset
+      if (gridRef.current) {
+        const nx = (x / window.innerWidth - 0.5) * 14;
+        const ny = (y / window.innerHeight - 0.5) * 14;
+        gridRef.current.style.transform = `translate(${nx}px, ${ny}px)`;
+      }
+      if (glowRef.current) {
+        glowRef.current.style.background =
+          `radial-gradient(420px 320px at ${x}px ${y}px, rgba(255,179,0,0.10), transparent 70%)`;
+      }
       raf = requestAnimationFrame(tick);
     };
     tick();
@@ -41,12 +53,15 @@ export default function Background() {
 
   return (
     <>
-      {/* Drifting grid */}
+      {/* Drifting grid — mouse-reactive parallax */}
       <div
+        ref={gridRef}
         aria-hidden
-        className="fixed inset-0 z-0 bg-grid animate-grid-drift"
-        style={{ backgroundSize: '40px 40px' }}
+        className="fixed inset-0 z-0 bg-grid animate-grid-drift will-change-transform"
+        style={{ backgroundSize: '40px 40px', transition: 'transform 120ms linear' }}
       />
+      {/* Cursor-tracked radial highlight */}
+      <div ref={glowRef} aria-hidden className="fixed inset-0 z-0 pointer-events-none" />
       {/* Radial vignette glow */}
       <div
         aria-hidden

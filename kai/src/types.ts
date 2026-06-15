@@ -12,6 +12,7 @@ export type KaiSettings = {
   operatorName: string;
   onboarded: boolean;
   notifications: boolean;
+  wakeWord: boolean;
 };
 
 export type ChatTurn = { you: string; kai: string; at: string; streamed?: boolean };
