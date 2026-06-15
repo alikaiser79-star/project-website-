@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Hero from "../sections/Hero.jsx";
 import WaterBallet from "../sections/WaterBallet.jsx";
 import Programs from "../sections/Programs.jsx";
@@ -13,6 +15,15 @@ import Careers from "../sections/Careers.jsx";
 import Contact from "../sections/Contact.jsx";
 
 export default function Home() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    const id = hash.replace("#", "");
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [hash]);
+
   return (
     <main>
       <Hero />

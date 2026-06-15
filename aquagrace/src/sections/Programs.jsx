@@ -9,7 +9,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 const ICON_MAP = { Drop, Trophy, Heart, Sparkle };
 
 export default function Programs() {
-  const { openSignup } = useUI();
+  const { openSignup, openLevelFinder } = useUI();
   const { isAuthed } = useAuth();
   const navigate = useNavigate();
 
@@ -17,6 +17,10 @@ export default function Programs() {
     if (isAuthed) navigate("/portal");
     else openSignup();
   };
+
+  // Level Finder card behaves differently — it opens the quiz modal.
+  const handleAction = (program) =>
+    program.id === "p4" ? openLevelFinder() : reserve();
 
   return (
     <section id="programs" className="relative py-24 md:py-32">
@@ -53,10 +57,15 @@ export default function Programs() {
                     <p className="mt-2 text-sm text-white/70">{p.desc}</p>
                   </div>
                   <button
-                    onClick={reserve}
+                    onClick={() => handleAction(p)}
                     className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-blossom transition group-hover:gap-2 group-hover:text-coral"
                   >
-                    {isAuthed ? "Book in portal" : "Reserve a spot"} <ChevronRight className="h-4 w-4" />
+                    {p.id === "p4"
+                      ? "Start the quiz"
+                      : isAuthed
+                      ? "Book in portal"
+                      : "Reserve a spot"}{" "}
+                    <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
               </motion.article>

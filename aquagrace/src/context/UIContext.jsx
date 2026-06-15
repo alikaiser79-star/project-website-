@@ -5,10 +5,14 @@ const UIContext = createContext(null);
 export function UIProvider({ children }) {
   const [authModal, setAuthModal] = useState(null); // 'login' | 'signup' | null
   const [bookingPrefill, setBookingPrefill] = useState(null);
+  const [levelFinderOpen, setLevelFinderOpen] = useState(false);
 
   const openLogin = useCallback(() => setAuthModal("login"), []);
   const openSignup = useCallback(() => setAuthModal("signup"), []);
   const closeAuth = useCallback(() => setAuthModal(null), []);
+
+  const openLevelFinder = useCallback(() => setLevelFinderOpen(true), []);
+  const closeLevelFinder = useCallback(() => setLevelFinderOpen(false), []);
 
   const value = useMemo(
     () => ({
@@ -18,8 +22,20 @@ export function UIProvider({ children }) {
       closeAuth,
       bookingPrefill,
       setBookingPrefill,
+      levelFinderOpen,
+      openLevelFinder,
+      closeLevelFinder,
     }),
-    [authModal, openLogin, openSignup, closeAuth, bookingPrefill]
+    [
+      authModal,
+      openLogin,
+      openSignup,
+      closeAuth,
+      bookingPrefill,
+      levelFinderOpen,
+      openLevelFinder,
+      closeLevelFinder,
+    ]
   );
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
