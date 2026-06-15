@@ -5,6 +5,7 @@ import AuthModal from "./components/AuthModal.jsx";
 import LevelFinder from "./components/LevelFinder.jsx";
 import WhatsAppButton from "./components/WhatsAppButton.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
+import TrialBar from "./components/TrialBar.jsx";
 import Home from "./pages/Home.jsx";
 import MemberPortal from "./pages/MemberPortal.jsx";
 import MembershipCheck from "./pages/MembershipCheck.jsx";
@@ -25,6 +26,7 @@ export default function App() {
       <LevelFinder />
       <WhatsAppButton />
       <ScrollToTop />
+      <TrialBar />
     </div>
   );
 }

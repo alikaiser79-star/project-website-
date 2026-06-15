@@ -1,10 +1,39 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import SectionHeading from "../components/SectionHeading.jsx";
+import Lightbox from "../components/Lightbox.jsx";
 import { Calendar, Clock, Sparkle, ChevronRight, Star } from "../components/Icons.jsx";
 import { SHOWCASES } from "../data/content.js";
 import { useUI } from "../context/UIContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+
+const MOMENTS = [
+  {
+    tone: "from-blossom/40 to-lavender/40",
+    label: "Tiny Swans · first floats",
+    tag: "Summer 2025",
+    caption: "Our youngest swimmers' first season — bubbles, giggles and the very first solo float.",
+  },
+  {
+    tone: "from-coral/40 to-sparkle/30",
+    label: "Junior Mermaids · costume night",
+    tag: "Autumn 2025",
+    caption: "The night the new tutus arrived. Glitter, applause and a lot of proud parents.",
+  },
+  {
+    tone: "from-lavender/40 to-aqua/40",
+    label: "Rising Stars · group lift",
+    tag: "Winter 2025",
+    caption: "Months of strength and trust work — captured the moment the lift held.",
+  },
+  {
+    tone: "from-sparkle/40 to-blossom/30",
+    label: "Elite Corps · regional finals",
+    tag: "Spring 2026",
+    caption: "Our top tier took silver at the regional invitational. They were luminous.",
+  },
+];
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -21,6 +50,7 @@ export default function Showcases() {
   const { openSignup } = useUI();
   const { isAuthed } = useAuth();
   const navigate = useNavigate();
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   const cta = () => {
     if (isAuthed) navigate("/portal");
@@ -111,37 +141,42 @@ export default function Showcases() {
               </h3>
             </div>
             <span className="hidden sm:inline rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] uppercase tracking-widest text-white/65">
-              Imagery placeholders
+              Tap to expand · imagery placeholders
             </span>
           </div>
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { tone: "from-blossom/40 to-lavender/40", label: "Tiny Swans · first floats" },
-              { tone: "from-coral/40 to-sparkle/30", label: "Junior Mermaids · costume night" },
-              { tone: "from-lavender/40 to-aqua/40", label: "Rising Stars · group lift" },
-              { tone: "from-sparkle/40 to-blossom/30", label: "Elite Corps · regional finals" },
-            ].map((m, i) => (
-              <motion.div
+            {MOMENTS.map((m, i) => (
+              <motion.button
                 key={m.label}
+                type="button"
+                onClick={() => setLightboxIndex(i)}
                 initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.3 }}
                 transition={{ duration: 0.4, delay: i * 0.06 }}
-                className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-white/15"
+                className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-white/15 transition hover:-translate-y-1 hover:border-blossom/50"
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${m.tone}`} />
                 <div className="absolute inset-0 grid place-items-center">
-                  <Sparkle className="h-10 w-10 text-white/80 drop-shadow group-hover:scale-110 transition" />
+                  <Sparkle className="h-10 w-10 text-white/80 drop-shadow transition group-hover:scale-110" />
                 </div>
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy/90 to-transparent p-3">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy/90 to-transparent p-3 text-left">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-blossom">{m.tag}</p>
                   <p className="text-[11px] font-semibold text-white/95">{m.label}</p>
                 </div>
-              </motion.div>
+              </motion.button>
             ))}
           </div>
         </div>
       </div>
+
+      <Lightbox
+        items={MOMENTS}
+        index={lightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        onChange={setLightboxIndex}
+      />
     </section>
   );
 }
