@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KAI CORE // v3.2.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ───── BOOT SEQUENCE ───── -->
+<div id="boot" class="boot">
+  <div class="boot-inner">
+    <div class="boot-brand">
+      <div class="boot-mark">◊</div>
+      <div class="boot-name">KAI&nbsp;CORE</div>
+      <div class="boot-sub">v3.2.1 — autonomous interface</div>
+    </div>
+    <pre id="boot-log" class="boot-log"></pre>
+    <div class="boot-bar"><div id="boot-bar-fill"></div></div>
+    <div class="boot-foot">
+      <span>von kaiser systems</span>
+      <span id="boot-percent">0%</span>
+      <span>secure handshake</span>
+    </div>
+  </div>
+</div>
+
+<!-- ───── SCANLINES + VIGNETTE OVERLAY ───── -->
+<div class="scanlines"></div>
+<div class="vignette"></div>
+<div id="cursor" class="cursor"></div>
+<div id="cursor-trail" class="cursor-trail"></div>
+
+<!-- ───── MAIN HUD ───── -->
+<main id="hud" class="hud hidden">
+
+  <!-- TOP BAR -->
+  <header class="bar bar-top">
+    <div class="bar-cluster">
+      <span class="brand">◊ KAI CORE</span>
+      <span class="brand-sub">// command interface</span>
+    </div>
+    <div class="bar-cluster center">
+      <span id="ts-date" class="mono">—</span>
+      <span class="dot"></span>
+      <span id="ts-time" class="mono">—:—:—</span>
+      <span class="dot"></span>
+      <span id="ts-tz" class="mono">UTC</span>
+    </div>
+    <div class="bar-cluster right">
+      <button class="chip" id="voice-toggle" title="Voice (V)">
+        <span class="chip-dot" id="voice-dot"></span>VOICE
+      </button>
+      <button class="chip" id="open-cmd" title="Command bar (⌘K)">⌘ K</button>
+      <span class="chip status-ok" id="link-chip">● ONLINE</span>
+    </div>
+  </header>
+
+  <!-- BODY GRID -->
+  <section class="grid">
+
+    <!-- LEFT COLUMN -->
+    <aside class="col left">
+      <article class="panel" data-panel="system">
+        <header class="panel-h">
+          <span class="panel-num">01</span>
+          <h3>System Vitals</h3>
+          <span class="panel-tag">live</span>
+        </header>
+        <div class="panel-body stats-3">
+          <div class="stat"><span class="stat-label">CPU</span><span class="stat-val" data-counter="cpu">0</span><span class="stat-unit">%</span><div class="bar-line"><i data-bar="cpu"></i></div></div>
+          <div class="stat"><span class="stat-label">MEM</span><span class="stat-val" data-counter="mem">0</span><span class="stat-unit">%</span><div class="bar-line"><i data-bar="mem"></i></div></div>
+          <div class="stat"><span class="stat-label">GPU</span><span class="stat-val" data-counter="gpu">0</span><span class="stat-unit">%</span><div class="bar-line"><i data-bar="gpu"></i></div></div>
+        </div>
+      </article>
+
+      <article class="panel" data-panel="network">
+        <header class="panel-h">
+          <span class="panel-num">02</span>
+          <h3>Network Mesh</h3>
+          <span class="panel-tag" id="net-tag">—</span>
+        </header>
+        <div class="panel-body">
+          <div class="kv"><span>up</span><b><span data-counter="up">0</span> Mb/s</b></div>
+          <div class="kv"><span>down</span><b><span data-counter="down">0</span> Mb/s</b></div>
+          <div class="kv"><span>ping</span><b><span data-counter="ping">0</span> ms</b></div>
+          <div class="kv"><span>peers</span><b><span data-counter="peers">0</span></b></div>
+          <svg class="sparkline" id="spark-net" viewBox="0 0 200 40" preserveAspectRatio="none"></svg>
+        </div>
+      </article>
+
+      <article class="panel" data-panel="missions">
+        <header class="panel-h">
+          <span class="panel-num">03</span>
+          <h3>Active Missions</h3>
+          <span class="panel-tag accent" id="mission-count">0</span>
+        </header>
+        <div class="panel-body">
+          <ul class="mission-list" id="mission-list"></ul>
+        </div>
+      </article>
+    </aside>
+
+    <!-- CENTER ORB -->
+    <section class="center">
+      <div class="orb-stage">
+        <div class="orb-rings">
+          <div class="ring r1"></div>
+          <div class="ring r2"></div>
+          <div class="ring r3"></div>
+        </div>
+        <canvas id="orb" class="orb"></canvas>
+        <div class="orb-readout">
+          <div class="readout-line readout-top">
+            <span>◊ KAI</span><span>//</span><span>core link active</span>
+          </div>
+          <div class="orb-title">
+            <span class="orb-title-sm">good evening,</span>
+            <span class="orb-title-name" id="hud-name">commander</span>
+          </div>
+          <div id="speech-cap" class="speech-cap"></div>
+          <div class="readout-line readout-bot">
+            <span id="orb-coord-x">x: 0.00</span>
+            <span id="orb-coord-y">y: 0.00</span>
+            <span id="orb-coord-z">z: 0.00</span>
+          </div>
+        </div>
+        <div class="orb-corners">
+          <span class="cn tl"></span><span class="cn tr"></span>
+          <span class="cn bl"></span><span class="cn br"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN -->
+    <aside class="col right">
+      <article class="panel" data-panel="local">
+        <header class="panel-h">
+          <span class="panel-num">04</span>
+          <h3>Local Environment</h3>
+          <span class="panel-tag">geo</span>
+        </header>
+        <div class="panel-body">
+          <div class="kv"><span>weather</span><b id="weather-cond">—</b></div>
+          <div class="kv"><span>temp</span><b><span data-counter="temp">0</span>°C</b></div>
+          <div class="kv"><span>humidity</span><b><span data-counter="humidity">0</span>%</b></div>
+          <div class="kv"><span>battery</span><b><span data-counter="battery">0</span>%</b></div>
+        </div>
+      </article>
+
+      <article class="panel" data-panel="comms">
+        <header class="panel-h">
+          <span class="panel-num">05</span>
+          <h3>Comms Feed</h3>
+          <span class="panel-tag accent" id="comms-tag">0 new</span>
+        </header>
+        <div class="panel-body">
+          <ul class="comms-list" id="comms-list"></ul>
+        </div>
+      </article>
+
+      <article class="panel" data-panel="log">
+        <header class="panel-h">
+          <span class="panel-num">06</span>
+          <h3>Activity Log</h3>
+          <span class="panel-tag">tail</span>
+        </header>
+        <div class="panel-body">
+          <ul class="log-list" id="log-list"></ul>
+        </div>
+      </article>
+    </aside>
+  </section>
+
+  <!-- BOTTOM BAR -->
+  <footer class="bar bar-bot">
+    <div class="bar-cluster">
+      <span class="mono dim">session</span>
+      <span class="mono" id="ses-id">—</span>
+    </div>
+    <div class="bar-cluster center">
+      <span class="mono dim">uptime</span>
+      <span class="mono" id="ses-up">00:00:00</span>
+      <span class="mono dim">·</span>
+      <span class="mono" id="ses-events">0 events</span>
+    </div>
+    <div class="bar-cluster right">
+      <span class="mono dim">press</span>
+      <kbd>⌘</kbd><kbd>K</kbd>
+      <span class="mono dim">for commands</span>
+    </div>
+  </footer>
+</main>
+
+<!-- ───── COMMAND BAR ───── -->
+<div id="cmd" class="cmd hidden" role="dialog" aria-modal="true">
+  <div class="cmd-shell">
+    <div class="cmd-prompt">
+      <span class="cmd-caret">›</span>
+      <input id="cmd-input" type="text" autocomplete="off" spellcheck="false"
+        placeholder="type a command, or speak after the chime…" />
+      <span class="cmd-hint">esc to close</span>
+    </div>
+    <div class="cmd-list" id="cmd-list"></div>
+    <div class="cmd-foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>↵</kbd> run</span>
+      <span><kbd>⌘</kbd><kbd>K</kbd> toggle</span>
+    </div>
+  </div>
+</div>
+
+<!-- THREE.JS -->
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
