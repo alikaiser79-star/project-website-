@@ -5,18 +5,25 @@ export type Accent = 'amber' | 'cyan' | 'emerald';
 export type KaiSettings = {
   voiceEnabled: boolean;
   soundEnabled: boolean;
-  voiceRate: number;     // 0.6 – 1.4
-  voicePitch: number;    // 0.6 – 1.2
-  voiceName?: string;    // browser voice name override
+  voiceRate: number;
+  voicePitch: number;
+  voiceName?: string;
   accent: Accent;
   operatorName: string;
 };
 
 export type ChatTurn = { you: string; kai: string; at: string };
 
+export type JournalEntry = { id: string; text: string; at: string };
+
+/* habit.history: ISO-day strings the habit was checked on */
+export type Habit = { id: string; label: string; history: string[] };
+
 export type KaiPersisted = {
   priorities: Priority[];
   settings: KaiSettings;
   debtCurrent: number;
   history: ChatTurn[];
+  journal: JournalEntry[];
+  habits: Habit[];
 };

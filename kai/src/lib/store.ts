@@ -15,6 +15,13 @@ export const defaults: KaiPersisted = {
   },
   debtCurrent: debt.current,
   history: [],
+  journal: [],
+  habits: [
+    { id: 'h1', label: 'Workout',      history: [] },
+    { id: 'h2', label: 'Read 20m',     history: [] },
+    { id: 'h3', label: 'Garden visit', history: [] },
+    { id: 'h4', label: 'No takeaway',  history: [] },
+  ],
 };
 
 export function loadState(): KaiPersisted {
@@ -27,6 +34,8 @@ export function loadState(): KaiPersisted {
       ...parsed,
       settings: { ...defaults.settings, ...(parsed.settings || {}) },
       priorities: parsed.priorities && parsed.priorities.length ? parsed.priorities : defaults.priorities,
+      journal: parsed.journal ?? [],
+      habits: parsed.habits && parsed.habits.length ? parsed.habits : defaults.habits,
     };
   } catch { return { ...defaults }; }
 }

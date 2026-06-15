@@ -146,7 +146,30 @@ voice:
 - `"break" / "take a break"` — start a 5-min break
 - `"stop timer" / "cancel focus"` — stop running focus block
 - `"convert 1000 eur" / "in euros"` — currency conversion
+- `"note that …" / "remember …" / "log …" / "journal …"` — save to journal
 - `"debt", "income", "tasks", "garden", "makadi", "instagram", "time"`
+
+## Journal · quick capture
+
+Press `⌘J` (or `J`, or say "Kai, note that…") to open the journal
+drawer. Type a thought, `⌘↵` to save. Entries are persisted to
+`localStorage`, listed newest-first, deletable on hover. The drawer
+shows total entry count and timestamps each.
+
+## Insights, Habits, Map
+
+The intel strip below the main grid now includes:
+
+- **Insights** — KAI rotates through data-driven observations
+  computed locally from your state (debt pace, open priority count,
+  income runway in EUR, fix-lock reminder, event countdown, top habit
+  streak).
+- **Habits** — four daily habits, tap to check, streak counter on each.
+  Defaults are editable in `kaiConfig.ts → defaultPriorities` (and
+  habits seed in `store.ts → defaults.habits`).
+- **Holdings map** — a hand-traced SVG of Egypt with animated pulsing
+  pins on Cairo (Hidden Garden) and Makadi (Airbnb) and a dashed
+  travel route between them.
 
 ## Voice
 

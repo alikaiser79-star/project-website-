@@ -5,6 +5,9 @@ import { fetchWeather, fetchMarkets, WeatherSnap, MarketTick } from '../lib/exte
 import { operator } from '../kaiConfig';
 import FocusTile from './FocusTile';
 import NewsTicker from './NewsTicker';
+import MapTile from './MapTile';
+import InsightsTile from './InsightsTile';
+import HabitsTile from './HabitsTile';
 
 function iconForCode(code: number, isDay: boolean) {
   if ([0, 1].includes(code)) return isDay ? Sun : Moon;
@@ -110,8 +113,17 @@ export default function IntelStrip({ delay = 0 }: { delay?: number }) {
       {/* Focus / Pomodoro */}
       <FocusTile delay={delay + 0.10} />
 
+      {/* AI-style insights */}
+      <InsightsTile delay={delay + 0.15} />
+
+      {/* Habit streaks */}
+      <HabitsTile delay={delay + 0.20} />
+
+      {/* Holdings map */}
+      <MapTile delay={delay + 0.25} />
+
       {/* KAI uptime */}
-      <Tile delay={delay + 0.15}>
+      <Tile delay={delay + 0.30}>
         <UptimeBlock />
       </Tile>
     </div>

@@ -8,6 +8,7 @@ import KaiCore from './components/KaiCore';
 import CommandBar from './components/CommandBar';
 import SettingsDrawer from './components/SettingsDrawer';
 import CheatSheet from './components/CheatSheet';
+import JournalDrawer from './components/JournalDrawer';
 import ToastStack from './components/ToastStack';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import OrbAudio from './components/OrbAudio';
@@ -33,6 +34,7 @@ export default function App() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
   const [settings, setSettings] = useState<KaiSettings>(initial.settings);
 
   const onSettings = useCallback((s: KaiSettings) => {
@@ -82,11 +84,18 @@ export default function App() {
         sfx.whoosh();
         return;
       }
+      if (mod && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setJournalOpen(o => !o);
+        sfx.whoosh();
+        return;
+      }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const k = e.key.toLowerCase();
       if (k === 'm') { const next = { ...settings, soundEnabled: !settings.soundEnabled }; saveSettings(next); sfx.click(); }
       else if (k === 'v') { const next = { ...settings, voiceEnabled: !settings.voiceEnabled }; saveSettings(next); sfx.click(); }
       else if (k === 's') { setSetOpen(o => !o); sfx.click(); }
+      else if (k === 'j') { setJournalOpen(o => !o); sfx.click(); }
       else if (k === '?') { setCheatOpen(o => !o); sfx.click(); }
     }
     function saveSettings(next: KaiSettings) {
@@ -198,8 +207,8 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
             className="glass flex items-center justify-between px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
           >
-            <span>kai · v1.1.0</span>
-            <span><kbd>⌘</kbd><kbd>K</kbd> commands · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts</span>
+            <span>kai · v1.3.0</span>
+            <span><kbd>⌘</kbd><kbd>K</kbd> commands · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts</span>
             <span className="text-amber">◊ presence stable</span>
           </motion.footer>
         </div>
@@ -207,6 +216,7 @@ export default function App() {
 
       <CommandBar open={cmdOpen} onClose={() => setCmdOpen(false)} settings={settings} />
       <SettingsDrawer open={setOpen} onClose={() => setSetOpen(false)} onSettings={onSettings} />
+      <JournalDrawer open={journalOpen} onClose={() => setJournalOpen(false)} />
       <CheatSheet open={cheatOpen} onClose={() => setCheatOpen(false)} />
       <ToastStack />
     </>

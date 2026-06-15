@@ -7,6 +7,7 @@ import {
 } from '../kaiConfig';
 import { loadState } from './store';
 import { focusTimer } from './focusTimer';
+import { addJournal } from './journal';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -73,6 +74,13 @@ export function runBuiltin(cmd: string): CmdResult | null {
 
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
     return briefing();
+  }
+
+  /* Journal capture: "note that …", "journal …", "log …", "remember …" */
+  const noteM = cmd.match(/^(?:note(?:[,: ] that)?|remember(?: that)?|log|journal)[,: ]+(.+)$/i);
+  if (noteM) {
+    addJournal(noteM[1].trim());
+    return 'Noted in the journal.';
   }
 
   // focus timer voice/text controls

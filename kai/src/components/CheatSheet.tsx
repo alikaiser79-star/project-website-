@@ -7,6 +7,8 @@ const rows: Array<[string[], string]> = [
   [['V'],       'Toggle voice recognition'],
   [['M'],       'Toggle UI sound'],
   [['S'],       'Open settings'],
+  [['J'],       'Quick capture (journal)'],
+  [['⌘', 'J'],  'Quick capture (anywhere)'],
   [['?'],       'This cheatsheet'],
   [['↑','↓'],   'Navigate command bar'],
   [['↵'],       'Send / confirm'],
