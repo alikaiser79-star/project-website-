@@ -6,6 +6,7 @@ import LevelFinder from "./components/LevelFinder.jsx";
 import WhatsAppButton from "./components/WhatsAppButton.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import ScrollProgress from "./components/ScrollProgress.jsx";
+import SectionTOC from "./components/SectionTOC.jsx";
 import TrialBar from "./components/TrialBar.jsx";
 import Confetti from "./components/Confetti.jsx";
 import Home from "./pages/Home.jsx";
@@ -28,6 +29,7 @@ export default function App() {
       <AuthModal />
       <LevelFinder />
       <WhatsAppButton />
+      <SectionTOC />
       <ScrollToTop />
       <TrialBar />
       <Confetti />

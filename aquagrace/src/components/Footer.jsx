@@ -53,6 +53,7 @@ export default function Footer() {
                 ["schedule", "Weekly Schedule"],
                 ["showcases", "Showcases"],
                 ["membership", "Memberships"],
+                ["gift", "Gift Cards"],
                 ["faq", "Common Questions"],
               ].map(([id, label]) => (
                 <li key={id}>

@@ -9,6 +9,7 @@ const PROGRAM_ITEMS = [
   { id: "programs", label: "Swim Programs", desc: "Lessons, clinics & family events" },
   { id: "schedule", label: "Weekly Schedule", desc: "A snapshot of when classes happen" },
   { id: "showcases", label: "Showcases & Events", desc: "Upcoming nights, competitions & brunches" },
+  { id: "gift", label: "Gift Cards", desc: "Gift a class, a month, or a full term" },
   { id: "testimonials", label: "From Our Families", desc: "What girls, parents & adults say" },
   { id: "faq", label: "Common Questions", desc: "Trial, fit, schedule, cancellation" },
   { id: "careers", label: "Careers", desc: "Coach with us" },
