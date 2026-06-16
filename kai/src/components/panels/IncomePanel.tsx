@@ -1,12 +1,12 @@
 import Panel from '../Panel';
 import { useState, useEffect } from 'react';
 import { useCounter } from '../../hooks/useCounter';
-import { monthlyTotalEGP, currency, operator } from '../../kaiConfig';
+import { monthlyTotalEGP, operator } from '../../kaiConfig';
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { loadState } from '../../lib/store';
 import type { IncomeOverride } from '../../types';
 import Sparkline from '../Sparkline';
-import { withBackfill, trend } from '../../lib/history';
+import { seriesFor, trend } from '../../lib/history';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -33,10 +33,15 @@ function Row({ s }: { s: IncomeOverride }) {
 
 export default function IncomePanel({ delay = 0 }: { delay?: number }) {
   const [streams, setStreams] = useState<IncomeOverride[]>(() => loadState().income);
+  const [fx, setFx] = useState<number>(() => loadState().fxEgpPerEur);
   /* Refresh from store on visibility — picks up edits made in the
      settings drawer without needing a global event bus. */
   useEffect(() => {
-    const sync = () => setStreams(loadState().income);
+    const sync = () => {
+      const s = loadState();
+      setStreams(s.income);
+      setFx(s.fxEgpPerEur);
+    };
     document.addEventListener('visibilitychange', sync);
     window.addEventListener('focus', sync);
     const t = setInterval(sync, 4000);
@@ -47,9 +52,11 @@ export default function IncomePanel({ delay = 0 }: { delay?: number }) {
     };
   }, []);
 
-  const total = monthlyTotalEGP(streams);
+  const total = monthlyTotalEGP(streams, fx);
   const animatedTotal = useCounter(total, { duration: 1.8 });
-  const eur = total / currency.egpPerEur;
+  const eur = total / fx;
+  const incomeSeries = seriesFor('incomeMonthly', 14);
+  const incomeTrend = trend('incomeMonthly', 14);
 
   return (
     <Panel num="01" title="Income Streams" tag="MONTHLY" delay={delay}>
@@ -63,19 +70,12 @@ export default function IncomePanel({ delay = 0 }: { delay?: number }) {
           <span className="font-mono text-steel text-[11px] ml-auto">≈ €{fmt(eur)}</span>
         </div>
         <div className="flex items-center gap-3 mt-1">
-          <Sparkline
-            values={withBackfill(14).map(s => s.incomeMonthly)}
-            width={140} height={22} color="#FFB300"
-          />
-          {(() => {
-            const t = trend('incomeMonthly', 14);
-            const up = t.delta >= 0;
-            return (
-              <span className={'font-mono text-[10px] tabular-nums ml-auto ' + (up ? 'text-ok' : 'text-danger')}>
-                {up ? '↑' : '↓'} {Math.abs(Math.round(t.pct)).toFixed(0)}% · 14d
-              </span>
-            );
-          })()}
+          <Sparkline values={incomeSeries} width={140} height={22} color="#FFB300" />
+          {incomeTrend && (
+            <span className={'font-mono text-[10px] tabular-nums ml-auto ' + (incomeTrend.delta >= 0 ? 'text-ok' : 'text-danger')}>
+              {incomeTrend.delta >= 0 ? '↑' : '↓'} {Math.abs(Math.round(incomeTrend.pct)).toFixed(0)}% · {incomeTrend.samples}d
+            </span>
+          )}
         </div>
       </div>
       <div className="overflow-y-auto flex-1">

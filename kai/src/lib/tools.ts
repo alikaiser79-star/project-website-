@@ -6,14 +6,16 @@
 import { addReminder, cancelReminder, listReminders } from './reminders';
 import { addJournal } from './journal';
 import { focusTimer } from './focusTimer';
-import { loadState, saveState } from './store';
+import {
+  loadState, saveState,
+  updateGarden, updateMakadi, upsertInstagram, removeInstagram, setFx,
+} from './store';
 import { briefing, weeklyReview } from './commands';
-import { withBackfill, trend } from './history';
+import { getSnapshots, trend, coverage } from './history';
 import { toggleHabit } from './habits';
 import { toast } from '../hooks/useToasts';
 import {
-  income, debt, garden, makadi, instagram,
-  monthlyTotalEGP, debtClearedPct, operator,
+  debt, monthlyTotalEGP, debtClearedPct, operator,
 } from '../kaiConfig';
 
 export type ToolCall = { id: string; name: string; input: any };
@@ -74,7 +76,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: 'get_state_snapshot',
-    description: 'Read the user’s current state — income streams, debt, garden, makadi, instagram, priorities, journal preview. Use this whenever you need facts before answering.',
+    description: 'Read the user’s current LIVE state — income streams, debt, garden, makadi, instagram, priorities, journal preview, FX rate. Use this whenever you need facts before answering.',
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -89,7 +91,7 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: 'get_trends',
-    description: 'Read the recent N-day history of debt, income projection, habits-per-day and priorities-open. Use this when the user asks about trajectory, momentum, or "how am I trending".',
+    description: 'Read the recent N-day history of debt, income projection, habits-per-day, priorities-open, journal count, and per-handle IG followers. Only returns REAL captured days — if `coverage_days` is < 2, do NOT claim any trend direction.',
     input_schema: {
       type: 'object',
       properties: { days: { type: 'number', description: 'How many days back. Default 14.' } },
@@ -129,6 +131,57 @@ export const TOOL_SCHEMAS = [
       type: 'object',
       properties: { label: { type: 'string' } },
       required: ['label'],
+    },
+  },
+  /* ── New in v1.13: write tools for the previously-static surfaces ── */
+  {
+    name: 'update_garden',
+    description: "Update Hidden Garden state. Provide only the fields the user changed; others stay as-is. tasks_today replaces the whole list when given.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        plant_count:       { type: 'number' },
+        species_count:     { type: 'number' },
+        tasks_today:       { type: 'array', items: { type: 'string' } },
+        next_event_title:  { type: 'string' },
+        next_event_when:   { type: 'string', description: 'ISO timestamp for the event start.' },
+      },
+    },
+  },
+  {
+    name: 'update_makadi',
+    description: 'Update Makadi Airbnb state. Provide only the fields the user changed.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        nightly_rate_egp: { type: 'number' },
+        occupancy_30d:    { type: 'number', description: 'Fraction 0..1.' },
+        next_booking:     { type: 'string', description: 'ISO timestamp.' },
+        fix_lock:         { type: 'boolean' },
+        rating:           { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'update_instagram',
+    description: "Set the follower count for an Instagram handle. Adds the handle if it doesn't exist. Use `remove: true` to delete a handle entirely.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        handle:    { type: 'string', description: 'e.g. @hiddengarden.eg' },
+        followers: { type: 'number' },
+        remove:    { type: 'boolean' },
+      },
+      required: ['handle'],
+    },
+  },
+  {
+    name: 'set_fx_rate',
+    description: 'Update the EGP-per-EUR exchange rate used everywhere KAI converts between currencies.',
+    input_schema: {
+      type: 'object',
+      properties: { egp_per_eur: { type: 'number' } },
+      required: ['egp_per_eur'],
     },
   },
 ];
@@ -178,12 +231,24 @@ export async function runTool(call: ToolCall): Promise<string> {
       const s = loadState();
       const snap = {
         operator: { name: s.settings.operatorName, timezone: operator.timezone },
-        income: income.map(i => ({ label: i.label, amount: i.amount, ccy: i.ccy, cadence: i.cadence })),
-        income_total_monthly_egp: Math.round(monthlyTotalEGP()),
+        fx_egp_per_eur: s.fxEgpPerEur,
+        income: s.income.map(i => ({ label: i.label, amount: i.amount, ccy: i.ccy, cadence: i.cadence })),
+        income_total_monthly_egp: Math.round(monthlyTotalEGP(s.income, s.fxEgpPerEur)),
         debt: { original: debt.original, current: s.debtCurrent, percent_cleared: Math.round(debtClearedPct()) },
-        garden: { plant_count: garden.plantCount, species: garden.speciesCount, tasks_today: garden.todayTasks, next_event: garden.nextEvent },
-        makadi: { rate_egp: makadi.nightlyRate, occupancy_30d: makadi.occupancy30d, fix_lock_flag: makadi.fixLock },
-        instagram: instagram.accounts.map(a => ({ handle: a.handle, followers: a.followers })),
+        garden: {
+          plant_count: s.garden.plantCount,
+          species: s.garden.speciesCount,
+          tasks_today: s.garden.todayTasks,
+          next_event: s.garden.nextEvent,
+        },
+        makadi: {
+          rate_egp: s.makadi.nightlyRate,
+          occupancy_30d: s.makadi.occupancy30d,
+          next_booking: s.makadi.nextBooking,
+          fix_lock_flag: s.makadi.fixLock,
+          rating: s.makadi.rating,
+        },
+        instagram: s.instagram.map(a => ({ handle: a.handle, followers: a.followers })),
         priorities_open: s.priorities.filter(p => !p.done).map(p => p.text),
         priorities_done: s.priorities.filter(p => p.done).map(p => p.text),
         journal_recent: s.journal.slice(0, 5).map(e => e.text),
@@ -200,15 +265,31 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_trends': {
       const days = Math.max(2, Math.min(180, call.input?.days ?? 14));
-      const snaps = withBackfill(days);
+      const snaps = getSnapshots(days);
+      const cov = coverage();
+      const igHandles = new Set<string>();
+      for (const s of snaps) if (s.igByHandle) for (const h of Object.keys(s.igByHandle)) igHandles.add(h);
+      const ig_by_handle: Record<string, number[]> = {};
+      for (const h of igHandles) {
+        ig_by_handle[h] = snaps
+          .map(s => s.igByHandle?.[h])
+          .filter((n): n is number => typeof n === 'number');
+      }
       return JSON.stringify({
-        days,
-        debt: { series: snaps.map(s => s.debt), trend: trend('debt', days) },
-        income_monthly_egp: { series: snaps.map(s => s.incomeMonthly), trend: trend('incomeMonthly', days) },
-        priorities_open: { series: snaps.map(s => s.prioritiesOpen) },
-        habits_today: { series: snaps.map(s => s.habitsToday) },
-        journal_count: { series: snaps.map(s => s.journalCount) },
-        ig_followers: { series: snaps.map(s => s.igFollowers) },
+        days_requested: days,
+        coverage_days: cov,
+        captured_days_in_window: snaps.length,
+        captured_dates: snaps.map(s => s.d),
+        note: cov < 2
+          ? 'Fewer than 2 daily captures so far. Do not state any trend direction as fact.'
+          : 'Real captured data — no synthesis.',
+        debt:                 { series: snaps.map(s => s.debt),           trend: trend('debt', days) },
+        income_monthly_egp:   { series: snaps.map(s => s.incomeMonthly),  trend: trend('incomeMonthly', days) },
+        priorities_open:      { series: snaps.map(s => s.prioritiesOpen) },
+        habits_today:         { series: snaps.map(s => s.habitsToday) },
+        journal_count:        { series: snaps.map(s => s.journalCount) },
+        ig_followers_total:   { series: snaps.map(s => s.igFollowers) },
+        ig_by_handle,
       });
     }
     case 'complete_priority': {
@@ -254,6 +335,64 @@ export async function runTool(call: ToolCall): Promise<string> {
       if (!already) toggleHabit(hit.id);
       toast.ok(`Habit ticked: “${hit.label}”`, 'KAI · TOOL', 3000);
       return JSON.stringify({ ok: true, habit: hit.label, was_already_done: already });
+    }
+
+    /* ── New in v1.13: write tools for the previously-static surfaces ── */
+    case 'update_garden': {
+      const i = call.input || {};
+      const patch: any = {};
+      if (typeof i.plant_count   === 'number')  patch.plantCount   = i.plant_count;
+      if (typeof i.species_count === 'number')  patch.speciesCount = i.species_count;
+      if (Array.isArray(i.tasks_today))         patch.todayTasks   = i.tasks_today.map(String);
+      if (typeof i.next_event_title === 'string' || typeof i.next_event_when === 'string') {
+        const cur = loadState().garden.nextEvent;
+        patch.nextEvent = {
+          title: typeof i.next_event_title === 'string' ? i.next_event_title : cur.title,
+          when:  typeof i.next_event_when  === 'string' ? i.next_event_when  : cur.when,
+        };
+      }
+      if (Object.keys(patch).length === 0) return JSON.stringify({ ok: false, reason: 'no fields provided' });
+      updateGarden(patch);
+      toast.ok('Garden updated.', 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, garden: loadState().garden });
+    }
+    case 'update_makadi': {
+      const i = call.input || {};
+      const patch: any = {};
+      if (typeof i.nightly_rate_egp === 'number')  patch.nightlyRate  = i.nightly_rate_egp;
+      if (typeof i.occupancy_30d    === 'number')  patch.occupancy30d = Math.max(0, Math.min(1, i.occupancy_30d));
+      if (typeof i.next_booking     === 'string')  patch.nextBooking  = i.next_booking;
+      if (typeof i.fix_lock         === 'boolean') patch.fixLock      = i.fix_lock;
+      if (typeof i.rating           === 'number')  patch.rating       = Math.max(0, Math.min(5, i.rating));
+      if (Object.keys(patch).length === 0) return JSON.stringify({ ok: false, reason: 'no fields provided' });
+      updateMakadi(patch);
+      toast.ok('Makadi updated.', 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, makadi: loadState().makadi });
+    }
+    case 'update_instagram': {
+      const handle = String(call.input?.handle || '').trim();
+      if (!handle) return JSON.stringify({ ok: false, reason: 'missing handle' });
+      if (call.input?.remove === true) {
+        removeInstagram(handle);
+        toast.ok(`IG removed: ${handle}`, 'KAI · TOOL', 3000);
+        return JSON.stringify({ ok: true, removed: handle });
+      }
+      const followers = Number(call.input?.followers);
+      if (!Number.isFinite(followers) || followers < 0) {
+        return JSON.stringify({ ok: false, reason: 'followers must be a non-negative number' });
+      }
+      upsertInstagram(handle, Math.round(followers));
+      toast.ok(`IG ${handle.startsWith('@') ? handle : '@' + handle} · ${followers.toLocaleString('en-GB')}`, 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, instagram: loadState().instagram });
+    }
+    case 'set_fx_rate': {
+      const rate = Number(call.input?.egp_per_eur);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        return JSON.stringify({ ok: false, reason: 'rate must be a positive number' });
+      }
+      setFx(rate);
+      toast.ok(`FX rate: 1 EUR = ${rate.toFixed(2)} EGP`, 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, fx_egp_per_eur: rate });
     }
     default:
       return 'error: unknown tool';

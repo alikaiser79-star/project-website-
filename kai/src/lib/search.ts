@@ -1,5 +1,6 @@
 import { loadState } from './store';
 import { listReminders } from './reminders';
+import { emitAction } from './actions';
 
 export type SearchHit = {
   id: string;
@@ -11,7 +12,7 @@ export type SearchHit = {
 };
 
 const BUILTIN_COMMANDS = [
-  'status', 'briefing', 'debt', 'income', 'tasks',
+  'status', 'briefing', 'weekly', 'debt', 'income', 'tasks',
   'garden', 'makadi', 'instagram', 'time', 'focus 25', 'break',
   'help', 'convert 1000 eur',
 ];
@@ -31,27 +32,66 @@ export function searchAll(query: string, runCommand: (q: string) => void): Searc
 
   for (const p of s.priorities) {
     const sc = score(p.text, q);
-    if (sc) out.push({ id: 'p-' + p.id, kind: 'priority', label: p.text, meta: p.done ? 'done' : 'open', score: sc, action: () => runCommand('tasks') });
+    if (sc) out.push({
+      id: 'p-' + p.id,
+      kind: 'priority',
+      label: p.text,
+      meta: p.done ? 'done' : 'open',
+      score: sc,
+      action: () => emitAction({ type: 'ping-panel', panel: '06' }),
+    });
   }
   for (const e of s.journal) {
     const sc = score(e.text, q);
-    if (sc) out.push({ id: 'j-' + e.id, kind: 'journal', label: e.text, meta: new Date(e.at).toLocaleString('en-GB', { day: '2-digit', month: 'short' }), score: sc, action: () => {} });
+    if (sc) out.push({
+      id: 'j-' + e.id,
+      kind: 'journal',
+      label: e.text,
+      meta: new Date(e.at).toLocaleString('en-GB', { day: '2-digit', month: 'short' }),
+      score: sc,
+      action: () => emitAction({ type: 'open-journal', entryId: e.id }),
+    });
   }
   for (const h of s.habits) {
     const sc = score(h.label, q);
-    if (sc) out.push({ id: 'h-' + h.id, kind: 'habit', label: h.label, meta: 'habit', score: sc, action: () => {} });
+    if (sc) out.push({
+      id: 'h-' + h.id,
+      kind: 'habit',
+      label: h.label,
+      meta: 'habit',
+      score: sc,
+      action: () => emitAction({ type: 'open-settings', section: 'habits' }),
+    });
   }
   for (const r of listReminders()) {
     const sc = score(r.text, q);
-    if (sc) out.push({ id: r.id, kind: 'reminder', label: r.text, meta: 'at ' + new Date(r.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), score: sc, action: () => {} });
+    if (sc) out.push({
+      id: r.id,
+      kind: 'reminder',
+      label: r.text,
+      meta: 'at ' + new Date(r.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      score: sc,
+      action: () => emitAction({ type: 'open-settings', section: 'reminders' }),
+    });
   }
   for (const t of s.history.slice(-30)) {
     const sc = Math.max(score(t.you, q), score(t.kai, q));
-    if (sc) out.push({ id: 'ch-' + t.at, kind: 'history', label: t.you, meta: t.kai.slice(0, 50), score: sc * 0.7, action: () => {} });
+    if (sc) out.push({
+      id: 'ch-' + t.at,
+      kind: 'history',
+      label: t.you,
+      meta: t.kai.slice(0, 50),
+      score: sc * 0.7,
+      action: () => emitAction({ type: 'open-cmd' }),
+    });
   }
   for (const c of BUILTIN_COMMANDS) {
     const sc = score(c, q);
-    if (sc) out.push({ id: 'cmd-' + c, kind: 'command', label: c, meta: 'run command', score: sc + 5, action: () => runCommand(c) });
+    if (sc) out.push({
+      id: 'cmd-' + c, kind: 'command', label: c, meta: 'run command',
+      score: sc + 5,
+      action: () => runCommand(c),
+    });
   }
 
   return out.sort((a, b) => b.score - a.score).slice(0, 18);

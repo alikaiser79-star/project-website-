@@ -1,5 +1,11 @@
-import type { KaiPersisted, IncomeOverride } from '../types';
-import { defaultPriorities, defaultGoals, income as configIncome, debt, operator } from '../kaiConfig';
+import type {
+  KaiPersisted, IncomeOverride, GardenState, MakadiState, IgAccount,
+} from '../types';
+import {
+  defaultPriorities, defaultGoals, income as configIncome,
+  debt, operator, garden as configGarden, makadi as configMakadi,
+  instagram as configInstagram, currency,
+} from '../kaiConfig';
 
 const KEY = 'kai.state.v1';
 
@@ -32,12 +38,29 @@ export const defaults: KaiPersisted = {
     cadence: s.cadence, note: s.note, trend: s.trend,
   })),
   snapshots: [],
+  garden: {
+    plantCount:   configGarden.plantCount,
+    speciesCount: configGarden.speciesCount,
+    todayTasks:   [...configGarden.todayTasks],
+    nextEvent:    { title: configGarden.nextEvent.title, when: configGarden.nextEvent.when },
+  },
+  makadi: {
+    nightlyRate:  configMakadi.nightlyRate,
+    occupancy30d: configMakadi.occupancy30d,
+    nextBooking:  configMakadi.nextBooking,
+    fixLock:      configMakadi.fixLock,
+    rating:       configMakadi.rating,
+  },
+  instagram: configInstagram.accounts.map<IgAccount>(a => ({
+    handle: a.handle, followers: a.followers,
+  })),
+  fxEgpPerEur: currency.egpPerEur,
 };
 
 export function loadState(): KaiPersisted {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...defaults };
+    if (!raw) return cloneDefaults();
     const parsed = JSON.parse(raw) as Partial<KaiPersisted>;
     return {
       ...defaults,
@@ -50,10 +73,60 @@ export function loadState(): KaiPersisted {
       goals: parsed.goals && parsed.goals.length ? parsed.goals : defaults.goals,
       income: parsed.income && parsed.income.length ? parsed.income : defaults.income,
       snapshots: parsed.snapshots ?? [],
+      garden:    { ...defaults.garden,   ...(parsed.garden   || {}) },
+      makadi:    { ...defaults.makadi,   ...(parsed.makadi   || {}) },
+      instagram: parsed.instagram && parsed.instagram.length ? parsed.instagram : defaults.instagram,
+      fxEgpPerEur: typeof parsed.fxEgpPerEur === 'number' && parsed.fxEgpPerEur > 0
+        ? parsed.fxEgpPerEur
+        : defaults.fxEgpPerEur,
     };
-  } catch { return { ...defaults }; }
+  } catch { return cloneDefaults(); }
 }
 
 export function saveState(s: KaiPersisted) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
+}
+
+function cloneDefaults(): KaiPersisted {
+  return JSON.parse(JSON.stringify(defaults));
+}
+
+/* ── Live-data accessors ───────────────────────────────────────
+   Components read these instead of importing from kaiConfig so that
+   edits in the Settings drawer and Claude tool calls take effect
+   without a reload. */
+
+export function getGarden(): GardenState   { return loadState().garden; }
+export function getMakadi(): MakadiState   { return loadState().makadi; }
+export function getInstagram(): IgAccount[]{ return loadState().instagram; }
+export function getFx(): number            { return loadState().fxEgpPerEur; }
+
+export function updateGarden(patch: Partial<GardenState>) {
+  const s = loadState();
+  s.garden = { ...s.garden, ...patch };
+  saveState(s);
+}
+export function updateMakadi(patch: Partial<MakadiState>) {
+  const s = loadState();
+  s.makadi = { ...s.makadi, ...patch };
+  saveState(s);
+}
+export function upsertInstagram(handle: string, followers: number) {
+  const s = loadState();
+  const norm = handle.startsWith('@') ? handle : '@' + handle;
+  const idx = s.instagram.findIndex(a => a.handle.toLowerCase() === norm.toLowerCase());
+  if (idx >= 0) s.instagram[idx] = { ...s.instagram[idx], followers };
+  else          s.instagram = [...s.instagram, { handle: norm, followers }];
+  saveState(s);
+}
+export function removeInstagram(handle: string) {
+  const s = loadState();
+  s.instagram = s.instagram.filter(a => a.handle.toLowerCase() !== handle.toLowerCase());
+  saveState(s);
+}
+export function setFx(rate: number) {
+  if (!Number.isFinite(rate) || rate <= 0) return;
+  const s = loadState();
+  s.fxEgpPerEur = rate;
+  saveState(s);
 }

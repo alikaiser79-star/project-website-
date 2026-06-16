@@ -6,7 +6,7 @@ import { loadState, saveState } from '../../lib/store';
 import { useCounter } from '../../hooks/useCounter';
 import { celebrate } from '../../lib/celebrate';
 import Sparkline from '../Sparkline';
-import { withBackfill, trend } from '../../lib/history';
+import { seriesFor, trend } from '../../lib/history';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -86,19 +86,20 @@ export default function DebtPanel({ delay = 0 }: { delay?: number }) {
           </div>
           <div className="pt-2">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel">14d trend</span>
+              <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel">trend</span>
               {(() => {
                 const t = trend('debt', 14);
+                if (!t) return <span className="font-mono text-[10px] text-steel">—</span>;
                 const up = t.delta > 0;
                 return (
                   <span className={'font-mono text-[10px] tabular-nums ' + (up ? 'text-danger' : 'text-ok')}>
-                    {up ? '+' : ''}{Math.round(t.delta).toLocaleString('en-GB')} EGP
+                    {up ? '+' : ''}{Math.round(t.delta).toLocaleString('en-GB')} EGP · {t.samples}d
                   </span>
                 );
               })()}
             </div>
             <Sparkline
-              values={withBackfill(14).map(s => s.debt)}
+              values={seriesFor('debt', 14)}
               width={200} height={28} color="#FFB300" invert
             />
           </div>

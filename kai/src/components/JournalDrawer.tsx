@@ -5,7 +5,7 @@ import { listJournal, addJournal, removeJournal } from '../lib/journal';
 import { sfx } from '../lib/sound';
 import { toast } from '../hooks/useToasts';
 
-export default function JournalDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function JournalDrawer({ open, onClose, focusEntryId }: { open: boolean; onClose: () => void; focusEntryId?: string | null }) {
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
   const [entries, setEntries] = useState(() => listJournal());
@@ -29,6 +29,17 @@ export default function JournalDrawer({ open, onClose }: { open: boolean; onClos
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  /* When the drawer is opened from Spotlight with an entry id, scroll
+     to that entry. The pulse glow comes from the motion.div above. */
+  useEffect(() => {
+    if (!open || !focusEntryId) return;
+    const id = setTimeout(() => {
+      const el = document.getElementById('journal-entry-' + focusEntryId);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 240);
+    return () => clearTimeout(id);
+  }, [open, focusEntryId]);
 
   function save() {
     const t = text.trim();
@@ -112,9 +123,15 @@ export default function JournalDrawer({ open, onClose }: { open: boolean; onClos
                 {visible.map(e => (
                   <motion.div
                     key={e.id}
+                    id={'journal-entry-' + e.id}
                     layout
                     initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    animate={{
+                      opacity: 1, y: 0,
+                      boxShadow: focusEntryId === e.id
+                        ? '0 0 0 1px #FFB300, 0 0 18px rgba(255,179,0,0.45)'
+                        : 'none',
+                    }}
                     exit={{ opacity: 0, x: 10, transition: { duration: 0.18 } }}
                     className="group p-3 border border-amber/15 hover:border-amber/40 rounded bg-ink2/40"
                   >

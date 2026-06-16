@@ -24,6 +24,22 @@ export type Habit = { id: string; label: string; history: string[] };
 
 export type Reminder = { id: string; text: string; at: string; fired?: boolean };
 
+/* Editable live values that used to live in kaiConfig. */
+export type GardenState = {
+  plantCount: number;
+  speciesCount: number;
+  todayTasks: string[];
+  nextEvent: { title: string; when: string };
+};
+export type MakadiState = {
+  nightlyRate: number;
+  occupancy30d: number;     // 0..1
+  nextBooking: string;
+  fixLock: boolean;
+  rating: number;
+};
+export type IgAccount = { handle: string; followers: number };
+
 /* Editable runtime overrides for income streams. id matches kaiConfig.income[].id;
    custom streams (added from the UI) live here too with the same shape. */
 export type Snapshot = {
@@ -35,6 +51,7 @@ export type Snapshot = {
   habitsToday: number;
   journalCount: number;
   igFollowers: number;
+  igByHandle?: Record<string, number>;
 };
 
 export type IncomeOverride = {
@@ -62,4 +79,8 @@ export type KaiPersisted = {
   goals: GoalState[];
   income: IncomeOverride[];
   snapshots: Snapshot[];
+  garden: GardenState;
+  makadi: MakadiState;
+  instagram: IgAccount[];
+  fxEgpPerEur: number;
 };

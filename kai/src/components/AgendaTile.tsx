@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarDays } from 'lucide-react';
-import { garden, makadi, operator } from '../kaiConfig';
+import { operator } from '../kaiConfig';
+import { getGarden, getMakadi } from '../lib/store';
 import { listReminders } from '../lib/reminders';
 
 type Item = { when: Date; label: string; tag: string; tone: 'amber' | 'cyan' | 'warn' };
@@ -15,8 +16,11 @@ export default function AgendaTile({ delay = 0 }: { delay?: number }) {
 
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];
-    out.push({ when: new Date(garden.nextEvent.when), label: garden.nextEvent.title, tag: 'GARDEN', tone: 'amber' });
-    out.push({ when: new Date(makadi.nextBooking),    label: 'Makadi check-in',      tag: 'MAKADI', tone: 'cyan' });
+    const g = getGarden(); const m = getMakadi();
+    const gEv = new Date(g.nextEvent.when);
+    if (!Number.isNaN(+gEv)) out.push({ when: gEv, label: g.nextEvent.title, tag: 'GARDEN', tone: 'amber' });
+    const mNext = new Date(m.nextBooking);
+    if (!Number.isNaN(+mNext)) out.push({ when: mNext, label: 'Makadi check-in', tag: 'MAKADI', tone: 'cyan' });
     for (const r of listReminders()) {
       out.push({ when: new Date(r.at), label: r.text, tag: 'REMIND', tone: 'warn' });
     }

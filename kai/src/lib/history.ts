@@ -1,77 +1,86 @@
 import { loadState, saveState } from './store';
-import { monthlyTotalEGP, instagram } from '../kaiConfig';
+import { monthlyTotalEGP } from '../kaiConfig';
 import type { Snapshot } from '../types';
 
-const MAX_SNAPS = 180; // ~6 months
+const MAX_SNAPS = 180;
 
 function isoDay(d = new Date()) { return d.toISOString().slice(0, 10); }
 
+/* Idempotent per ISO day. Captures a snapshot from the live store. */
 export function recordSnapshot() {
   const s = loadState();
   const today = isoDay();
-  if (s.snapshots.some(x => x.d === today)) return; // already captured
+  if (s.snapshots.some(x => x.d === today)) return;
 
   const habitsToday = s.habits.filter(h => h.history.includes(today)).length;
+  const igByHandle: Record<string, number> = {};
+  let igTotal = 0;
+  for (const a of s.instagram) {
+    igByHandle[a.handle] = a.followers;
+    igTotal += a.followers;
+  }
   const snap: Snapshot = {
     d: today,
     debt: s.debtCurrent,
-    incomeMonthly: Math.round(monthlyTotalEGP(s.income)),
+    incomeMonthly: Math.round(monthlyTotalEGP(s.income, s.fxEgpPerEur)),
     prioritiesOpen: s.priorities.filter(p => !p.done).length,
     prioritiesDone: s.priorities.filter(p => p.done).length,
     habitsToday,
     journalCount: s.journal.length,
-    igFollowers: instagram.accounts.reduce((sum, a) => sum + a.followers, 0),
+    igFollowers: igTotal,
+    igByHandle,
   };
   s.snapshots = [...s.snapshots, snap].slice(-MAX_SNAPS);
   saveState(s);
 }
 
-export function getSnapshots(days = 30): Snapshot[] {
+/* Real snapshots only — no backfill, no synthesis. The most recent
+   `days` of actual data, oldest first. May be empty or short for
+   new users; callers must handle that. */
+export function getSnapshots(days = 14): Snapshot[] {
   return loadState().snapshots.slice(-days);
 }
 
-/* Backfill missing days with synthesised midline values so a fresh user
-   still gets a sparkline that looks alive. Real future snapshots
-   override these the moment they're captured. */
-export function withBackfill(days = 14): Snapshot[] {
-  const real = getSnapshots(days);
-  if (real.length >= days) return real.slice(-days);
-  const s = loadState();
-  const todaySnap: Snapshot = {
-    d: isoDay(),
-    debt: s.debtCurrent,
-    incomeMonthly: Math.round(monthlyTotalEGP(s.income)),
-    prioritiesOpen: s.priorities.filter(p => !p.done).length,
-    prioritiesDone: s.priorities.filter(p => p.done).length,
-    habitsToday: s.habits.filter(h => h.history.includes(isoDay())).length,
-    journalCount: s.journal.length,
-    igFollowers: instagram.accounts.reduce((sum, a) => sum + a.followers, 0),
-  };
-  const out: Snapshot[] = [];
-  const need = days - real.length;
-  for (let i = need; i > 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const jitter = (k: number) => Math.round(k + k * 0.02 * Math.sin(i * 1.7));
-    out.push({
-      d: isoDay(d),
-      debt: jitter(todaySnap.debt),
-      incomeMonthly: jitter(todaySnap.incomeMonthly),
-      prioritiesOpen: todaySnap.prioritiesOpen,
-      prioritiesDone: todaySnap.prioritiesDone,
-      habitsToday: todaySnap.habitsToday,
-      journalCount: todaySnap.journalCount,
-      igFollowers: jitter(todaySnap.igFollowers),
-    });
-  }
-  return [...out, ...real, ...(real.some(r => r.d === isoDay()) ? [] : [todaySnap])].slice(-days);
+/* How many real days of data we currently have. */
+export function coverage(): number {
+  return loadState().snapshots.length;
 }
 
-export function trend(field: keyof Snapshot, days = 14) {
-  const arr = withBackfill(days);
-  const vals = arr.map(s => Number(s[field])).filter(n => Number.isFinite(n));
-  if (vals.length < 2) return { delta: 0, pct: 0 };
-  const first = vals[0]; const last = vals[vals.length - 1];
+/* A trend over the last `days` of REAL data. Returns null when we
+   don't have at least 2 captures — insights / sparklines must check
+   this before claiming any direction. */
+export function trend(field: keyof Snapshot, days = 14):
+  { delta: number; pct: number; from: number; to: number; samples: number } | null {
+  const snaps = getSnapshots(days);
+  if (snaps.length < 2) return null;
+  const vals = snaps
+    .map(s => Number(s[field]))
+    .filter(n => Number.isFinite(n));
+  if (vals.length < 2) return null;
+  const first = vals[0];
+  const last  = vals[vals.length - 1];
   const delta = last - first;
   const pct = first === 0 ? 0 : (delta / Math.abs(first)) * 100;
-  return { delta, pct };
+  return { delta, pct, from: first, to: last, samples: vals.length };
+}
+
+/* Convenience for sparklines: real values when we have ≥2, otherwise
+   an empty array (callers render a "building history" placeholder). */
+export function seriesFor(field: keyof Snapshot, days = 14): number[] {
+  const snaps = getSnapshots(days);
+  if (snaps.length < 2) return [];
+  return snaps
+    .map(s => Number(s[field]))
+    .filter(n => Number.isFinite(n));
+}
+
+/* Per-handle Instagram series — reads from snap.igByHandle. */
+export function instagramSeries(handle: string, days = 14): number[] {
+  const snaps = getSnapshots(days);
+  const vals: number[] = [];
+  for (const s of snaps) {
+    const v = s.igByHandle?.[handle];
+    if (typeof v === 'number') vals.push(v);
+  }
+  return vals.length >= 2 ? vals : [];
 }

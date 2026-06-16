@@ -1,15 +1,35 @@
 import Panel from '../Panel';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, Bed, Star } from 'lucide-react';
-import { makadi, operator } from '../../kaiConfig';
+import { operator } from '../../kaiConfig';
 import { useCounter } from '../../hooks/useCounter';
+import { getMakadi } from '../../lib/store';
+import type { MakadiState } from '../../types';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
 export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
-  const rate = useCounter(makadi.nightlyRate, { duration: 1.6 });
-  const occ  = useCounter(makadi.occupancy30d * 100, { decimals: 0, duration: 1.6 });
-  const rating = useCounter(makadi.rating, { decimals: 2, duration: 1.4 });
-  const next = new Date(makadi.nextBooking);
+  const [m, setM] = useState<MakadiState>(() => getMakadi());
+
+  useEffect(() => {
+    const sync = () => setM(getMakadi());
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('focus', sync);
+    const t = setInterval(sync, 4000);
+    return () => {
+      document.removeEventListener('visibilitychange', sync);
+      window.removeEventListener('focus', sync);
+      clearInterval(t);
+    };
+  }, []);
+
+  const rate   = useCounter(m.nightlyRate, { duration: 1.6 });
+  const occ    = useCounter(m.occupancy30d * 100, { decimals: 0, duration: 1.6 });
+  const rating = useCounter(m.rating, { decimals: 2, duration: 1.4 });
+  const next   = new Date(m.nextBooking);
+  const nextLabel = Number.isNaN(+next)
+    ? '—'
+    : next.toLocaleDateString(operator.locale, { weekday: 'long', day: '2-digit', month: 'short' });
 
   return (
     <Panel num="04" title="Makadi Airbnb" tag="STR" delay={delay}>
@@ -28,9 +48,7 @@ export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
           <div className="flex items-center gap-2 text-amber/80 text-[10px] tracking-[0.22em] uppercase font-mono">
             <Bed size={12} /> Next Booking
           </div>
-          <div className="font-mono text-bone text-sm mt-1">
-            {next.toLocaleDateString(operator.locale, { weekday: 'long', day: '2-digit', month: 'short' })}
-          </div>
+          <div className="font-mono text-bone text-sm mt-1">{nextLabel}</div>
         </div>
         <div className="rounded border border-amber/15 p-3">
           <div className="flex items-center gap-2 text-amber/80 text-[10px] tracking-[0.22em] uppercase font-mono">
@@ -39,7 +57,7 @@ export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
           <div className="font-mono text-amber text-xl tabular-nums">{rating}</div>
         </div>
       </div>
-      {makadi.fixLock && (
+      {m.fixLock && (
         <div className="mt-4 flex items-center gap-2 p-3 border border-danger/40 bg-danger/5 rounded">
           <AlertTriangle size={16} className="text-danger shrink-0" />
           <div className="text-[12px] text-bone">

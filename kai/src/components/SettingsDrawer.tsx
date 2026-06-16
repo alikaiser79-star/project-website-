@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame } from 'lucide-react';
-import { loadState, saveState, defaults } from '../lib/store';
+import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame, Leaf, Bed, AtSign } from 'lucide-react';
+import {
+  loadState, saveState, defaults,
+  updateGarden, updateMakadi, upsertInstagram, removeInstagram, setFx,
+} from '../lib/store';
 import { defaultGoals } from '../kaiConfig';
-import type { KaiSettings, Accent, IncomeOverride, Habit, GoalState } from '../types';
+import type { KaiSettings, Accent, IncomeOverride, Habit, GoalState, GardenState, MakadiState, IgAccount } from '../types';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { toast } from '../hooks/useToasts';
@@ -15,9 +18,16 @@ const ACCENTS: { id: Accent; label: string; hex: string }[] = [
   { id: 'emerald', label: 'Emerald', hex: '#7AE6A8' },
 ];
 
-type Props = { open: boolean; onClose: () => void; onSettings: (s: KaiSettings) => void; onTour: () => void };
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  onSettings: (s: KaiSettings) => void;
+  onTour: () => void;
+  /* When open, scroll the section whose title matches this prop into view. */
+  focusSection?: string | null;
+};
 
-export default function SettingsDrawer({ open, onClose, onSettings, onTour }: Props) {
+export default function SettingsDrawer({ open, onClose, onSettings, onTour, focusSection }: Props) {
   const [s, setS] = useState<KaiSettings>(() => loadState().settings);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
@@ -34,6 +44,16 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour }: Pr
     state.settings = s; saveState(state);
     onSettings(s);
   }, [s, onSettings]);
+
+  /* When opened with a focusSection, scroll that section into view. */
+  useEffect(() => {
+    if (!open || !focusSection) return;
+    const id = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-section="${focusSection.toLowerCase()}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 240);
+    return () => clearTimeout(id);
+  }, [open, focusSection]);
 
   function resetAll() {
     if (!confirm('Wipe ALL local state (priorities, debt, chat, settings)?')) return;
@@ -173,6 +193,22 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour }: Pr
                 <IncomeEditor />
               </Section>
 
+              <Section icon={<Wallet size={12} />} title="FX rate">
+                <FxEditor />
+              </Section>
+
+              <Section icon={<Leaf size={12} />} title="Hidden Garden">
+                <GardenEditor />
+              </Section>
+
+              <Section icon={<Bed size={12} />} title="Makadi Airbnb">
+                <MakadiEditor />
+              </Section>
+
+              <Section icon={<AtSign size={12} />} title="Instagram">
+                <InstagramEditor />
+              </Section>
+
               <Section icon={<Target size={12} />} title="Goals">
                 <GoalsEditor />
               </Section>
@@ -256,7 +292,7 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour }: Pr
 
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div>
+    <div data-section={title.toLowerCase()}>
       <div className="flex items-center gap-2 mb-2.5 text-amber/90">
         {icon}
         <span className="font-mono text-[10px] tracking-[0.22em] uppercase">{title}</span>
@@ -479,3 +515,264 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
     </button>
   );
 }
+
+/* ───────── FX rate editor ───────── */
+function FxEditor() {
+  const [rate, setRate] = useState<number>(() => loadState().fxEgpPerEur);
+  function commit(v: number) {
+    if (!Number.isFinite(v) || v <= 0) return;
+    setRate(v); setFx(v);
+  }
+  return (
+    <>
+      <div className="flex items-baseline gap-2 font-mono text-[11px]">
+        <span className="text-steel text-[10px] tracking-[0.18em] uppercase">1 EUR =</span>
+        <input
+          type="number"
+          step="0.01"
+          value={rate}
+          onChange={e => commit(parseFloat(e.target.value))}
+          className="flex-1 bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
+        />
+        <span className="text-steel text-[10px]">EGP</span>
+      </div>
+      <p className="mt-2 text-[10px] text-steel leading-relaxed">
+        Used everywhere KAI converts EUR streams to EGP and back.
+      </p>
+    </>
+  );
+}
+
+/* ───────── Garden editor ───────── */
+function GardenEditor() {
+  const [g, setG] = useState<GardenState>(() => loadState().garden);
+  const [taskDraft, setTaskDraft] = useState('');
+
+  function commit(patch: Partial<GardenState>) {
+    const next = { ...g, ...patch };
+    setG(next);
+    updateGarden(patch);
+  }
+  function addTask() {
+    const t = taskDraft.trim();
+    if (!t) return;
+    commit({ todayTasks: [...g.todayTasks, t] });
+    setTaskDraft('');
+  }
+  function removeTask(i: number) {
+    commit({ todayTasks: g.todayTasks.filter((_, n) => n !== i) });
+  }
+  function setEvent(patch: Partial<GardenState['nextEvent']>) {
+    commit({ nextEvent: { ...g.nextEvent, ...patch } });
+  }
+  const whenLocal = (() => {
+    const d = new Date(g.nextEvent.when);
+    if (Number.isNaN(+d)) return '';
+    /* datetime-local needs `YYYY-MM-DDTHH:mm` without TZ. */
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  })();
+
+  return (
+    <div className="space-y-2 font-mono text-[11px]">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Plants</span>
+          <input
+            type="number"
+            value={g.plantCount}
+            onChange={e => commit({ plantCount: parseInt(e.target.value) || 0 })}
+            className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
+          />
+        </label>
+        <label className="block">
+          <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Species</span>
+          <input
+            type="number"
+            value={g.speciesCount}
+            onChange={e => commit({ speciesCount: parseInt(e.target.value) || 0 })}
+            className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
+          />
+        </label>
+      </div>
+
+      <label className="block">
+        <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Next event · title</span>
+        <input
+          value={g.nextEvent.title}
+          onChange={e => setEvent({ title: e.target.value })}
+          className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone outline-none font-sans"
+        />
+      </label>
+      <label className="block">
+        <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Next event · when</span>
+        <input
+          type="datetime-local"
+          value={whenLocal}
+          onChange={e => {
+            const v = e.target.value;
+            if (v) setEvent({ when: new Date(v).toISOString() });
+          }}
+          className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone outline-none"
+        />
+      </label>
+
+      <div>
+        <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Today’s tasks</span>
+        <ul className="mt-1 space-y-1">
+          {g.todayTasks.map((t, i) => (
+            <li key={i} className="flex items-center gap-1.5 px-2 py-1 border border-amber/10 rounded">
+              <span className="text-amber/70 shrink-0">·</span>
+              <input
+                value={t}
+                onChange={e => {
+                  const next = [...g.todayTasks]; next[i] = e.target.value;
+                  commit({ todayTasks: next });
+                }}
+                className="flex-1 bg-transparent border-b border-amber/10 focus:border-amber py-0.5 text-bone outline-none font-sans"
+              />
+              <button onClick={() => removeTask(i)} className="text-steel hover:text-danger transition">
+                <Trash2 size={11} />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-1.5 mt-1.5">
+          <input
+            value={taskDraft}
+            onChange={e => setTaskDraft(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addTask()}
+            placeholder="Add a task…"
+            className="flex-1 bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone outline-none font-sans"
+          />
+          <button onClick={addTask}
+            className="px-2 border border-amber/40 text-amber hover:border-amber rounded">
+            <Plus size={11} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───────── Makadi editor ───────── */
+function MakadiEditor() {
+  const [m, setM] = useState<MakadiState>(() => loadState().makadi);
+
+  function commit(patch: Partial<MakadiState>) {
+    const next = { ...m, ...patch };
+    setM(next);
+    updateMakadi(patch);
+  }
+  const bookingLocal = (() => {
+    const d = new Date(m.nextBooking);
+    if (Number.isNaN(+d)) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  })();
+
+  return (
+    <div className="space-y-2 font-mono text-[11px]">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Nightly · EGP</span>
+          <input
+            type="number"
+            value={m.nightlyRate}
+            onChange={e => commit({ nightlyRate: parseFloat(e.target.value) || 0 })}
+            className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
+          />
+        </label>
+        <label className="block">
+          <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Occupancy · %</span>
+          <input
+            type="number"
+            min={0} max={100} step="1"
+            value={Math.round(m.occupancy30d * 100)}
+            onChange={e => commit({ occupancy30d: Math.max(0, Math.min(1, (parseFloat(e.target.value) || 0) / 100)) })}
+            className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
+          />
+        </label>
+      </div>
+      <label className="block">
+        <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Next booking</span>
+        <input
+          type="datetime-local"
+          value={bookingLocal}
+          onChange={e => { const v = e.target.value; if (v) commit({ nextBooking: new Date(v).toISOString() }); }}
+          className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone outline-none"
+        />
+      </label>
+      <label className="block">
+        <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Rating</span>
+        <input
+          type="number" min={0} max={5} step="0.01"
+          value={m.rating}
+          onChange={e => commit({ rating: Math.max(0, Math.min(5, parseFloat(e.target.value) || 0)) })}
+          className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
+        />
+      </label>
+      <Toggle label="Door-lock flag" value={m.fixLock} onChange={v => commit({ fixLock: v })} />
+    </div>
+  );
+}
+
+/* ───────── Instagram editor ───────── */
+function InstagramEditor() {
+  const [items, setItems] = useState<IgAccount[]>(() => loadState().instagram);
+  const [draft, setDraft] = useState('');
+
+  function refresh() { setItems(loadState().instagram); }
+  function setFollowers(handle: string, v: number) {
+    upsertInstagram(handle, Math.max(0, Math.round(v) || 0));
+    refresh();
+  }
+  function remove(handle: string) {
+    removeInstagram(handle); refresh(); sfx.click();
+  }
+  function add() {
+    const h = draft.trim();
+    if (!h) return;
+    upsertInstagram(h, 0);
+    setDraft(''); refresh(); sfx.click();
+  }
+
+  return (
+    <>
+      <ul className="space-y-1.5">
+        {items.map(a => (
+          <li key={a.handle} className="flex items-center gap-2 px-2 py-1.5 border border-amber/15 rounded">
+            <AtSign size={11} className="text-amber/70 shrink-0" />
+            <span className="font-sans text-bone text-[12px] flex-1 truncate">{a.handle}</span>
+            <input
+              type="number"
+              value={a.followers}
+              onChange={e => setFollowers(a.handle, parseFloat(e.target.value))}
+              className="w-24 font-mono bg-transparent border border-amber/15 focus:border-amber/40 rounded px-1.5 py-0.5 text-bone tabular-nums outline-none text-[11px]"
+            />
+            <button onClick={() => remove(a.handle)} className="text-steel hover:text-danger transition" title="Remove">
+              <Trash2 size={11} />
+            </button>
+          </li>
+        ))}
+        {items.length === 0 && (
+          <li className="font-mono text-[11px] text-steel">No accounts yet.</li>
+        )}
+      </ul>
+      <div className="flex gap-1.5 mt-2">
+        <input
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && add()}
+          placeholder="@handle"
+          className="flex-1 bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone text-[11px] outline-none font-mono"
+        />
+        <button onClick={add}
+          className="px-2 border border-amber/40 text-amber hover:border-amber rounded">
+          <Plus size={11} />
+        </button>
+      </div>
+    </>
+  );
+}
+

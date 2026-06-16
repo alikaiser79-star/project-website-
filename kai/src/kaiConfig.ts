@@ -13,9 +13,11 @@ export const operator = {
   cityLabel: 'Cairo',
 };
 
-/* Currency — KAI normalises everything to EGP for the headline. */
+/* Currency — KAI normalises everything to EGP for the headline.
+   `egpPerEur` is a default; the live rate lives in the store and is
+   editable via Settings → FX rate, voice, or the set_fx_rate tool. */
 export const currency = {
-  egpPerEur: 53.5,          // Update freely
+  egpPerEur: 53.5,
   primary: 'EGP' as const,
 };
 
@@ -71,10 +73,14 @@ export const makadi = {
 };
 
 /* ── INSTAGRAM ────────────────────────────────────────── */
+/* Default Instagram accounts (real starting values). Followers are
+   editable at runtime via Settings → Instagram, voice, or the
+   update_instagram tool. Per-day series come from history snapshots,
+   not from this config. */
 export const instagram = {
   accounts: [
-    { handle: '@alikaiser1',      followers: 14200, weekly: [13780, 13860, 13950, 14010, 14080, 14150, 14200] },
-    { handle: '@hiddengarden.eg', followers:  8640, weekly: [ 8220,  8300,  8390,  8450,  8520,  8580,  8640] },
+    { handle: '@alikaiser1',      followers: 1934 },
+    { handle: '@hiddengarden.eg', followers:   69 },
   ],
 };
 
@@ -143,13 +149,16 @@ function addDays(n: number) {
   return d.toISOString();
 }
 
-export function toEGP(amount: number, ccy: 'EUR' | 'EGP') {
-  return ccy === 'EUR' ? amount * currency.egpPerEur : amount;
+export function toEGP(amount: number, ccy: 'EUR' | 'EGP', rate?: number) {
+  return ccy === 'EUR' ? amount * (rate ?? currency.egpPerEur) : amount;
 }
-export function monthlyTotalEGP(streams?: ReadonlyArray<Pick<IncomeStream, 'amount' | 'ccy' | 'cadence'>>): number {
+export function monthlyTotalEGP(
+  streams?: ReadonlyArray<Pick<IncomeStream, 'amount' | 'ccy' | 'cadence'>>,
+  rate?: number,
+): number {
   const list = streams ?? income;
   return list.reduce((sum, s) => {
-    const base = toEGP(s.amount, s.ccy);
+    const base = toEGP(s.amount, s.ccy, rate);
     return sum + (s.cadence === 'nightly' ? base * 22 : base);
   }, 0);
 }

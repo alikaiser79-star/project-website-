@@ -14,6 +14,7 @@ import Tour from './components/Tour';
 import ToastStack from './components/ToastStack';
 import { resumeReminders } from './lib/reminders';
 import { recordSnapshot } from './lib/history';
+import { onAction } from './lib/actions';
 import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
@@ -44,6 +45,8 @@ export default function App() {
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [focusJournalEntry, setFocusJournalEntry] = useState<string | null>(null);
+  const [focusSettingsSection, setFocusSettingsSection] = useState<string | null>(null);
   const [spotOpen, setSpotOpen] = useState(false);
   const idle = useIdle(5 * 60_000);
   const [onbOpen, setOnbOpen] = useState(false);
@@ -147,6 +150,30 @@ export default function App() {
 
     // Record today's snapshot for trend lines (idempotent per ISO day)
     recordSnapshot();
+
+    // Spotlight-driven UI actions
+    const offAct = onAction((a) => {
+      if (a.type === 'open-journal') {
+        setFocusJournalEntry(a.entryId ?? null);
+        setJournalOpen(true);
+      } else if (a.type === 'open-settings') {
+        setFocusSettingsSection(a.section ?? null);
+        setSetOpen(true);
+      } else if (a.type === 'open-cmd') {
+        setCmdOpen(true);
+      } else if (a.type === 'ping-panel') {
+        const el = document.querySelector<HTMLElement>(`[data-panel="${a.panel}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.remove('panel-flash');
+          // Force a reflow so the animation restarts on re-add
+          void el.offsetWidth;
+          el.classList.add('panel-flash');
+          setTimeout(() => el.classList.remove('panel-flash'), 1400);
+        }
+      }
+    });
+    return () => { offAct(); };
 
     // First-run onboarding
     if (!settings.onboarded) {
@@ -266,8 +293,18 @@ export default function App() {
       )}
 
       <CommandBar open={cmdOpen} onClose={() => setCmdOpen(false)} settings={settings} />
-      <SettingsDrawer open={setOpen} onClose={() => setSetOpen(false)} onSettings={onSettings} onTour={() => setTourOpen(true)} />
-      <JournalDrawer open={journalOpen} onClose={() => setJournalOpen(false)} />
+      <SettingsDrawer
+        open={setOpen}
+        onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}
+        onSettings={onSettings}
+        onTour={() => setTourOpen(true)}
+        focusSection={focusSettingsSection}
+      />
+      <JournalDrawer
+        open={journalOpen}
+        onClose={() => { setJournalOpen(false); setFocusJournalEntry(null); }}
+        focusEntryId={focusJournalEntry}
+      />
       <Spotlight
         open={spotOpen}
         onClose={() => setSpotOpen(false)}

@@ -17,7 +17,21 @@ export default function Sparkline({
   invert?: boolean;       // when true, "lower is better" — flips the fill colour
 }) {
   if (!values || values.length < 2) {
-    return <svg width={width} height={height} className="block opacity-50" />;
+    /* Building-history placeholder — no synthesised line, just a
+       faint axis baseline and a status label. */
+    return (
+      <div
+        className="flex items-center gap-2 font-mono text-[10px] tracking-[0.18em] uppercase text-steel/80"
+        style={{ width, height }}
+        title="At least 2 daily captures are needed before a trend line."
+      >
+        <span
+          className="inline-block h-px bg-amber/20"
+          style={{ width: Math.max(20, width * 0.4) }}
+        />
+        <span>building history</span>
+      </div>
+    );
   }
   const min = Math.min(...values);
   const max = Math.max(...values);

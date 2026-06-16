@@ -140,6 +140,16 @@ button, input { cursor: none; }
 }
 .strike.on::after { right: 0; }
 
+/* Spotlight "ping" — short border-glow flash on a panel */
+@keyframes panel-flash {
+  0%   { box-shadow: 0 0 0 1px rgba(255,179,0,0.0), 0 0 0 rgba(255,179,0,0); }
+  20%  { box-shadow: 0 0 0 1px rgba(255,179,0,0.85), 0 0 24px rgba(255,179,0,0.45); }
+  100% { box-shadow: 0 0 0 1px rgba(255,179,0,0.0), 0 0 0 rgba(255,179,0,0); }
+}
+.panel-flash {
+  animation: panel-flash 1.2s ease-out 1;
+}
+
 /* Idle / standby — dim everything except the orb */
 .idle-mode .glass,
 .idle-mode header.glass,
