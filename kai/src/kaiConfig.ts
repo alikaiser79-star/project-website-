@@ -105,14 +105,16 @@ export const defaultPriorities = [
   { id: 'p5', text: 'Plan Sunset Listening guest list',     done: false },
 ];
 
-/* ── COMMAND-BAR / CLAUDE API ─────────────────────────── */
-/* Drop your Anthropic API key here, OR set VITE_ANTHROPIC_API_KEY in a
-   `.env.local` file. The command bar falls back to scripted answers when
-   no key is present. See README. */
+/* ── COMMAND-BAR / CLAUDE ─────────────────────────────── */
+/* The Anthropic key lives ONLY in the server env (ANTHROPIC_API_KEY)
+   on Vercel. The browser POSTs to `/api/claude`, which proxies to
+   Anthropic with the key attached. If the server has no key, the
+   proxy returns 503 and the command bar shows the "no key wired"
+   fallback. See README. */
 export const claudeConfig = {
   model: 'claude-sonnet-4-6',
-  apiKey: (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined) || '',
   enabled: true,
+  endpoint: '/api/claude',
   systemPrompt:
     `You are KAI — Ali Kaiser's personal command core, a calm, dry, slightly British AI ` +
     `assistant. Speak in short, precise sentences. Reference Ali's domains: Enpal income, ` +

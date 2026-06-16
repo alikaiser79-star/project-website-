@@ -55,14 +55,6 @@ export default function CommandBar({ open, onClose, settings }: Props) {
       return;
     }
 
-    if (!claudeConfig.apiKey) {
-      pushTurn(
-        text,
-        "I don't have an API key wired. Try: status, debt, income, tasks, garden, makadi, instagram. Or add VITE_ANTHROPIC_API_KEY to .env.local and I'll think it through.",
-      );
-      return;
-    }
-
     setThinking(true);
     pushTurn(text, '');
     try {
@@ -113,8 +105,14 @@ export default function CommandBar({ open, onClose, settings }: Props) {
         }, 250);
       }
     } catch (e: any) {
-      replaceLast('API trouble — ' + (e?.message?.slice(0, 100) || 'unknown'));
-      sfx.error();
+      if (e?.message === 'NO_API_KEY') {
+        replaceLast(
+          "I don't have a key on the server. Try built-ins: status, debt, income, tasks, garden, makadi, instagram. Or set ANTHROPIC_API_KEY in the Vercel project and I'll think it through.",
+        );
+      } else {
+        replaceLast('API trouble — ' + (e?.message?.slice(0, 100) || 'unknown'));
+        sfx.error();
+      }
       if (settings.voiceEnabled) emit('speak-end');
     } finally {
       setThinking(false);
@@ -217,12 +215,10 @@ export default function CommandBar({ open, onClose, settings }: Props) {
                     </button>
                   ))}
                 </div>
-                {!claudeConfig.apiKey && (
-                  <div className="mt-4 font-mono text-[11px] text-steel leading-relaxed flex gap-2">
-                    <Sparkles size={12} className="text-cyan mt-0.5 shrink-0" />
-                    Wire an Anthropic key in <span className="text-amber">.env.local</span> as <span className="text-amber">VITE_ANTHROPIC_API_KEY</span> and KAI will answer freely beyond these built-ins.
-                  </div>
-                )}
+                <div className="mt-4 font-mono text-[11px] text-steel leading-relaxed flex gap-2">
+                  <Sparkles size={12} className="text-cyan mt-0.5 shrink-0" />
+                  KAI talks to Claude through <span className="text-amber">/api/claude</span>. If the server has <span className="text-amber">ANTHROPIC_API_KEY</span> set, free-form questions get a real answer.
+                </div>
               </div>
             )}
 

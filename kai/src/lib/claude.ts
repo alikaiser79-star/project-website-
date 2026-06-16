@@ -1,15 +1,14 @@
 /* ─────────────────────────────────────────────────────────
-   Anthropic API caller — OPTIONAL.
+   Anthropic caller.
 
-   ▸ To enable: put your key in src/kaiConfig.ts → claudeConfig.apiKey
-     OR create a `.env.local` with:
-         VITE_ANTHROPIC_API_KEY=sk-ant-…
-     and restart `npm run dev`.
-
-   ⚠ This calls the Anthropic API directly from the browser. For
-   production, route this through your own backend so the key never
-   ships to clients. The browser request requires the dangerous header
-   "anthropic-dangerous-direct-browser-access: true" — included below.
+   ▸ Posts to the same-origin proxy at `/api/claude` (Vercel Edge
+     function). The proxy holds the real Anthropic key in server env.
+   ▸ The browser never sees the key. The
+     `anthropic-dangerous-direct-browser-access` header is gone —
+     it lives only on the server side now.
+   ▸ The proxy returns 503 when the server has no key configured.
+     We translate that into the same `NO_API_KEY` error the command
+     bar already handles for fallback messaging.
 ───────────────────────────────────────────────────────── */
 
 import { claudeConfig } from '../kaiConfig';
@@ -27,29 +26,24 @@ function buildMessages(prompt: string, history: ChatTurn[]) {
 }
 
 /* Streamed variant — calls onDelta(chunk) as text tokens arrive.
-   Now handles tool_use rounds automatically: when Claude calls a
-   tool, we execute it locally, append a tool_result message, and
-   continue streaming until end_turn. */
+   Multi-round tool-use loop: when Claude calls a tool, we execute
+   it locally, append a tool_result message, and continue streaming
+   until end_turn. */
 export async function askClaudeStream(
   prompt: string,
   history: ChatTurn[],
   onDelta: (chunk: string) => void,
   onTool?: (call: ToolCall, result: string) => void,
 ): Promise<string> {
-  if (!claudeConfig.enabled || !claudeConfig.apiKey) throw new Error('NO_API_KEY');
+  if (!claudeConfig.enabled) throw new Error('NO_API_KEY');
 
   const messages: Array<{ role: 'user' | 'assistant'; content: any }> = buildMessages(prompt, history);
   let full = '';
 
   for (let round = 0; round < 4; round++) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(claudeConfig.endpoint, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': claudeConfig.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         model: claudeConfig.model,
         max_tokens: 800,
@@ -59,6 +53,7 @@ export async function askClaudeStream(
         stream: true,
       }),
     });
+    if (res.status === 503) throw new Error('NO_API_KEY');
     if (!res.ok || !res.body) {
       const t = await res.text();
       throw new Error('API_ERROR: ' + res.status + ' ' + t.slice(0, 200));
@@ -68,9 +63,7 @@ export async function askClaudeStream(
     const decoder = new TextDecoder('utf-8');
     let buf = '';
     let stopReason: string | null = null;
-    /* Accumulators for the assistant turn we're building from the stream. */
     const blocks: any[] = [];
-    /* Per-content-block state: index → { type, jsonAcc?, textAcc? } */
     const blockState = new Map<number, { type: 'text' | 'tool_use'; text?: string; tool?: any; jsonAcc?: string }>();
 
     while (true) {
@@ -128,14 +121,12 @@ export async function askClaudeStream(
       }
     }
 
-    /* Record the assistant turn. */
     messages.push({ role: 'assistant', content: blocks });
 
     if (stopReason !== 'tool_use') {
       return full;
     }
 
-    /* Execute every tool_use block in this turn and post results back. */
     const tool_results: any[] = [];
     for (const b of blocks) {
       if (b.type === 'tool_use') {
@@ -149,23 +140,16 @@ export async function askClaudeStream(
       }
     }
     messages.push({ role: 'user', content: tool_results });
-    /* Loop again — Claude will see the tool results and produce more text or another tool round. */
   }
   return full;
 }
 
+/* Non-streaming variant — kept for callers that don't need SSE. */
 export async function askClaude(prompt: string, history: ChatTurn[] = []): Promise<string> {
-  if (!claudeConfig.enabled || !claudeConfig.apiKey) {
-    throw new Error('NO_API_KEY');
-  }
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  if (!claudeConfig.enabled) throw new Error('NO_API_KEY');
+  const res = await fetch(claudeConfig.endpoint, {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': claudeConfig.apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       model: claudeConfig.model,
       max_tokens: 400,
@@ -173,6 +157,7 @@ export async function askClaude(prompt: string, history: ChatTurn[] = []): Promi
       messages: buildMessages(prompt, history),
     }),
   });
+  if (res.status === 503) throw new Error('NO_API_KEY');
   if (!res.ok) {
     const t = await res.text();
     throw new Error('API_ERROR: ' + res.status + ' ' + t.slice(0, 200));
