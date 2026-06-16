@@ -5,6 +5,8 @@ import { monthlyTotalEGP, currency, operator } from '../../kaiConfig';
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { loadState } from '../../lib/store';
 import type { IncomeOverride } from '../../types';
+import Sparkline from '../Sparkline';
+import { withBackfill, trend } from '../../lib/history';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -59,6 +61,21 @@ export default function IncomePanel({ delay = 0 }: { delay?: number }) {
           </div>
           <span className="font-mono text-amber/70 text-[12px]">EGP</span>
           <span className="font-mono text-steel text-[11px] ml-auto">≈ €{fmt(eur)}</span>
+        </div>
+        <div className="flex items-center gap-3 mt-1">
+          <Sparkline
+            values={withBackfill(14).map(s => s.incomeMonthly)}
+            width={140} height={22} color="#FFB300"
+          />
+          {(() => {
+            const t = trend('incomeMonthly', 14);
+            const up = t.delta >= 0;
+            return (
+              <span className={'font-mono text-[10px] tabular-nums ml-auto ' + (up ? 'text-ok' : 'text-danger')}>
+                {up ? '↑' : '↓'} {Math.abs(Math.round(t.pct)).toFixed(0)}% · 14d
+              </span>
+            );
+          })()}
         </div>
       </div>
       <div className="overflow-y-auto flex-1">

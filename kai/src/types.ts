@@ -26,6 +26,17 @@ export type Reminder = { id: string; text: string; at: string; fired?: boolean }
 
 /* Editable runtime overrides for income streams. id matches kaiConfig.income[].id;
    custom streams (added from the UI) live here too with the same shape. */
+export type Snapshot = {
+  d: string;           // ISO day YYYY-MM-DD
+  debt: number;
+  incomeMonthly: number;
+  prioritiesOpen: number;
+  prioritiesDone: number;
+  habitsToday: number;
+  journalCount: number;
+  igFollowers: number;
+};
+
 export type IncomeOverride = {
   id: string;
   label: string;
@@ -50,4 +61,5 @@ export type KaiPersisted = {
   reminders: Reminder[];
   goals: GoalState[];
   income: IncomeOverride[];
+  snapshots: Snapshot[];
 };

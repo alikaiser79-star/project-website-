@@ -32,6 +32,8 @@ export default function Markdown({ text }: { text: string }) {
   const blocks: ReactNode[] = [];
   let bullets: string[] | null = null;
   let numbers: string[] | null = null;
+  let fenced: string[] | null = null;
+  let fenceLang = '';
   let k = 0;
   const flush = () => {
     if (bullets) {
@@ -45,6 +47,25 @@ export default function Markdown({ text }: { text: string }) {
   };
   for (const raw of lines) {
     const ln = raw.trimEnd();
+    /* Fenced code blocks ```lang ... ``` */
+    const fm = ln.match(/^```(\w*)\s*$/);
+    if (fm) {
+      if (fenced) {
+        blocks.push(
+          <pre key={k++} className="my-1.5 px-3 py-2 rounded border border-cyan/30 bg-ink2/60 overflow-x-auto">
+            {fenceLang && <div className="font-mono text-[9px] tracking-[0.2em] uppercase text-cyan/70 mb-1">{fenceLang}</div>}
+            <code className="font-mono text-[12px] text-bone whitespace-pre">{fenced.join('\n')}</code>
+          </pre>
+        );
+        fenced = null; fenceLang = '';
+      } else {
+        flush();
+        fenced = []; fenceLang = fm[1] || '';
+      }
+      continue;
+    }
+    if (fenced) { fenced.push(raw); continue; }
+
     const bm = ln.match(/^\s*[-*]\s+(.+)$/);
     const nm = ln.match(/^\s*\d+\.\s+(.+)$/);
     if (bm) {

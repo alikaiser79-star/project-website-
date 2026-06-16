@@ -5,6 +5,8 @@ import { debt, operator } from '../../kaiConfig';
 import { loadState, saveState } from '../../lib/store';
 import { useCounter } from '../../hooks/useCounter';
 import { celebrate } from '../../lib/celebrate';
+import Sparkline from '../Sparkline';
+import { withBackfill, trend } from '../../lib/history';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -81,6 +83,24 @@ export default function DebtPanel({ delay = 0 }: { delay?: number }) {
               onClick={() => setCurrent(debt.current)}
               className="px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase border border-amber/15 text-steel hover:text-amber hover:border-amber/40"
             >reset</button>
+          </div>
+          <div className="pt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel">14d trend</span>
+              {(() => {
+                const t = trend('debt', 14);
+                const up = t.delta > 0;
+                return (
+                  <span className={'font-mono text-[10px] tabular-nums ' + (up ? 'text-danger' : 'text-ok')}>
+                    {up ? '+' : ''}{Math.round(t.delta).toLocaleString('en-GB')} EGP
+                  </span>
+                );
+              })()}
+            </div>
+            <Sparkline
+              values={withBackfill(14).map(s => s.debt)}
+              width={200} height={28} color="#FFB300" invert
+            />
           </div>
           <div className="text-[10px] text-steel pt-2 leading-relaxed">
             target zero · min payment {fmt(debt.minPayment)} EGP · APR {debt.apr}%

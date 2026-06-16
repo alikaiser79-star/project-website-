@@ -4,6 +4,7 @@
 import { loadState } from './store';
 import { debt, monthlyTotalEGP, debtClearedPct, currency, garden, makadi } from '../kaiConfig';
 import { streak } from './habits';
+import { trend } from './history';
 
 export type Insight = { id: string; tone: 'ok' | 'warn' | 'note'; text: string };
 
@@ -35,6 +36,23 @@ export function computeInsights(): Insight[] {
 
   const best = [...s.habits].sort((a, b) => streak(b) - streak(a))[0];
   if (best && streak(best) >= 3) out.push({ id: 'hab', tone: 'ok', text: `Habit streak: “${best.label}” · ${streak(best)} day${streak(best) === 1 ? '' : 's'}.` });
+
+  /* Trend-driven insights from the 14-day snapshot history. */
+  const debtTrend = trend('debt', 14);
+  if (debtTrend.delta < -1000) {
+    out.push({ id: 'd-trend', tone: 'ok', text: `Cleared ${Math.abs(Math.round(debtTrend.delta)).toLocaleString('en-GB')} EGP of debt in the last 14 days.` });
+  } else if (debtTrend.delta > 1000) {
+    out.push({ id: 'd-trend', tone: 'warn', text: `Debt edged up ${Math.round(debtTrend.delta).toLocaleString('en-GB')} EGP in 14 days — worth checking.` });
+  }
+
+  const incTrend = trend('incomeMonthly', 14);
+  if (Math.abs(incTrend.pct) > 1) {
+    out.push({
+      id: 'i-trend',
+      tone: incTrend.delta >= 0 ? 'ok' : 'warn',
+      text: `Income projection ${incTrend.delta >= 0 ? 'up' : 'down'} ${Math.abs(incTrend.pct).toFixed(0)}% over 14 days.`,
+    });
+  }
 
   return out;
 }

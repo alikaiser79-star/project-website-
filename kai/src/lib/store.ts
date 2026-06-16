@@ -31,6 +31,7 @@ export const defaults: KaiPersisted = {
     id: s.id, label: s.label, amount: s.amount, ccy: s.ccy,
     cadence: s.cadence, note: s.note, trend: s.trend,
   })),
+  snapshots: [],
 };
 
 export function loadState(): KaiPersisted {
@@ -48,6 +49,7 @@ export function loadState(): KaiPersisted {
       reminders: parsed.reminders ?? [],
       goals: parsed.goals && parsed.goals.length ? parsed.goals : defaults.goals,
       income: parsed.income && parsed.income.length ? parsed.income : defaults.income,
+      snapshots: parsed.snapshots ?? [],
     };
   } catch { return { ...defaults }; }
 }

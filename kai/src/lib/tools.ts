@@ -8,6 +8,7 @@ import { addJournal } from './journal';
 import { focusTimer } from './focusTimer';
 import { loadState, saveState } from './store';
 import { briefing, weeklyReview } from './commands';
+import { withBackfill, trend } from './history';
 import { toggleHabit } from './habits';
 import { toast } from '../hooks/useToasts';
 import {
@@ -85,6 +86,14 @@ export const TOOL_SCHEMAS = [
     name: 'get_weekly_review',
     description: 'Generate a 7-day recap of journal entries, priorities closed, habit hits, debt progress.',
     input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_trends',
+    description: 'Read the recent N-day history of debt, income projection, habits-per-day and priorities-open. Use this when the user asks about trajectory, momentum, or "how am I trending".',
+    input_schema: {
+      type: 'object',
+      properties: { days: { type: 'number', description: 'How many days back. Default 14.' } },
+    },
   },
   {
     name: 'complete_priority',
@@ -188,6 +197,19 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_weekly_review': {
       return weeklyReview();
+    }
+    case 'get_trends': {
+      const days = Math.max(2, Math.min(180, call.input?.days ?? 14));
+      const snaps = withBackfill(days);
+      return JSON.stringify({
+        days,
+        debt: { series: snaps.map(s => s.debt), trend: trend('debt', days) },
+        income_monthly_egp: { series: snaps.map(s => s.incomeMonthly), trend: trend('incomeMonthly', days) },
+        priorities_open: { series: snaps.map(s => s.prioritiesOpen) },
+        habits_today: { series: snaps.map(s => s.habitsToday) },
+        journal_count: { series: snaps.map(s => s.journalCount) },
+        ig_followers: { series: snaps.map(s => s.igFollowers) },
+      });
     }
     case 'complete_priority': {
       const needle = (call.input?.text || '').toLowerCase();
