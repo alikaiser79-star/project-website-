@@ -50,5 +50,22 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (/three|@react-three|postprocessing|meshline/.test(id)) return 'three';
+          if (/recharts|d3-/.test(id)) return 'charts';
+          if (/framer-motion/.test(id)) return 'motion';
+          if (/gsap/.test(id)) return 'gsap';
+          if (/howler/.test(id)) return 'audio';
+          if (/lucide-react/.test(id)) return 'icons';
+          if (/react-dom|^react$|react\//.test(id)) return 'react';
+        },
+      },
+    },
+  },
   server: { port: 5173, host: true },
 });

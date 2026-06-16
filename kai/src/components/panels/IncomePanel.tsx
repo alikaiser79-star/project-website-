@@ -1,11 +1,14 @@
 import Panel from '../Panel';
+import { useState, useEffect } from 'react';
 import { useCounter } from '../../hooks/useCounter';
-import { income, monthlyTotalEGP, toEGP, currency, operator } from '../../kaiConfig';
+import { monthlyTotalEGP, currency, operator } from '../../kaiConfig';
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { loadState } from '../../lib/store';
+import type { IncomeOverride } from '../../types';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
-function Row({ s }: { s: typeof income[number] }) {
+function Row({ s }: { s: IncomeOverride }) {
   const v = useCounter(s.amount, { duration: 1.4 });
   const trend = s.trend ?? 0;
   const Arrow = trend > 0.3 ? ArrowUpRight : trend < -0.3 ? ArrowDownRight : Minus;
@@ -27,7 +30,22 @@ function Row({ s }: { s: typeof income[number] }) {
 }
 
 export default function IncomePanel({ delay = 0 }: { delay?: number }) {
-  const total = monthlyTotalEGP();
+  const [streams, setStreams] = useState<IncomeOverride[]>(() => loadState().income);
+  /* Refresh from store on visibility — picks up edits made in the
+     settings drawer without needing a global event bus. */
+  useEffect(() => {
+    const sync = () => setStreams(loadState().income);
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('focus', sync);
+    const t = setInterval(sync, 4000);
+    return () => {
+      document.removeEventListener('visibilitychange', sync);
+      window.removeEventListener('focus', sync);
+      clearInterval(t);
+    };
+  }, []);
+
+  const total = monthlyTotalEGP(streams);
   const animatedTotal = useCounter(total, { duration: 1.8 });
   const eur = total / currency.egpPerEur;
 
@@ -44,7 +62,7 @@ export default function IncomePanel({ delay = 0 }: { delay?: number }) {
         </div>
       </div>
       <div className="overflow-y-auto flex-1">
-        {income.map(s => <Row key={s.id} s={s} />)}
+        {streams.map(s => <Row key={s.id} s={s} />)}
       </div>
     </Panel>
   );

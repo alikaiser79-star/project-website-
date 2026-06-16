@@ -1,10 +1,9 @@
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
 import Background from './components/Background';
 import Boot from './components/Boot';
 import TopBar from './components/TopBar';
-import KaiCore from './components/KaiCore';
 import CommandBar from './components/CommandBar';
 import SettingsDrawer from './components/SettingsDrawer';
 import CheatSheet from './components/CheatSheet';
@@ -16,14 +15,18 @@ import ToastStack from './components/ToastStack';
 import { resumeReminders } from './lib/reminders';
 import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
-import OrbAudio from './components/OrbAudio';
 import { briefing } from './lib/commands';
 import IncomePanel    from './components/panels/IncomePanel';
 import DebtPanel      from './components/panels/DebtPanel';
 import GardenPanel    from './components/panels/GardenPanel';
 import MakadiPanel    from './components/panels/MakadiPanel';
-import InstagramPanel from './components/panels/InstagramPanel';
 import PrioritiesPanel from './components/panels/PrioritiesPanel';
+
+/* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
+   chart panel (recharts). Keeps the initial paint slim. */
+const KaiCore        = lazy(() => import('./components/KaiCore'));
+const OrbAudio       = lazy(() => import('./components/OrbAudio'));
+const InstagramPanel = lazy(() => import('./components/panels/InstagramPanel'));
 import { loadState, saveState } from './lib/store';
 import { setSoundEnabled, sfx } from './lib/sound';
 import { voice } from './lib/speech';
@@ -231,7 +234,9 @@ export default function App() {
             <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 min-h-0">
               <DebtPanel delay={0.30} />
               <MakadiPanel delay={0.40} />
-              <InstagramPanel delay={0.50} />
+              <Suspense fallback={<div className="glass rounded-md p-4 text-amber/70 font-mono text-xs">loading charts…</div>}>
+                <InstagramPanel delay={0.50} />
+              </Suspense>
             </div>
           </div>
 
@@ -247,7 +252,7 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
             className="glass flex items-center justify-between px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
           >
-            <span>kai · v1.9.0</span>
+            <span>kai · v1.10.0</span>
             <span>
               <kbd>⌘</kbd><kbd>K</kbd> cmd · <span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd> search</span> · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts
             </span>

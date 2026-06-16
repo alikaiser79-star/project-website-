@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass } from 'lucide-react';
+import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2 } from 'lucide-react';
 import { loadState, saveState, defaults } from '../lib/store';
-import type { KaiSettings, Accent } from '../types';
+import type { KaiSettings, Accent, IncomeOverride } from '../types';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { toast } from '../hooks/useToasts';
@@ -168,6 +168,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour }: Pr
                 <RemindersList />
               </Section>
 
+              <Section icon={<Wallet size={12} />} title="Income streams">
+                <IncomeEditor />
+              </Section>
+
               <Section icon={<Compass size={12} />} title="Tour">
                 <button
                   onClick={() => { sfx.click(); onClose(); setTimeout(onTour, 220); }}
@@ -250,6 +254,85 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
       </div>
       <div>{children}</div>
     </div>
+  );
+}
+
+function IncomeEditor() {
+  const [items, setItems] = useState<IncomeOverride[]>(() => loadState().income);
+
+  function persist(next: IncomeOverride[]) {
+    const s = loadState(); s.income = next; saveState(s);
+    setItems(next);
+  }
+  function edit(id: string, patch: Partial<IncomeOverride>) {
+    persist(items.map(i => i.id === id ? { ...i, ...patch } : i));
+  }
+  function remove(id: string) {
+    persist(items.filter(i => i.id !== id));
+    sfx.click();
+  }
+  function add() {
+    const fresh: IncomeOverride = {
+      id: 'inc-' + Date.now(),
+      label: 'New stream',
+      amount: 0,
+      ccy: 'EGP',
+      cadence: 'monthly',
+      custom: true,
+    };
+    persist([...items, fresh]);
+    sfx.click();
+  }
+
+  return (
+    <>
+      <ul className="space-y-1.5">
+        {items.map(i => (
+          <li key={i.id} className="p-2 border border-amber/15 rounded space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <input
+                value={i.label}
+                onChange={e => edit(i.id, { label: e.target.value })}
+                className="flex-1 bg-transparent border-b border-amber/20 focus:border-amber py-0.5 text-bone text-[12px] outline-none font-sans"
+              />
+              <button onClick={() => remove(i.id)} className="text-steel hover:text-danger transition" title="Remove">
+                <Trash2 size={11} />
+              </button>
+            </div>
+            <div className="grid grid-cols-[1fr_auto_auto] items-center gap-1.5 font-mono text-[11px]">
+              <input
+                type="number"
+                value={i.amount}
+                onChange={e => edit(i.id, { amount: parseFloat(e.target.value) || 0 })}
+                className="bg-transparent border border-amber/15 focus:border-amber/40 rounded px-1.5 py-0.5 text-bone tabular-nums outline-none"
+              />
+              <select
+                value={i.ccy}
+                onChange={e => edit(i.id, { ccy: e.target.value as 'EUR' | 'EGP' })}
+                className="bg-ink2 border border-amber/15 focus:border-amber/40 rounded px-1 py-0.5 text-bone outline-none"
+              >
+                <option value="EGP">EGP</option>
+                <option value="EUR">EUR</option>
+              </select>
+              <select
+                value={i.cadence}
+                onChange={e => edit(i.id, { cadence: e.target.value as 'monthly' | 'nightly' })}
+                className="bg-ink2 border border-amber/15 focus:border-amber/40 rounded px-1 py-0.5 text-bone outline-none"
+              >
+                <option value="monthly">/ mo</option>
+                <option value="nightly">/ night</option>
+              </select>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <button
+        onClick={add}
+        className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 border border-amber/30 text-amber hover:border-amber hover:shadow-glow-amber rounded text-[10px] tracking-[0.16em] uppercase"
+      >
+        <Plus size={11} /> Add stream
+      </button>
+    </>
   );
 }
 

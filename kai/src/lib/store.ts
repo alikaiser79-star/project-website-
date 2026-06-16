@@ -1,5 +1,5 @@
-import type { KaiPersisted } from '../types';
-import { defaultPriorities, defaultGoals, debt, operator } from '../kaiConfig';
+import type { KaiPersisted, IncomeOverride } from '../types';
+import { defaultPriorities, defaultGoals, income as configIncome, debt, operator } from '../kaiConfig';
 
 const KEY = 'kai.state.v1';
 
@@ -27,6 +27,10 @@ export const defaults: KaiPersisted = {
   ],
   reminders: [],
   goals: defaultGoals.map(g => ({ id: g.id, current: g.current })),
+  income: configIncome.map<IncomeOverride>(s => ({
+    id: s.id, label: s.label, amount: s.amount, ccy: s.ccy,
+    cadence: s.cadence, note: s.note, trend: s.trend,
+  })),
 };
 
 export function loadState(): KaiPersisted {
@@ -43,6 +47,7 @@ export function loadState(): KaiPersisted {
       habits: parsed.habits && parsed.habits.length ? parsed.habits : defaults.habits,
       reminders: parsed.reminders ?? [],
       goals: parsed.goals && parsed.goals.length ? parsed.goals : defaults.goals,
+      income: parsed.income && parsed.income.length ? parsed.income : defaults.income,
     };
   } catch { return { ...defaults }; }
 }

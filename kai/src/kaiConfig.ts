@@ -144,8 +144,9 @@ function addDays(n: number) {
 export function toEGP(amount: number, ccy: 'EUR' | 'EGP') {
   return ccy === 'EUR' ? amount * currency.egpPerEur : amount;
 }
-export function monthlyTotalEGP(): number {
-  return income.reduce((sum, s) => {
+export function monthlyTotalEGP(streams?: ReadonlyArray<Pick<IncomeStream, 'amount' | 'ccy' | 'cadence'>>): number {
+  const list = streams ?? income;
+  return list.reduce((sum, s) => {
     const base = toEGP(s.amount, s.ccy);
     return sum + (s.cadence === 'nightly' ? base * 22 : base);
   }, 0);

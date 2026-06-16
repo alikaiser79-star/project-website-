@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, NotebookPen, Trash2 } from 'lucide-react';
+import { X, NotebookPen, Trash2, Search } from 'lucide-react';
 import { listJournal, addJournal, removeJournal } from '../lib/journal';
 import { sfx } from '../lib/sound';
 import { toast } from '../hooks/useToasts';
 
 export default function JournalDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [text, setText] = useState('');
+  const [query, setQuery] = useState('');
   const [entries, setEntries] = useState(() => listJournal());
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return entries;
+    return entries.filter(e => e.text.toLowerCase().includes(q));
+  }, [entries, query]);
 
   useEffect(() => {
     if (open) {
@@ -81,12 +88,28 @@ export default function JournalDrawer({ open, onClose }: { open: boolean; onClos
               </div>
             </div>
 
+            {entries.length > 0 && (
+              <div className="px-4 pb-2 flex items-center gap-2">
+                <Search size={12} className="text-amber/70" />
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Search entries…"
+                  className="flex-1 bg-transparent border-b border-amber/20 focus:border-amber py-1 text-bone text-sm outline-none font-sans"
+                />
+                <span className="font-mono text-[10px] text-steel tabular-nums">{visible.length}/{entries.length}</span>
+              </div>
+            )}
+
             <div className="max-h-[50vh] overflow-y-auto px-4 pb-4 space-y-2">
               {entries.length === 0 && (
                 <div className="font-mono text-[12px] text-steel py-2">No entries yet. Type one above, or say "Kai, note that…"</div>
               )}
+              {entries.length > 0 && visible.length === 0 && (
+                <div className="font-mono text-[12px] text-steel py-2">No matches.</div>
+              )}
               <AnimatePresence initial={false}>
-                {entries.map(e => (
+                {visible.map(e => (
                   <motion.div
                     key={e.id}
                     layout

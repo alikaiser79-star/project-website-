@@ -24,6 +24,19 @@ export type Habit = { id: string; label: string; history: string[] };
 
 export type Reminder = { id: string; text: string; at: string; fired?: boolean };
 
+/* Editable runtime overrides for income streams. id matches kaiConfig.income[].id;
+   custom streams (added from the UI) live here too with the same shape. */
+export type IncomeOverride = {
+  id: string;
+  label: string;
+  amount: number;
+  ccy: 'EUR' | 'EGP';
+  cadence: 'monthly' | 'nightly';
+  note?: string;
+  trend?: number;
+  custom?: boolean;
+};
+
 /* Track in-progress numbers per goal (target/label live in kaiConfig). */
 export type GoalState = { id: string; current: number };
 
@@ -36,4 +49,5 @@ export type KaiPersisted = {
   habits: Habit[];
   reminders: Reminder[];
   goals: GoalState[];
+  income: IncomeOverride[];
 };
