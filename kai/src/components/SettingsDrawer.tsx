@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2 } from 'lucide-react';
+import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame } from 'lucide-react';
 import { loadState, saveState, defaults } from '../lib/store';
-import type { KaiSettings, Accent, IncomeOverride } from '../types';
+import { defaultGoals } from '../kaiConfig';
+import type { KaiSettings, Accent, IncomeOverride, Habit, GoalState } from '../types';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { toast } from '../hooks/useToasts';
@@ -172,6 +173,14 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour }: Pr
                 <IncomeEditor />
               </Section>
 
+              <Section icon={<Target size={12} />} title="Goals">
+                <GoalsEditor />
+              </Section>
+
+              <Section icon={<Flame size={12} />} title="Habits">
+                <HabitsEditor />
+              </Section>
+
               <Section icon={<Compass size={12} />} title="Tour">
                 <button
                   onClick={() => { sfx.click(); onClose(); setTimeout(onTour, 220); }}
@@ -331,6 +340,92 @@ function IncomeEditor() {
         className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 border border-amber/30 text-amber hover:border-amber hover:shadow-glow-amber rounded text-[10px] tracking-[0.16em] uppercase"
       >
         <Plus size={11} /> Add stream
+      </button>
+    </>
+  );
+}
+
+function GoalsEditor() {
+  const [vals, setVals] = useState<GoalState[]>(() => loadState().goals);
+
+  function set(id: string, current: number) {
+    const next = vals.map(g => g.id === id ? { ...g, current } : g);
+    setVals(next);
+    const s = loadState(); s.goals = next; saveState(s);
+  }
+
+  return (
+    <ul className="space-y-1.5">
+      {defaultGoals.map(g => {
+        const cur = vals.find(v => v.id === g.id)?.current ?? g.current;
+        const pct = g.lowerIsBetter
+          ? Math.max(0, Math.min(100, (1 - cur / Math.max(1, g.current)) * 100))
+          : Math.max(0, Math.min(100, (cur / g.target) * 100));
+        return (
+          <li key={g.id} className="p-2 border border-amber/15 rounded">
+            <div className="flex items-baseline justify-between">
+              <span className="text-bone text-[12px]">{g.label}</span>
+              <span className="font-mono text-[10px] text-amber tabular-nums">{pct.toFixed(0)}%</span>
+            </div>
+            <div className="flex items-center gap-2 mt-1 font-mono text-[11px]">
+              <span className="text-steel text-[10px] tracking-[0.14em] uppercase">current</span>
+              <input
+                type="number"
+                value={cur}
+                onChange={e => set(g.id, parseFloat(e.target.value) || 0)}
+                className="flex-1 bg-transparent border border-amber/15 focus:border-amber/40 rounded px-1.5 py-0.5 text-bone tabular-nums outline-none"
+              />
+              <span className="text-steel text-[10px]">/ {g.lowerIsBetter ? 0 : g.target.toLocaleString('en-GB')} {g.unit}</span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function HabitsEditor() {
+  const [items, setItems] = useState<Habit[]>(() => loadState().habits);
+
+  function persist(next: Habit[]) {
+    const s = loadState(); s.habits = next; saveState(s);
+    setItems(next);
+  }
+  function rename(id: string, label: string) {
+    persist(items.map(h => h.id === id ? { ...h, label } : h));
+  }
+  function remove(id: string) {
+    persist(items.filter(h => h.id !== id));
+    sfx.click();
+  }
+  function add() {
+    persist([...items, { id: 'h-' + Date.now(), label: 'New habit', history: [] }]);
+    sfx.click();
+  }
+
+  return (
+    <>
+      <ul className="space-y-1.5">
+        {items.map(h => (
+          <li key={h.id} className="flex items-center gap-1.5 px-2 py-1.5 border border-amber/15 rounded">
+            <Flame size={11} className="text-amber/70 shrink-0" />
+            <input
+              value={h.label}
+              onChange={e => rename(h.id, e.target.value)}
+              className="flex-1 bg-transparent border-b border-amber/15 focus:border-amber py-0.5 text-bone text-[12px] outline-none font-sans"
+            />
+            <span className="font-mono text-[10px] text-steel tabular-nums">{h.history.length}d</span>
+            <button onClick={() => remove(h.id)} className="text-steel hover:text-danger transition" title="Remove">
+              <Trash2 size={11} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button
+        onClick={add}
+        className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 border border-amber/30 text-amber hover:border-amber hover:shadow-glow-amber rounded text-[10px] tracking-[0.16em] uppercase"
+      >
+        <Plus size={11} /> Add habit
       </button>
     </>
   );

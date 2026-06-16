@@ -252,7 +252,7 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
             className="glass flex items-center justify-between px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
           >
-            <span>kai · v1.10.0</span>
+            <span>kai · v1.11.0</span>
             <span>
               <kbd>⌘</kbd><kbd>K</kbd> cmd · <span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd> search</span> · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts
             </span>

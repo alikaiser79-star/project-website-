@@ -7,7 +7,7 @@ import { addReminder, cancelReminder, listReminders } from './reminders';
 import { addJournal } from './journal';
 import { focusTimer } from './focusTimer';
 import { loadState, saveState } from './store';
-import { briefing } from './commands';
+import { briefing, weeklyReview } from './commands';
 import { toggleHabit } from './habits';
 import { toast } from '../hooks/useToasts';
 import {
@@ -79,6 +79,11 @@ export const TOOL_SCHEMAS = [
   {
     name: 'get_briefing',
     description: 'Generate the daily briefing narrative summary.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_weekly_review',
+    description: 'Generate a 7-day recap of journal entries, priorities closed, habit hits, debt progress.',
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -180,6 +185,9 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_briefing': {
       return briefing();
+    }
+    case 'get_weekly_review': {
+      return weeklyReview();
     }
     case 'complete_priority': {
       const needle = (call.input?.text || '').toLowerCase();

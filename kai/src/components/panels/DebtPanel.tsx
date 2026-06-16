@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { debt, operator } from '../../kaiConfig';
 import { loadState, saveState } from '../../lib/store';
 import { useCounter } from '../../hooks/useCounter';
+import { celebrate } from '../../lib/celebrate';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -11,7 +12,9 @@ export default function DebtPanel({ delay = 0 }: { delay?: number }) {
   const [current, setCurrent] = useState(() => loadState().debtCurrent);
   useEffect(() => {
     const s = loadState();
+    const wasNonZero = s.debtCurrent > 0;
     s.debtCurrent = current; saveState(s);
+    if (wasNonZero && current === 0) celebrate();
   }, [current]);
 
   const cleared = Math.max(0, debt.original - current);

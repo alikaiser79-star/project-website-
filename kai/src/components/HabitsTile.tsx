@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Flame } from 'lucide-react';
+import { Flame, Maximize2 } from 'lucide-react';
+import HabitsDrawer from './HabitsDrawer';
 import { loadState } from '../lib/store';
 import { isCheckedToday, toggleHabit, streak } from '../lib/habits';
 import type { Habit } from '../types';
@@ -19,6 +20,7 @@ function last7DaysISO() {
 
 export default function HabitsTile({ delay = 0 }: { delay?: number }) {
   const [habits, setHabits] = useState<Habit[]>(() => loadState().habits);
+  const [drawer, setDrawer] = useState(false);
 
   function click(id: string) {
     toggleHabit(id);
@@ -35,7 +37,13 @@ export default function HabitsTile({ delay = 0 }: { delay?: number }) {
       <div className="flex items-center gap-2">
         <Flame size={14} className="text-amber drop-shadow-[0_0_6px_rgba(255,179,0,0.5)]" />
         <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel">Habits · today</span>
-        <span className="ml-auto font-mono text-[10px] text-steel">tap to check</span>
+        <button
+          onClick={() => { sfx.click(); setDrawer(true); }}
+          className="ml-auto text-amber/60 hover:text-amber transition"
+          title="Expand · 30-day view"
+        >
+          <Maximize2 size={11} />
+        </button>
       </div>
       <div className="grid grid-cols-2 gap-1.5 mt-1.5">
         {habits.map(h => {
@@ -79,6 +87,7 @@ export default function HabitsTile({ delay = 0 }: { delay?: number }) {
           );
         })}
       </div>
+      <HabitsDrawer open={drawer} onClose={() => setDrawer(false)} />
     </motion.div>
   );
 }

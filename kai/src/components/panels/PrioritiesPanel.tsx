@@ -5,6 +5,7 @@ import { Check, Plus, Trash2, GripVertical } from 'lucide-react';
 import { loadState, saveState } from '../../lib/store';
 import type { Priority } from '../../types';
 import { sfx } from '../../lib/sound';
+import { celebrate } from '../../lib/celebrate';
 
 export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
   const [items, setItems] = useState<Priority[]>(() => loadState().priorities);
@@ -14,11 +15,17 @@ export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
     const s = loadState(); s.priorities = next; saveState(s);
     setItems(next);
   }
-  function toggle(id: string) {
+  function toggle(id: string, ev?: React.MouseEvent) {
     const next = items.map(p => p.id === id ? { ...p, done: !p.done } : p);
     persist(next);
     const it = next.find(p => p.id === id);
-    if (it?.done) sfx.confirm(); else sfx.click();
+    if (it?.done) {
+      sfx.confirm();
+      if (ev) celebrate(ev.clientX, ev.clientY);
+      else    celebrate();
+    } else {
+      sfx.click();
+    }
   }
   function add() {
     const text = adding.trim();
@@ -68,7 +75,7 @@ export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
                 <GripVertical size={12} />
               </motion.span>
               <button
-                onClick={() => toggle(p.id)}
+                onClick={(ev) => toggle(p.id, ev)}
                 className={'w-5 h-5 rounded-sm border flex items-center justify-center transition ' +
                   (p.done
                     ? 'bg-amber/15 border-amber text-amber shadow-glow-amber'

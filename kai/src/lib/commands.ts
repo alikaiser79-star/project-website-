@@ -77,6 +77,10 @@ export function runBuiltin(cmd: string): CmdResult | null {
     return briefing();
   }
 
+  if (/^weekly$|^review$|^week\b/.test(q)) {
+    return weeklyReview();
+  }
+
   /* Reminders: "remind me in 30 minutes to call Mira" */
   const remM = cmd.match(/^(?:remind me|reminder)\s+(?:in\s+)?(.+?)\s+(?:to|that|about)\s+(.+)$/i);
   if (remM) {
@@ -123,7 +127,7 @@ export function runBuiltin(cmd: string): CmdResult | null {
   }
 
   if (/\b(help|commands|what can you do)\b/.test(q)) {
-    return `Try: status, briefing, debt, income, tasks, garden, makadi, instagram, time, focus 25, break, convert 1000 eur. Or just ask me anything — if my API key is wired, I'll think it through.`;
+    return `Try: status, briefing, weekly, debt, income, tasks, garden, makadi, instagram, time, focus 25, break, convert 1000 eur. Or just ask me anything — if my API key is wired, I'll think it through.`;
   }
 
   return null;
@@ -154,4 +158,32 @@ export function briefing(): string {
 
   lines.push(`That's the picture. What's the move?`);
   return lines.join(' ');
+}
+
+/* A narrative recap of the last 7 days from the data we have locally. */
+export function weeklyReview(): string {
+  const s = loadState();
+  const sevenDaysAgo = Date.now() - 7 * 86_400_000;
+  const journalCount = s.journal.filter(e => +new Date(e.at) >= sevenDaysAgo).length;
+  const closedThisWeek = s.priorities.filter(p => p.done).length;
+  const openCount = s.priorities.filter(p => !p.done).length;
+
+  const habitLines: string[] = [];
+  for (const h of s.habits) {
+    const checked = h.history.filter(d => +new Date(d + 'T00:00:00') >= sevenDaysAgo).length;
+    if (checked > 0) habitLines.push(`${h.label} ${checked} of 7`);
+  }
+
+  const out: string[] = [];
+  out.push(`Weekly review, ${operator.name}.`);
+  out.push(`${journalCount} journal ${journalCount === 1 ? 'entry' : 'entries'} captured.`);
+  out.push(closedThisWeek
+    ? `Closed ${closedThisWeek} priorit${closedThisWeek === 1 ? 'y' : 'ies'}; ${openCount} still open.`
+    : `Zero priorities closed; ${openCount} open.`);
+  if (habitLines.length) out.push(`Habit hits — ${habitLines.join('; ')}.`);
+  else out.push(`No habits ticked this week.`);
+  out.push(`Credit card sits at ${fmt(s.debtCurrent)} EGP, ${debtClearedPct().toFixed(0)} percent cleared.`);
+  if (makadi.fixLock) out.push(`Makadi lock still flagged — that's been carried for a while.`);
+  out.push(`What's the focus for next week?`);
+  return out.join(' ');
 }
