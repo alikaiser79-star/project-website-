@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#0A0E14"/>
+  <defs>
+    <radialGradient id="g" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFC94A"/>
+      <stop offset="60%" stop-color="#FFB300"/>
+      <stop offset="100%" stop-color="#A85D39"/>
+    </radialGradient>
+  </defs>
+  <!-- inner safe area for maskable -->
+  <circle cx="256" cy="256" r="100" fill="url(#g)"/>
+  <text x="256" y="270" text-anchor="middle" font-family="Inter, system-ui" font-weight="700" font-size="40" letter-spacing="10" fill="#0A0E14">KAI</text>
+</svg>
