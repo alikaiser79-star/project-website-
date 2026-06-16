@@ -7,6 +7,7 @@ export type WeatherSnap = {
   code: number;
   label: string;
   isDay: boolean;
+  forecast: Array<{ date: string; maxC: number; minC: number; code: number; label: string }>;
 };
 
 const WMO_LABELS: Record<number, string> = {
@@ -21,11 +22,24 @@ const WMO_LABELS: Record<number, string> = {
 
 export async function fetchWeather(lat: number, lon: number): Promise<WeatherSnap> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    `&current=temperature_2m,apparent_temperature,is_day,weather_code,wind_speed_10m`;
+    `&current=temperature_2m,apparent_temperature,is_day,weather_code,wind_speed_10m` +
+    `&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=4`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('weather ' + res.status);
   const j = await res.json();
   const c = j.current ?? {};
+  const d = j.daily ?? {};
+  const forecast: WeatherSnap['forecast'] = [];
+  /* Skip index 0 (today) — show the next 3 days. */
+  for (let i = 1; i < (d.time?.length || 0); i++) {
+    forecast.push({
+      date: d.time[i],
+      maxC: d.temperature_2m_max?.[i],
+      minC: d.temperature_2m_min?.[i],
+      code: d.weather_code?.[i],
+      label: WMO_LABELS[d.weather_code?.[i]] ?? 'unknown',
+    });
+  }
   return {
     tempC: c.temperature_2m,
     feelsC: c.apparent_temperature,
@@ -33,6 +47,7 @@ export async function fetchWeather(lat: number, lon: number): Promise<WeatherSna
     code: c.weather_code,
     label: WMO_LABELS[c.weather_code] ?? 'unknown',
     isDay: !!c.is_day,
+    forecast,
   };
 }
 

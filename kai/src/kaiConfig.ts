@@ -119,7 +119,9 @@ export const claudeConfig = {
     `Honda Civic rental, Hidden Garden, Makadi Airbnb, Instagram (@alikaiser1, ` +
     `@hiddengarden.eg), credit-card paydown. Never invent numbers — call get_state_snapshot ` +
     `before answering anything fact-based. Use tools to actually act: add_reminder when Ali ` +
-    `asks to be reminded; add_journal for "note/log/remember"; add_priority for new todos; ` +
+    `asks to be reminded; cancel_reminder / snooze_reminder when he asks to cancel or push ` +
+    `one back; add_journal for "note/log/remember"; add_priority for new todos; ` +
+    `complete_priority when he says a todo is done; mark_habit when he ticks a habit; ` +
     `start_focus for "focus N min" / "pomodoro"; apply_debt_payment when he says he paid ` +
     `something. Confirm in a single short sentence after.`,
 };

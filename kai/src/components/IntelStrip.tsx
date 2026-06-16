@@ -68,13 +68,32 @@ export default function IntelStrip({ delay = 0 }: { delay?: number }) {
           <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel">{operator.cityLabel} · {localTime}</span>
         </div>
         {w ? (
-          <div className="flex items-baseline gap-3 mt-1">
-            <span className="font-mono text-amber text-xl tabular-nums">{Math.round(w.tempC)}°</span>
-            <span className="text-bone text-[11px] capitalize">{w.label}</span>
-            <span className="ml-auto font-mono text-[10px] text-steel flex items-center gap-1">
-              <Wind size={10} /> {Math.round(w.wind)} km/h
-            </span>
-          </div>
+          <>
+            <div className="flex items-baseline gap-3 mt-1">
+              <span className="font-mono text-amber text-xl tabular-nums">{Math.round(w.tempC)}°</span>
+              <span className="text-bone text-[11px] capitalize">{w.label}</span>
+              <span className="ml-auto font-mono text-[10px] text-steel flex items-center gap-1">
+                <Wind size={10} /> {Math.round(w.wind)} km/h
+              </span>
+            </div>
+            {w.forecast?.length ? (
+              <div className="grid grid-cols-3 gap-1 mt-1.5">
+                {w.forecast.slice(0, 3).map(f => {
+                  const FIcon = iconForCode(f.code, true);
+                  const d = new Date(f.date);
+                  return (
+                    <div key={f.date} className="flex items-center gap-1.5 px-1.5 py-0.5 border border-amber/10 rounded">
+                      <FIcon size={10} className="text-amber/80" />
+                      <span className="font-mono text-[10px] text-steel uppercase">{d.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
+                      <span className="font-mono text-[10px] text-bone tabular-nums ml-auto">
+                        {Math.round(f.maxC)}°<span className="text-steel">/{Math.round(f.minC)}°</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </>
         ) : wErr ? (
           <div className="font-mono text-[11px] text-danger/80">weather offline</div>
         ) : (

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Command, Mic, MicOff, Volume2, VolumeX, Settings } from 'lucide-react';
+import { Command, Mic, MicOff, Volume2, VolumeX, Settings, Download } from 'lucide-react';
 import { operator } from '../kaiConfig';
 import { sfx } from '../lib/sound';
 
@@ -30,6 +30,27 @@ function fmtDate(d: Date) {
 export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundOn, setSoundOn, operatorName }: Props) {
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+
+  /* PWA install prompt — only surfaces when the browser has fired
+     beforeinstallprompt (Chromium-family on supported origins). */
+  const [installEvt, setInstallEvt] = useState<any>(null);
+  useEffect(() => {
+    const onPrompt = (e: any) => { e.preventDefault(); setInstallEvt(e); };
+    const onInstalled = () => setInstallEvt(null);
+    window.addEventListener('beforeinstallprompt', onPrompt as any);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt as any);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+  async function install() {
+    if (!installEvt) return;
+    sfx.click();
+    installEvt.prompt();
+    await installEvt.userChoice;
+    setInstallEvt(null);
+  }
 
   const hour = parseInt(now.toLocaleString('en-GB', { hour: '2-digit', hour12: false, timeZone: operator.timezone }), 10);
   const greet =
@@ -82,6 +103,16 @@ export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundO
         >
           {voiceOn ? <Mic size={14} /> : <MicOff size={14} />}
         </button>
+        {installEvt && (
+          <button
+            onClick={install}
+            onMouseEnter={() => sfx.hover()}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-amber bg-amber/10 text-amber shadow-glow-amber transition font-mono text-[11px] tracking-[0.16em] uppercase"
+            title="Install KAI as an app"
+          >
+            <Download size={12} /> Install
+          </button>
+        )}
         <button
           onClick={() => { sfx.click(); onSettings(); }}
           onMouseEnter={() => sfx.hover()}

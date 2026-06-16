@@ -3,11 +3,12 @@
    take when the streaming endpoint returns a tool_use block.
    ──────────────────────────────────────────────────────────── */
 
-import { addReminder } from './reminders';
+import { addReminder, cancelReminder, listReminders } from './reminders';
 import { addJournal } from './journal';
 import { focusTimer } from './focusTimer';
 import { loadState, saveState } from './store';
 import { briefing } from './commands';
+import { toggleHabit } from './habits';
 import { toast } from '../hooks/useToasts';
 import {
   income, debt, garden, makadi, instagram,
@@ -80,6 +81,42 @@ export const TOOL_SCHEMAS = [
     description: 'Generate the daily briefing narrative summary.',
     input_schema: { type: 'object', properties: {} },
   },
+  {
+    name: 'complete_priority',
+    description: 'Mark a priority as done by fuzzy text match against its label.',
+    input_schema: {
+      type: 'object',
+      properties: { text: { type: 'string', description: 'Substring of the priority label to match.' } },
+      required: ['text'],
+    },
+  },
+  {
+    name: 'cancel_reminder',
+    description: 'Cancel a pending reminder by fuzzy text match against its label.',
+    input_schema: {
+      type: 'object',
+      properties: { text: { type: 'string' } },
+      required: ['text'],
+    },
+  },
+  {
+    name: 'snooze_reminder',
+    description: 'Push a pending reminder back by N minutes.',
+    input_schema: {
+      type: 'object',
+      properties: { text: { type: 'string' }, minutes: { type: 'number' } },
+      required: ['text', 'minutes'],
+    },
+  },
+  {
+    name: 'mark_habit',
+    description: 'Tick a habit as done for today by fuzzy label match.',
+    input_schema: {
+      type: 'object',
+      properties: { label: { type: 'string' } },
+      required: ['label'],
+    },
+  },
 ];
 
 export async function runTool(call: ToolCall): Promise<string> {
@@ -143,6 +180,50 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_briefing': {
       return briefing();
+    }
+    case 'complete_priority': {
+      const needle = (call.input?.text || '').toLowerCase();
+      if (!needle) return 'error: missing text';
+      const s = loadState();
+      const hit = s.priorities.find(p => !p.done && p.text.toLowerCase().includes(needle));
+      if (!hit) return JSON.stringify({ ok: false, reason: 'no matching open priority' });
+      s.priorities = s.priorities.map(p => p.id === hit.id ? { ...p, done: true } : p);
+      saveState(s);
+      toast.ok(`Completed: “${hit.text}”`, 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, completed: hit.text });
+    }
+    case 'cancel_reminder': {
+      const needle = (call.input?.text || '').toLowerCase();
+      if (!needle) return 'error: missing text';
+      const hit = listReminders().find(r => r.text.toLowerCase().includes(needle));
+      if (!hit) return JSON.stringify({ ok: false, reason: 'no matching reminder' });
+      cancelReminder(hit.id);
+      toast.ok(`Cancelled: “${hit.text}”`, 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, cancelled: hit.text });
+    }
+    case 'snooze_reminder': {
+      const needle = (call.input?.text || '').toLowerCase();
+      const minutes = Math.max(1, call.input?.minutes ?? 5);
+      if (!needle) return 'error: missing text';
+      const hit = listReminders().find(r => r.text.toLowerCase().includes(needle));
+      if (!hit) return JSON.stringify({ ok: false, reason: 'no matching reminder' });
+      cancelReminder(hit.id);
+      const at = new Date(Date.now() + minutes * 60_000).toISOString();
+      addReminder(hit.text, at);
+      toast.ok(`Snoozed “${hit.text}” by ${minutes}m`, 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, snoozed_until: at });
+    }
+    case 'mark_habit': {
+      const needle = (call.input?.label || '').toLowerCase();
+      if (!needle) return 'error: missing label';
+      const s = loadState();
+      const hit = s.habits.find(h => h.label.toLowerCase().includes(needle));
+      if (!hit) return JSON.stringify({ ok: false, reason: 'no matching habit' });
+      const today = new Date().toISOString().slice(0, 10);
+      const already = hit.history.includes(today);
+      if (!already) toggleHabit(hit.id);
+      toast.ok(`Habit ticked: “${hit.label}”`, 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, habit: hit.label, was_already_done: already });
     }
     default:
       return 'error: unknown tool';
