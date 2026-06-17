@@ -1,143 +1,219 @@
+/* ============================================================
+   KAI Core — galaxy sphere
+   Single smooth high-res sphere with a fresnel rim that blends
+   sun-gold → galaxy violet → moon silver around the equator.
+   Body is deep space dark with a faint nebula swirl. Reacts to
+   speak / listen / command pulses by brightening the rim.
+   ============================================================ */
+
 import type { CSSProperties } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-/* Slimmed drei + postprocessing imports — only the components we actually
-   render. `Float` was dropped (decorative bobbing not worth the chunk). */
-import { MeshDistortMaterial, Points, PointMaterial } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useMemo, useRef } from 'react';
-/* Named imports from three so the bundler can tree-shake everything
-   else out of the namespace. */
-import { Color, MathUtils } from 'three';
-import type { Mesh as ThreeMesh, Points as ThreePoints } from 'three';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Stars } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { Color, MathUtils, ShaderMaterial } from 'three';
+import type { Mesh as ThreeMesh } from 'three';
 import { useKaiPulse } from '../hooks/useKaiPulse';
 import type { Accent } from '../types';
 
-const ACCENT_HEX: Record<Accent, string> = {
-  amber: '#FFB300',
-  cyan:  '#5FE3FF',
-  emerald: '#7AE6A8',
-};
+/* ── Shader sources ──────────────────────────────────────── */
 
-function Orb({ accent }: { accent: Accent }) {
-  const { speaking, pulseTick, listening } = useKaiPulse();
-  const targetHex = ACCENT_HEX[accent];
-  const ref = useRef<ThreeMesh>(null!);
-  const matRef = useRef<any>(null!);
+const VERT = /* glsl */ `
+varying vec3 vNormal;
+varying vec3 vWorldNormal;
+varying vec3 vViewDir;
+varying vec3 vLocalPos;
+
+void main() {
+  vLocalPos = position;
+  vec4 worldPos = modelMatrix * vec4(position, 1.0);
+  vWorldNormal = normalize(mat3(modelMatrix) * normal);
+  vNormal = normalize(normalMatrix * normal);
+  vViewDir = normalize(cameraPosition - worldPos.xyz);
+  gl_Position = projectionMatrix * viewMatrix * worldPos;
+}
+`;
+
+const FRAG = /* glsl */ `
+varying vec3 vNormal;
+varying vec3 vWorldNormal;
+varying vec3 vViewDir;
+varying vec3 vLocalPos;
+
+uniform float uTime;
+uniform float uRimIntensity;
+uniform float uRimPower;
+uniform vec3  uRimGold;
+uniform vec3  uRimViolet;
+uniform vec3  uRimSilver;
+uniform vec3  uBodyDeep;
+uniform vec3  uBodyNebula;
+uniform float uListenMix;
+
+/* Lightweight 3D value noise + FBM for the nebula swirl */
+float hash(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float noise(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+        mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+    mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+        mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y),
+    f.z
+  );
+}
+float fbm(vec3 p) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 4; i++) {
+    v += a * noise(p);
+    p *= 2.0;
+    a *= 0.5;
+  }
+  return v;
+}
+
+void main() {
+  /* Fresnel — 0 at facing, 1 at silhouette */
+  float ndv = max(dot(normalize(vNormal), normalize(vViewDir)), 0.0);
+  float fresnel = pow(1.0 - ndv, uRimPower);
+
+  /* Rim gradient around the sphere: gold (one side) → violet (centre) → silver (other side).
+     Using vWorldNormal.x so the gradient is anchored in world space — the
+     rim colors stay put while the sphere rotates underneath. */
+  float t = clamp(vWorldNormal.x * 0.5 + 0.5, 0.0, 1.0);
+  vec3 rimColor = t < 0.5
+    ? mix(uRimGold,   uRimViolet, smoothstep(0.0, 0.5, t))
+    : mix(uRimViolet, uRimSilver, smoothstep(0.5, 1.0, t));
+
+  /* Listening cools the entire rim toward a moon-blue */
+  rimColor = mix(rimColor, vec3(0.55, 0.78, 1.0), uListenMix * 0.55);
+
+  /* Body — deep space with a faint nebula swirl. Sampled in LOCAL
+     space so the swirl rotates with the sphere (no swimming). */
+  vec3 n3 = vLocalPos * 1.6 + vec3(uTime * 0.04, uTime * 0.03, 0.0);
+  float n  = fbm(n3);
+  float n2 = fbm(n3 + vec3(2.4, -1.7, 0.9));
+  vec3 body = mix(uBodyDeep, uBodyNebula, smoothstep(0.30, 0.78, n) * 0.75);
+  body += uRimViolet * 0.08 * smoothstep(0.55, 0.95, n2);
+
+  vec3 final = mix(body, rimColor * uRimIntensity, fresnel);
+  gl_FragColor = vec4(final, 1.0);
+}
+`;
+
+/* ── Material factory ────────────────────────────────────── */
+
+function makeMaterial(): ShaderMaterial {
+  return new ShaderMaterial({
+    vertexShader: VERT,
+    fragmentShader: FRAG,
+    uniforms: {
+      uTime:         { value: 0 },
+      uRimIntensity: { value: 1.0 },
+      uRimPower:     { value: 2.4 },
+      /* Sun gold ──── galaxy violet ──── moon silver */
+      uRimGold:      { value: new Color('#FF9B3D') },
+      uRimViolet:    { value: new Color('#6B3FB8') },
+      uRimSilver:    { value: new Color('#D6DAE5') },
+      /* Deep space body + dim nebula swirl */
+      uBodyDeep:     { value: new Color('#040712') },
+      uBodyNebula:   { value: new Color('#1A1A44') },
+      uListenMix:    { value: 0 },
+    },
+  });
+}
+
+/* ── Orb mesh ────────────────────────────────────────────── */
+
+function Orb() {
+  const { speaking, listening, pulseTick } = useKaiPulse();
+  const meshRef = useRef<ThreeMesh>(null!);
+  const material = useMemo(makeMaterial, []);
   const pulseRef = useRef(0);
+  const lastTick = useRef(0);
 
   useFrame((state, dt) => {
-    if (!ref.current) return;
+    const mesh = meshRef.current;
+    if (!mesh) return;
     const t = state.clock.elapsedTime;
 
-    // Slow breathing rotation
-    ref.current.rotation.y += dt * 0.18;
-    ref.current.rotation.x = Math.sin(t * 0.25) * 0.12;
+    /* Calm rotation — slow Y, gentle X wobble */
+    mesh.rotation.y += dt * 0.06;
+    mesh.rotation.x = Math.sin(t * 0.08) * 0.04;
 
-    // Breathing scale + speaking pulse
-    pulseRef.current = MathUtils.damp(pulseRef.current, 0, 3.5, dt);
-    const breath = 1 + Math.sin(t * 1.05) * 0.025;
-    const speakBoost = speaking ? (1 + Math.sin(t * 11) * 0.05) : 1;
-    const scale = breath * speakBoost * (1 + pulseRef.current * 0.12);
-    ref.current.scale.setScalar(scale);
-
-    if (matRef.current) {
-      matRef.current.distort = 0.32 + Math.sin(t * 0.7) * 0.06 + (speaking ? 0.10 : 0) + pulseRef.current * 0.15;
-      matRef.current.speed = speaking ? 4 : 1.2;
-      matRef.current.emissiveIntensity = 1.1 + Math.sin(t * 1.2) * 0.15
-        + (speaking ? 0.5 : 0) + pulseRef.current * 0.6;
-      if (listening) matRef.current.color.lerp(new Color('#5FE3FF'), 0.04);
-      else           matRef.current.color.lerp(new Color(targetHex), 0.04);
-      matRef.current.emissive.lerp(new Color(targetHex), 0.05);
-    }
-  });
-
-  // Trigger pulse on command tick
-  const lastTick = useRef(0);
-  useFrame(() => {
+    /* Command pulse — decays back to zero */
+    pulseRef.current = MathUtils.damp(pulseRef.current, 0, 3.0, dt);
     if (pulseTick !== lastTick.current) {
       pulseRef.current = 1;
       lastTick.current = pulseTick;
     }
+
+    const u = material.uniforms;
+    u.uTime.value = t;
+
+    /* Rim brightens on speak, with a small shimmer; pulse adds a burst */
+    const speakBoost = speaking ? 1.55 + Math.sin(t * 9.0) * 0.18 : 1.0;
+    const target = speakBoost + pulseRef.current * 0.7;
+    u.uRimIntensity.value = MathUtils.lerp(u.uRimIntensity.value, target, 0.18);
+
+    /* Listening cools the rim toward moonlight */
+    u.uListenMix.value = MathUtils.lerp(u.uListenMix.value, listening ? 1 : 0, 0.06);
   });
 
   return (
-    <mesh ref={ref}>
-      <sphereGeometry args={[1, 96, 96]} />
-      <MeshDistortMaterial
-        ref={matRef}
-        color="#FFB300"
-        emissive="#FFB300"
-        emissiveIntensity={1.1}
-        roughness={0.25}
-        metalness={0.2}
-        distort={0.32}
-        speed={1.2}
-      />
+    <mesh ref={meshRef} material={material}>
+      <sphereGeometry args={[1, 128, 128]} />
     </mesh>
   );
 }
 
-function Particles({ color = '#FFB300' }: { color?: string }) {
-  const count = 900;
-  const positions = useMemo(() => {
-    const arr = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const r = 1.6 + Math.random() * 1.4;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      arr[i*3]   = r * Math.sin(phi) * Math.cos(theta);
-      arr[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
-      arr[i*3+2] = r * Math.cos(phi);
-    }
-    return arr;
-  }, []);
-  const ref = useRef<ThreePoints>(null!);
-  useFrame((_, dt) => {
-    if (ref.current) {
-      ref.current.rotation.y += dt * 0.06;
-      ref.current.rotation.x += dt * 0.02;
-    }
-  });
-  return (
-    <Points ref={ref} positions={positions} stride={3}>
-      <PointMaterial transparent color={color} size={0.015} sizeAttenuation depthWrite={false} opacity={0.85} />
-    </Points>
-  );
-}
+/* ── Public component ───────────────────────────────────── */
 
-function Ring({ radius, color, tilt, speed, dashed }: { radius: number; color: string; tilt: number; speed: number; dashed?: boolean }) {
-  const ref = useRef<ThreeMesh>(null!);
-  useFrame((_, dt) => { if (ref.current) ref.current.rotation.z += dt * speed; });
-  return (
-    <mesh ref={ref} rotation={[tilt, 0, 0]}>
-      <torusGeometry args={[radius, dashed ? 0.004 : 0.006, 8, 256]} />
-      <meshBasicMaterial color={color} transparent opacity={dashed ? 0.4 : 0.6} />
-    </mesh>
-  );
-}
-
-export default function KaiCore({ size, accent = 'amber' as Accent }: { size?: number; accent?: Accent }) {
-  const hex = ACCENT_HEX[accent];
-  const rgba = (a: number) => hex + Math.floor(a * 255).toString(16).padStart(2, '0');
-  /* If a size is provided, lock to it; otherwise fill the parent. */
+/* `accent` is accepted for API compatibility but the orb is now a
+   fixed galaxy palette by design. */
+export default function KaiCore({ size, accent: _accent = 'amber' as Accent }: { size?: number; accent?: Accent }) {
   const wrap: CSSProperties = size ? { width: size, height: size } : { width: '100%', height: '100%' };
   return (
     <div className="relative" style={wrap}>
+      {/* Soft violet halo — sits behind the orb so the rim reads against a faint nebula glow */}
       <div
         className="absolute inset-0 rounded-full pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${rgba(0.25)} 0%, ${rgba(0.08)} 30%, transparent 65%)`, filter: 'blur(8px)' }}
+        style={{
+          background:
+            'radial-gradient(circle at 50% 50%, rgba(107,63,184,0.22) 0%, rgba(40,30,90,0.10) 36%, transparent 72%)',
+          filter: 'blur(14px)',
+        }}
       />
-      <Canvas camera={{ position: [0, 0, 3.6], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: true }}>
-        <ambientLight intensity={0.3} />
-        <pointLight position={[3, 2, 4]}  intensity={1.8} color={hex} />
-        <pointLight position={[-3, -2, 2]} intensity={0.8} color="#5FE3FF" />
-        <Orb accent={accent} />
-        <Particles color={hex} />
-        <Ring radius={1.55} color={hex} tilt={Math.PI/2.2} speed={0.04} />
-        <Ring radius={1.78} color="#5FE3FF" tilt={Math.PI/1.6} speed={-0.03} dashed />
-        <Ring radius={2.05} color={hex} tilt={Math.PI/3}   speed={0.02} dashed />
+      <Canvas
+        camera={{ position: [0, 0, 3.5], fov: 45 }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, alpha: true }}
+      >
+        <Orb />
+        {/* Faint slow starfield drifting behind the sphere */}
+        <Stars
+          radius={14}
+          depth={10}
+          count={320}
+          factor={1.0}
+          saturation={0}
+          fade
+          speed={0.25}
+        />
         <EffectComposer>
-          <Bloom intensity={0.9} luminanceThreshold={0.2} luminanceSmoothing={0.7} mipmapBlur />
+          <Bloom
+            intensity={0.7}
+            luminanceThreshold={0.35}
+            luminanceSmoothing={0.85}
+            mipmapBlur
+          />
         </EffectComposer>
       </Canvas>
     </div>
