@@ -10,10 +10,10 @@ export default function MapTile({ delay = 0 }: { delay?: number }) {
     <motion.div
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1, transition: { delay, duration: 0.5 } }}
-      className="glass rounded-md px-3 py-2.5 flex-1 min-w-[220px] relative overflow-hidden"
+      className="glass rounded-lg px-4 py-4 relative overflow-hidden"
     >
       <div className="flex items-center gap-2">
-        <MapPin size={14} className="text-amber drop-shadow-[0_0_6px_rgba(255,179,0,0.5)]" />
+        <MapPin size={14} className="text-amber/85" />
         <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel">Holdings · EG</span>
         <span className="ml-auto font-mono text-[10px] text-steel">~390 km</span>
       </div>

@@ -28,7 +28,6 @@ import PrioritiesPanel from './components/panels/PrioritiesPanel';
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
 const KaiCore        = lazy(() => import('./components/KaiCore'));
-const OrbAudio       = lazy(() => import('./components/OrbAudio'));
 const InstagramPanel = lazy(() => import('./components/panels/InstagramPanel'));
 import { loadState, saveState } from './lib/store';
 import { setSoundEnabled, sfx } from './lib/sound';
@@ -275,7 +274,9 @@ export default function App() {
       )}
 
       {booted && (
-        <div className={'relative z-10 min-h-screen p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 ' + (idle ? 'idle-mode' : '')}>
+        <div className={'relative z-10 min-h-screen ' + (idle ? 'idle-mode' : '')}>
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col gap-6 sm:gap-8">
+
           <TopBar
             onCmdK={() => setCmdOpen(true)}
             onSettings={() => setSetOpen(true)}
@@ -287,89 +288,80 @@ export default function App() {
             voiceState={voiceState}
           />
 
-          {/* Live voice status / interim transcript — sits below the
-              top bar whenever voice is on. */}
+          {/* Live voice status / interim transcript */}
           <VoiceBanner
             state={voiceState}
             lastHeard={lastHeard}
             voiceOn={settings.voiceEnabled}
           />
 
-          {/* Orb — full width on mobile, embedded in the center column on desktop */}
+          {/* Orb — mobile only, gets its own breathing room */}
           <motion.div
-            className="kai-core-wrap relative w-full grid place-items-center lg:hidden"
+            className="kai-core-wrap relative w-full grid place-items-center lg:hidden py-4"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.6 } }}
+            animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.8 } }}
           >
-            <Suspense fallback={<div className="text-amber font-mono text-xs py-12">spinning up core…</div>}>
-              <div className="relative w-[min(300px,80vw)] aspect-square">
-                <KaiCore size={300} accent={settings.accent} />
-                <OrbAudio accent={settings.accent} />
+            <Suspense fallback={<div className="text-steel font-mono text-[10px] py-12">spinning up core…</div>}>
+              <div className="relative w-[min(280px,72vw)] aspect-square">
+                <KaiCore size={280} accent={settings.accent} />
               </div>
             </Suspense>
-            <div className="absolute bottom-1 inset-x-0 text-center pointer-events-none">
-              <div className="font-mono text-[9px] tracking-[0.4em] text-steel uppercase">KAI CORE</div>
-            </div>
           </motion.div>
 
-          {/* Main grid — single column on mobile, 3 columns from lg up.
-              Each column lays out its panels with gap, no flex-1 traps. */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+          {/* Main grid — 1 col mobile, 3 col desktop. Generous gaps. */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
             {/* Left */}
-            <div className="flex flex-col gap-3 sm:gap-4 min-w-0">
+            <div className="flex flex-col gap-6 sm:gap-8 min-w-0">
               <IncomePanel delay={0.20} />
               <PrioritiesPanel delay={0.55} />
             </div>
 
-            {/* Center — orb only on desktop, garden below */}
-            <div className="flex flex-col gap-3 sm:gap-4 items-stretch min-w-0">
+            {/* Center — orb (desktop only) sits in its own column, then Garden */}
+            <div className="flex flex-col gap-6 sm:gap-8 items-stretch min-w-0">
               <motion.div
-                className="kai-core-wrap relative hidden lg:grid place-items-center w-full"
+                className="kai-core-wrap relative hidden lg:grid place-items-center w-full py-6"
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.6 } }}
+                animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.8 } }}
               >
-                <Suspense fallback={<div className="text-amber font-mono text-xs py-12">spinning up core…</div>}>
-                  <div className="relative w-[min(420px,100%)] aspect-square">
-                    <KaiCore size={420} accent={settings.accent} />
-                    <OrbAudio accent={settings.accent} />
+                <Suspense fallback={<div className="text-steel font-mono text-[10px] py-12">spinning up core…</div>}>
+                  <div className="relative w-[min(460px,100%)] aspect-square">
+                    <KaiCore size={460} accent={settings.accent} />
                   </div>
                 </Suspense>
-                <div className="absolute inset-x-0 bottom-1 text-center pointer-events-none">
-                  <div className="font-mono text-[10px] tracking-[0.4em] text-steel uppercase">KAI CORE</div>
-                  <div className="font-mono text-[10px] tracking-[0.3em] text-amber/80 uppercase">command presence</div>
-                </div>
               </motion.div>
               <GardenPanel delay={0.45} />
             </div>
 
             {/* Right */}
-            <div className="flex flex-col gap-3 sm:gap-4 min-w-0">
+            <div className="flex flex-col gap-6 sm:gap-8 min-w-0">
               <DebtPanel delay={0.30} />
               <MakadiPanel delay={0.40} />
-              <Suspense fallback={<div className="glass rounded-md p-4 text-amber/70 font-mono text-xs">loading charts…</div>}>
+              <Suspense fallback={<div className="glass rounded-lg p-5 text-steel font-mono text-xs">loading charts…</div>}>
                 <InstagramPanel delay={0.50} />
               </Suspense>
             </div>
           </div>
 
           {/* Live intel strip + HN ticker */}
-          <div className="intel-strip-anchor flex flex-col gap-3 sm:gap-4">
+          <div className="intel-strip-anchor flex flex-col gap-4 sm:gap-5">
             <IntelStrip delay={1.1} />
             <NewsRow />
           </div>
 
-          {/* Footer ribbon */}
+          {/* Quiet footer — no frame, just text */}
           <motion.footer
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
-            className="glass flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
+            className="flex flex-wrap items-center justify-between gap-3 pt-2 pb-1 font-mono text-[10px] tracking-[0.18em] uppercase text-steel/45"
           >
-            <span>kai · v1.13.0</span>
-            <span className="hidden md:inline">
-              <kbd>⌘</kbd><kbd>K</kbd> cmd · <span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd> search</span> · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts
+            <span>kai · v1.13</span>
+            <span className="hidden md:inline normal-case tracking-normal text-steel/50">
+              <kbd>⌘</kbd><kbd>K</kbd>&nbsp;commands&nbsp;·&nbsp;<span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd>&nbsp;search</span>&nbsp;·&nbsp;<kbd>⌘</kbd><kbd>J</kbd>&nbsp;journal
             </span>
-            <span className="text-amber">◊ presence stable</span>
+            <span className="text-steel/55">presence stable</span>
           </motion.footer>
+
+          </div>{/* max-w inner */}
         </div>
       )}
 

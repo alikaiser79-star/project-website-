@@ -30,81 +30,78 @@ export default function DebtPanel({ delay = 0 }: { delay?: number }) {
 
   return (
     <Panel num="02" title="Credit Paydown" tag={debt.label} delay={delay}>
-      <div className="flex items-center gap-6 h-full">
+      <div className="flex flex-col sm:flex-row items-center gap-6">
         <div className="relative shrink-0">
-          <svg viewBox="0 0 180 180" width="180" height="180">
+          <svg viewBox="0 0 180 180" width="160" height="160">
             <defs>
               <linearGradient id="dg" x1="0" x2="1" y1="0" y2="1">
                 <stop offset="0%"  stopColor="#FFB300" />
                 <stop offset="100%" stopColor="#FFC94A" />
               </linearGradient>
-              <filter id="dglow"><feGaussianBlur stdDeviation="3" /></filter>
             </defs>
-            <circle cx="90" cy="90" r={r} stroke="rgba(255,179,0,0.10)" strokeWidth="6" fill="none" />
+            <circle cx="90" cy="90" r={r} stroke="rgba(255,255,255,0.06)" strokeWidth="5" fill="none" />
             <motion.circle
               cx="90" cy="90" r={r}
               stroke="url(#dg)"
-              strokeWidth="6"
+              strokeWidth="5"
               fill="none"
               strokeLinecap="round"
               strokeDasharray={`${dash} ${C}`}
               transform="rotate(-90 90 90)"
-              filter="url(#dglow)"
             />
-            <text x="90" y="86" textAnchor="middle" fill="#FFB300" fontFamily="JetBrains Mono" fontSize="26" fontWeight="500">
-              {animPct.toFixed(1)}%
+            <text x="90" y="86" textAnchor="middle" fill="#FFB300" fontFamily="Inter, system-ui, sans-serif" fontSize="30" fontWeight="200" letterSpacing="-1">
+              {animPct.toFixed(0)}%
             </text>
-            <text x="90" y="106" textAnchor="middle" fill="#7C8794" fontFamily="JetBrains Mono" fontSize="10" letterSpacing="2">
+            <text x="90" y="108" textAnchor="middle" fill="#7C8794" fontFamily="JetBrains Mono" fontSize="9" letterSpacing="3">
               CLEARED
             </text>
           </svg>
         </div>
-        <div className="flex-1 space-y-3 font-mono text-sm">
+        <div className="flex-1 w-full space-y-4">
           <div>
-            <div className="text-[10px] tracking-[0.22em] text-steel uppercase">balance</div>
-            <div className="text-bone text-lg tabular-nums">{fmt(current)} <span className="text-amber/70 text-xs">EGP</span></div>
-          </div>
-          <div>
-            <div className="text-[10px] tracking-[0.22em] text-steel uppercase">cleared</div>
-            <div className="text-amber text-lg tabular-nums drop-shadow-[0_0_6px_rgba(255,179,0,0.4)]">
-              {fmt(animCleared)} <span className="text-amber/70 text-xs">EGP</span>
+            <div className="font-mono text-[10px] tracking-[0.18em] text-steel/65 uppercase">Balance</div>
+            <div className="font-sans text-bone text-2xl font-extralight tabular-nums mt-1">
+              {fmt(current)} <span className="font-mono text-steel/70 text-xs">EGP</span>
             </div>
           </div>
-          <div className="flex gap-2 pt-2">
+          <div>
+            <div className="font-mono text-[10px] tracking-[0.18em] text-steel/65 uppercase">Cleared</div>
+            <div className="font-sans text-bone/85 text-lg font-light tabular-nums mt-1">
+              {fmt(animCleared)} <span className="font-mono text-steel/70 text-xs">EGP</span>
+            </div>
+          </div>
+          <div className="flex gap-2">
             <button
               onClick={() => setCurrent(c => Math.max(0, c - 2000))}
-              className="px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase border border-amber/40 hover:border-amber hover:bg-amber/10 text-amber"
+              className="px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase rounded border border-white/[0.08] text-bone/80 hover:border-white/15 hover:text-bone transition"
             >−2k</button>
             <button
               onClick={() => setCurrent(c => Math.max(0, c - 5000))}
-              className="px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase border border-amber/40 hover:border-amber hover:bg-amber/10 text-amber"
+              className="px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase rounded border border-white/[0.08] text-bone/80 hover:border-white/15 hover:text-bone transition"
             >−5k</button>
             <button
               onClick={() => setCurrent(debt.current)}
-              className="px-3 py-1.5 text-[11px] tracking-[0.18em] uppercase border border-amber/15 text-steel hover:text-amber hover:border-amber/40"
+              className="px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase rounded text-steel/60 hover:text-bone/80 transition"
             >reset</button>
           </div>
-          <div className="pt-2">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel">trend</span>
+          <div className="pt-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel/65">Trend</span>
               {(() => {
                 const t = trend('debt', 14);
-                if (!t) return <span className="font-mono text-[10px] text-steel">—</span>;
+                if (!t) return <span className="font-mono text-[10px] text-steel/55">—</span>;
                 const up = t.delta > 0;
                 return (
-                  <span className={'font-mono text-[10px] tabular-nums ' + (up ? 'text-danger' : 'text-ok')}>
+                  <span className={'font-mono text-[10px] tabular-nums ' + (up ? 'text-danger/80' : 'text-ok/85')}>
                     {up ? '+' : ''}{Math.round(t.delta).toLocaleString('en-GB')} EGP · {t.samples}d
                   </span>
                 );
               })()}
             </div>
-            <Sparkline
-              values={seriesFor('debt', 14)}
-              width={200} height={28} color="#FFB300" invert
-            />
+            <Sparkline values={seriesFor('debt', 14)} width={200} height={22} color="#FFB300" invert />
           </div>
-          <div className="text-[10px] text-steel pt-2 leading-relaxed">
-            target zero · min payment {fmt(debt.minPayment)} EGP · APR {debt.apr}%
+          <div className="font-mono text-[10px] text-steel/55 leading-relaxed">
+            target zero · min {fmt(debt.minPayment)} EGP · APR {debt.apr}%
           </div>
         </div>
       </div>

@@ -44,58 +44,55 @@ export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
   const open = items.filter(p => !p.done).length;
 
   return (
-    <Panel num="06" title="Priorities" tag={`${open} OPEN`} delay={delay}>
-      <div className="flex gap-2 mb-3">
+    <Panel num="06" title="Priorities" tag={`${open} open`} delay={delay}>
+      <div className="flex gap-2 mb-4">
         <input
           value={adding}
           onChange={e => setAdding(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && add()}
           placeholder="Add a priority…"
-          className="flex-1 bg-transparent border border-amber/20 focus:border-amber rounded px-2.5 py-1.5 text-bone text-sm outline-none font-sans"
+          className="flex-1 bg-transparent border border-white/[0.08] focus:border-white/20 rounded px-3 py-2 text-bone/90 text-sm outline-none font-sans transition"
         />
-        <button onClick={add} onMouseEnter={() => sfx.hover()}
-          className="px-2.5 rounded border border-amber/40 text-amber hover:border-amber hover:shadow-glow-amber">
+        <button onClick={add}
+          className="px-3 rounded border border-white/[0.08] text-steel hover:text-bone hover:border-white/20 transition">
           <Plus size={14} />
         </button>
       </div>
-      <Reorder.Group axis="y" values={items} onReorder={reorder} className="space-y-1.5 overflow-y-auto flex-1">
+      <Reorder.Group axis="y" values={items} onReorder={reorder} className="space-y-2">
         <AnimatePresence initial={false}>
           {items.map(p => (
             <Reorder.Item
               key={p.id}
               value={p}
               as="li"
-              whileDrag={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,179,0,0.4)' }}
-              className="group flex items-center gap-2.5 p-2 rounded border border-amber/10 hover:border-amber/30 bg-ink2/40 cursor-grab active:cursor-grabbing"
+              whileDrag={{ scale: 1.01, boxShadow: '0 12px 30px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.10)' }}
+              className="group flex items-center gap-3 px-3 py-2.5 rounded border border-white/[0.04] hover:border-white/[0.10] bg-ink2/40 cursor-grab active:cursor-grabbing"
             >
-              <motion.span
-                onMouseEnter={() => sfx.hover()}
-                className="text-steel/60 group-hover:text-amber/70 cursor-grab"
-              >
+              <motion.span className="text-steel/40 group-hover:text-steel/70 cursor-grab transition">
                 <GripVertical size={12} />
               </motion.span>
               <button
                 onClick={(ev) => toggle(p.id, ev)}
-                className={'w-5 h-5 rounded-sm border flex items-center justify-center transition ' +
+                className={'w-4 h-4 rounded-sm border flex items-center justify-center transition ' +
                   (p.done
-                    ? 'bg-amber/15 border-amber text-amber shadow-glow-amber'
-                    : 'border-amber/30 hover:border-amber text-transparent')
+                    ? 'bg-amber/15 border-amber/70 text-amber'
+                    : 'border-white/15 hover:border-white/35 text-transparent')
                 }
               >
-                <Check size={12} />
+                <Check size={10} />
               </button>
-              <span className={'relative font-sans text-[13px] flex-1 strike ' + (p.done ? 'on text-steel' : 'text-bone')}>
+              <span className={'relative font-sans text-[13.5px] flex-1 strike ' + (p.done ? 'on text-steel/55' : 'text-bone/90')}>
                 {p.text}
               </span>
-              <button onClick={() => remove(p.id)} className="opacity-0 group-hover:opacity-100 text-steel hover:text-danger transition">
-                <Trash2 size={12} />
+              <button onClick={() => remove(p.id)} className="opacity-0 group-hover:opacity-100 text-steel/55 hover:text-danger/90 transition">
+                <Trash2 size={11} />
               </button>
             </Reorder.Item>
           ))}
         </AnimatePresence>
       </Reorder.Group>
-      <div className="mt-2 pt-2 border-t border-amber/10 font-mono text-[10px] tracking-[0.18em] uppercase text-steel">
-        drag to reorder
+      <div className="mt-4 pt-3 border-t border-white/[0.04] font-mono text-[10px] tracking-[0.18em] uppercase text-steel/45">
+        Drag to reorder
       </div>
     </Panel>
   );

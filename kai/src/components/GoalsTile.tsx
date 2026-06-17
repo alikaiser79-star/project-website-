@@ -37,10 +37,10 @@ export default function GoalsTile({ delay = 0 }: { delay?: number }) {
     <motion.div
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1, transition: { delay, duration: 0.5 } }}
-      className="glass rounded-md px-3 py-2.5 flex-1 min-w-[260px]"
+      className="glass rounded-lg px-4 py-4"
     >
       <div className="flex items-center gap-2">
-        <Target size={14} className="text-amber drop-shadow-[0_0_6px_rgba(255,179,0,0.5)]" />
+        <Target size={14} className="text-amber/85" />
         <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel">Long-term · goals</span>
         <span className="ml-auto font-mono text-[10px] text-steel">{goals.length}</span>
       </div>

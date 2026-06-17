@@ -14,18 +14,18 @@ function Row({ s }: { s: IncomeOverride }) {
   const v = useCounter(s.amount, { duration: 1.4 });
   const trend = s.trend ?? 0;
   const Arrow = trend > 0.3 ? ArrowUpRight : trend < -0.3 ? ArrowDownRight : Minus;
-  const trendColor = trend > 0.3 ? 'text-ok' : trend < -0.3 ? 'text-danger' : 'text-steel';
+  const trendColor = trend > 0.3 ? 'text-ok/85' : trend < -0.3 ? 'text-danger/85' : 'text-steel/70';
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-2.5 border-b border-amber/10 last:border-0">
-      <div>
-        <div className="text-bone text-sm">{s.label}</div>
-        <div className="font-mono text-[10px] text-steel tracking-wide">{s.note}</div>
+    <div className="grid grid-cols-[1fr_auto_auto] items-baseline gap-3 py-3 border-b border-white/[0.04] last:border-0">
+      <div className="min-w-0">
+        <div className="text-bone/90 text-sm truncate">{s.label}</div>
+        <div className="font-mono text-[10px] text-steel/70 mt-0.5 truncate">{s.note}</div>
       </div>
-      <div className="font-mono text-amber text-[15px] tabular-nums drop-shadow-[0_0_6px_rgba(255,179,0,0.3)]">
-        {fmt(v)}<span className="text-amber/60 text-[11px] ml-1">{s.ccy}{s.cadence === 'nightly' ? '/n' : ''}</span>
+      <div className="font-mono text-bone/90 text-[14px] tabular-nums">
+        {fmt(v)}<span className="text-steel/65 text-[11px] ml-1">{s.ccy}{s.cadence === 'nightly' ? '/n' : ''}</span>
       </div>
-      <div className={'flex items-center gap-1 font-mono text-[11px] ' + trendColor}>
-        <Arrow size={12} /> {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
+      <div className={'flex items-center gap-1 font-mono text-[11px] tabular-nums ' + trendColor}>
+        <Arrow size={11} /> {trend > 0 ? '+' : ''}{trend.toFixed(1)}%
       </div>
     </div>
   );
@@ -59,26 +59,26 @@ export default function IncomePanel({ delay = 0 }: { delay?: number }) {
   const incomeTrend = trend('incomeMonthly', 14);
 
   return (
-    <Panel num="01" title="Income Streams" tag="MONTHLY" delay={delay}>
-      <div className="mb-3 pb-3 border-b border-amber/15">
-        <div className="font-mono text-[10px] tracking-[0.2em] text-steel uppercase">projected total</div>
-        <div className="flex items-baseline gap-3">
-          <div className="font-mono text-amber text-[28px] leading-none tabular-nums drop-shadow-[0_0_12px_rgba(255,179,0,0.45)]">
+    <Panel num="01" title="Income" tag="Monthly" delay={delay}>
+      <div className="mb-5 pb-5 border-b border-white/[0.05]">
+        <div className="font-mono text-[10px] tracking-[0.18em] text-steel/65 uppercase">Projected total</div>
+        <div className="flex items-baseline gap-3 mt-2">
+          <div className="font-sans text-amber text-4xl sm:text-[42px] leading-none font-extralight tabular-nums">
             {fmt(animatedTotal)}
           </div>
-          <span className="font-mono text-amber/70 text-[12px]">EGP</span>
-          <span className="font-mono text-steel text-[11px] ml-auto">≈ €{fmt(eur)}</span>
+          <span className="font-mono text-steel/70 text-xs">EGP</span>
+          <span className="font-mono text-steel/55 text-[11px] ml-auto tabular-nums">≈ €{fmt(eur)}</span>
         </div>
-        <div className="flex items-center gap-3 mt-1">
-          <Sparkline values={incomeSeries} width={140} height={22} color="#FFB300" />
+        <div className="flex items-center gap-3 mt-3">
+          <Sparkline values={incomeSeries} width={140} height={20} color="#FFB300" />
           {incomeTrend && (
-            <span className={'font-mono text-[10px] tabular-nums ml-auto ' + (incomeTrend.delta >= 0 ? 'text-ok' : 'text-danger')}>
+            <span className={'font-mono text-[10px] tabular-nums ml-auto ' + (incomeTrend.delta >= 0 ? 'text-ok/85' : 'text-danger/85')}>
               {incomeTrend.delta >= 0 ? '↑' : '↓'} {Math.abs(Math.round(incomeTrend.pct)).toFixed(0)}% · {incomeTrend.samples}d
             </span>
           )}
         </div>
       </div>
-      <div className="overflow-y-auto flex-1">
+      <div>
         {streams.map(s => <Row key={s.id} s={s} />)}
       </div>
     </Panel>

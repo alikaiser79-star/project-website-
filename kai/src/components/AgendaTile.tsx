@@ -71,45 +71,80 @@ export default function AgendaTile({ delay = 0 }: { delay?: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, cal]);
 
-  /* Tiny status pill — visible only when something needs attention. */
-  const statusPill =
-    cal.status === 'fetch-error' || cal.status === 'parse-error'
-      ? <span className="font-mono text-[9px] text-danger/70 tracking-[0.16em] uppercase">cal · offline</span>
-      : null;
+  /* Per-status pill — always show when calendar isn't OK so empty
+     and broken look different. Hidden only when status === 'ok'. */
+  const calStatus = (() => {
+    if (cal.status === 'ok') return null;
+    if (cal.status === 'idle') return null;        /* before first fetch */
+    if (cal.status === 'no-key') {
+      return { label: 'CAL · NOT CONFIGURED', cls: 'text-amber2/90 border border-amber2/40' };
+    }
+    if (cal.status === 'fetch-error') {
+      return { label: 'CAL · OFFLINE', cls: 'text-danger/90 border border-danger/40' };
+    }
+    if (cal.status === 'parse-error') {
+      return { label: 'CAL · PARSE ERROR', cls: 'text-danger/90 border border-danger/40' };
+    }
+    if (cal.status.startsWith('http-')) {
+      return { label: 'CAL · ' + cal.status.toUpperCase(), cls: 'text-danger/90 border border-danger/40' };
+    }
+    return { label: 'CAL · ' + cal.status.toUpperCase(), cls: 'text-danger/90 border border-danger/40' };
+  })();
+
+  /* Empty-state copy — distinguish three reasons no calendar items
+     are listed. */
+  const emptyCopy = (() => {
+    if (items.length > 0) return null;
+    if (cal.status === 'no-key') {
+      return 'No upcoming items. Calendar isn’t configured on the server (GOOGLE_CALENDAR_ICAL_URL).';
+    }
+    if (cal.status === 'fetch-error' || cal.status === 'parse-error' || cal.status.startsWith('http-')) {
+      return 'No upcoming items. Calendar is offline; showing local agenda only.';
+    }
+    if (cal.status === 'idle') return 'Loading…';
+    return 'Calendar clear.';
+  })();
 
   return (
     <motion.div
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1, transition: { delay, duration: 0.5 } }}
-      className="glass rounded-md px-3 py-2.5 flex-1 min-w-[280px]"
+      className="glass rounded-lg px-4 py-4"
     >
-      <div className="flex items-center gap-2">
-        <CalendarDays size={14} className="text-amber drop-shadow-[0_0_6px_rgba(255,179,0,0.5)]" />
-        <span className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel">Agenda · next</span>
-        <span className="ml-auto flex items-center gap-2">
-          {statusPill}
-          <span className="font-mono text-[10px] text-steel">
+      <div className="flex items-center gap-2 flex-wrap">
+        <CalendarDays size={13} className="text-steel/70" />
+        <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel/65">Agenda · next</span>
+        <span className="ml-auto flex items-center gap-2 flex-wrap justify-end">
+          {calStatus && (
+            <span
+              className={'font-mono text-[9px] tracking-[0.14em] uppercase px-1.5 py-0.5 rounded ' + calStatus.cls}
+              title={cal.message || cal.status}
+            >
+              {calStatus.label}
+            </span>
+          )}
+          <span className="font-mono text-[10px] text-steel/55">
             {items.length} item{items.length === 1 ? '' : 's'}
           </span>
         </span>
       </div>
-      <ul className="mt-1 space-y-1">
-        {items.length === 0 && (
-          <li className="font-mono text-[11px] text-steel">Calendar clear.</li>
+      <ul className="mt-3 space-y-2">
+        {items.length === 0 && emptyCopy && (
+          <li className="font-mono text-[11px] text-steel/55">{emptyCopy}</li>
         )}
         {items.map((i, n) => {
           const days = Math.ceil((+i.when - Date.now()) / 86_400_000);
           const rel  = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `${days}d`;
           const color =
-            i.tone === 'warn'   ? 'text-amber2' :
-            i.tone === 'makadi' ? 'text-cyan'   :
-            i.tone === 'garden' ? 'text-amber'  :
-            /* cal */             'text-ok';
+            i.tone === 'warn'   ? 'text-amber2/85' :
+            i.tone === 'makadi' ? 'text-cyan/85'   :
+            i.tone === 'garden' ? 'text-amber/85'  :
+            /* cal */             'text-ok/85';
           return (
-            <li key={n} className="grid grid-cols-[auto_1fr_auto] items-baseline gap-2 font-mono text-[11.5px]">
-              <span className={'tracking-[0.14em] uppercase ' + color}>{i.tag}</span>
-              <span className="text-bone truncate">{i.label}</span>
-              <span className="text-steel tabular-nums">
+            <li key={n} className="grid grid-cols-[auto_1fr_auto] items-baseline gap-3 font-mono text-[11.5px]">
+              <span className={'tracking-[0.14em] uppercase text-[10px] ' + color}>{i.tag}</span>
+              <span className="text-bone/85 truncate">{i.label}</span>
+              <span className="text-steel/55 tabular-nums text-[11px]">
                 {i.when.toLocaleDateString(operator.locale, {
                   day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
                   timeZone: operator.timezone,

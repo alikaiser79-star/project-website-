@@ -174,7 +174,7 @@ function buildScene(W: number, H: number): Scene {
       veins.push({
         i, j,
         phase: rand(),
-        speed: 0.18 + rand() * 0.26,
+        speed: 0.11 + rand() * 0.16,
       });
     }
   }
@@ -197,7 +197,7 @@ function buildScene(W: number, H: number): Scene {
     veins.push({
       i: a, j: b,
       phase: rand(),
-      speed: 0.07 + rand() * 0.12,
+      speed: 0.045 + rand() * 0.075,
     });
   }
   const capped = veins.slice(0, 250);
@@ -271,8 +271,8 @@ function drawScene(
   /* 2 — Soft violet halo behind the head. */
   const cx = W / 2, cy = H / 2;
   const halo = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.05, cx, cy, Math.min(W, H) * 0.6);
-  halo.addColorStop(0,   'rgba(80, 70, 180, 0.22)');
-  halo.addColorStop(0.5, 'rgba(40, 50, 130, 0.08)');
+  halo.addColorStop(0,   'rgba(70, 60, 160, 0.14)');
+  halo.addColorStop(0.5, 'rgba(35, 45, 110, 0.05)');
   halo.addColorStop(1,   'rgba(0, 0, 0, 0)');
   ctx.fillStyle = halo;
   ctx.fillRect(0, 0, W, H);
@@ -326,7 +326,7 @@ function drawScene(
     const y = ay + (by - ay) * p;
     let col = colorAt((a.colorT + b.colorT) * 0.5);
     if (listenF > 0) col = mix3(col, COOL_TARGET, listenF * 0.55);
-    let brightness = 0.85 + 0.35 * speakF;
+    let brightness = 0.68 + 0.28 * speakF;
     if (sweepProg > 0) {
       const sweepX = sweepProg * W;
       const dist = Math.abs(x - sweepX);
@@ -352,9 +352,9 @@ function drawScene(
     const x = n.nx * W, y = n.ny * H;
     let col = colorAt(n.colorT);
     if (listenF > 0) col = mix3(col, COOL_TARGET, listenF * 0.55);
-    const slow = 0.85 + 0.20 * Math.sin(now * 0.0015 + n.phase * 3);
-    const r = n.big ? 3.4 : 1.7;
-    let brightness = (n.big ? 1.35 : 1.0) + 0.30 * speakF;
+    const slow = 0.88 + 0.14 * Math.sin(now * 0.0010 + n.phase * 3);
+    const r = n.big ? 3.2 : 1.6;
+    let brightness = (n.big ? 1.10 : 0.78) + 0.25 * speakF;
     if (sweepProg > 0) {
       const sweepX = sweepProg * W;
       const dist = Math.abs(x - sweepX);

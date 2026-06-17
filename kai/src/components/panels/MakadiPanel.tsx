@@ -32,36 +32,38 @@ export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
     : next.toLocaleDateString(operator.locale, { weekday: 'long', day: '2-digit', month: 'short' });
 
   return (
-    <Panel num="04" title="Makadi Airbnb" tag="STR" delay={delay}>
-      <div className="grid grid-cols-2 gap-3">
+    <Panel num="04" title="Makadi Airbnb" tag="Short-term" delay={delay}>
+      <div className="grid grid-cols-2 gap-5">
         <div>
-          <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel">nightly</div>
-          <div className="font-mono text-amber text-2xl tabular-nums drop-shadow-[0_0_8px_rgba(255,179,0,0.35)]">{fmt(rate)}<span className="text-amber/60 text-xs ml-1">EGP</span></div>
+          <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel/65">Nightly</div>
+          <div className="font-sans text-amber text-3xl font-extralight tabular-nums mt-1">
+            {fmt(rate)}<span className="font-mono text-steel/65 text-xs ml-2">EGP</span>
+          </div>
         </div>
         <div>
-          <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel">occupancy · 30d</div>
-          <div className="font-mono text-cyan text-2xl tabular-nums">{occ}%</div>
+          <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel/65">Occupancy · 30d</div>
+          <div className="font-sans text-cyan/90 text-3xl font-extralight tabular-nums mt-1">{occ}<span className="text-base">%</span></div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 mt-4">
-        <div className="rounded border border-amber/15 p-3">
-          <div className="flex items-center gap-2 text-amber/80 text-[10px] tracking-[0.22em] uppercase font-mono">
-            <Bed size={12} /> Next Booking
+      <div className="grid grid-cols-2 gap-5 mt-6 pt-5 border-t border-white/[0.04]">
+        <div>
+          <div className="flex items-center gap-2 text-steel/65 text-[10px] tracking-[0.18em] uppercase font-mono">
+            <Bed size={11} /> Next booking
           </div>
-          <div className="font-mono text-bone text-sm mt-1">{nextLabel}</div>
+          <div className="font-sans text-bone/90 text-[14px] mt-1.5 truncate">{nextLabel}</div>
         </div>
-        <div className="rounded border border-amber/15 p-3">
-          <div className="flex items-center gap-2 text-amber/80 text-[10px] tracking-[0.22em] uppercase font-mono">
-            <Star size={12} /> Rating
+        <div>
+          <div className="flex items-center gap-2 text-steel/65 text-[10px] tracking-[0.18em] uppercase font-mono">
+            <Star size={11} /> Rating
           </div>
-          <div className="font-mono text-amber text-xl tabular-nums">{rating}</div>
+          <div className="font-sans text-bone/90 text-2xl font-light tabular-nums mt-1">{rating}</div>
         </div>
       </div>
       {m?.fixLock && (
-        <div className="mt-4 flex items-center gap-2 p-3 border border-danger/40 bg-danger/5 rounded">
-          <AlertTriangle size={16} className="text-danger shrink-0" />
-          <div className="text-[12px] text-bone">
-            <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-danger">flag</div>
+        <div className="mt-5 flex items-center gap-3 p-3 rounded border border-danger/30 bg-danger/[0.05]">
+          <AlertTriangle size={14} className="text-danger/90 shrink-0" />
+          <div className="text-[13px] text-bone/85 leading-snug">
+            <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-danger/85 mb-0.5">Flag</div>
             Door lock needs repair — book locksmith.
           </div>
         </div>

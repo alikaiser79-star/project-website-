@@ -52,36 +52,36 @@ export default function GardenPanel({ delay = 0 }: { delay?: number }) {
   const tasks = Array.isArray(g?.todayTasks) ? g.todayTasks : [];
 
   return (
-    <Panel num="03" title="Hidden Garden" tag="LIVE" delay={delay}>
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <div className="rounded border border-amber/15 p-3">
-          <div className="flex items-center gap-2 text-amber/80 text-[10px] tracking-[0.22em] uppercase font-mono">
-            <Leaf size={12} /> Plants
+    <Panel num="03" title="Hidden Garden" tag="Live" delay={delay}>
+      <div className="grid grid-cols-2 gap-5 mb-5">
+        <div>
+          <div className="flex items-center gap-2 text-steel/65 text-[10px] tracking-[0.18em] uppercase font-mono">
+            <Leaf size={11} /> Plants
           </div>
-          <div className="font-mono text-amber text-2xl tabular-nums drop-shadow-[0_0_8px_rgba(255,179,0,0.35)]">{plants}</div>
-          <div className="font-mono text-steel text-[11px]">{species} species</div>
+          <div className="font-sans text-amber text-3xl font-extralight tabular-nums mt-1">{plants}</div>
+          <div className="font-mono text-steel/60 text-[11px] mt-0.5">{species} species</div>
         </div>
-        <div className="rounded border border-amber/15 p-3">
-          <div className="flex items-center gap-2 text-cyan text-[10px] tracking-[0.22em] uppercase font-mono">
-            <CalendarClock size={12} /> Next Event
+        <div>
+          <div className="flex items-center gap-2 text-steel/65 text-[10px] tracking-[0.18em] uppercase font-mono">
+            <CalendarClock size={11} /> Next event
           </div>
-          <div className="font-mono text-bone text-sm leading-tight mt-1">{g?.nextEvent?.title || '—'}</div>
-          <div className="font-mono text-cyan text-[11px] tabular-nums">{cd.d}d · {cd.h}h · {cd.m}m</div>
+          <div className="font-sans text-bone text-[15px] leading-tight mt-1.5 truncate">{g?.nextEvent?.title || '—'}</div>
+          <div className="font-mono text-cyan/85 text-[11px] tabular-nums mt-0.5">{cd.d}d · {cd.h}h · {cd.m}m</div>
         </div>
       </div>
-      <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-steel mb-2">today’s tasks</div>
-      <ul className="space-y-1.5 font-mono text-[12px] overflow-y-auto">
+      <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel/65 mb-3">Today’s tasks</div>
+      <ul className="space-y-2 text-[13px] text-bone/85">
         {tasks.length === 0 && (
-          <li className="text-steel">No tasks set. Edit in Settings → Garden.</li>
+          <li className="font-mono text-steel/55 text-[12px]">No tasks set. Edit in Settings → Garden.</li>
         )}
         {tasks.map((t, i) => (
-          <li key={i} className="flex items-start gap-2 text-bone">
-            <span className="text-amber mt-1.5 w-1.5 h-1.5 rounded-full bg-amber shadow-[0_0_6px_rgba(255,179,0,0.6)] shrink-0" />
-            {t}
+          <li key={i} className="flex items-start gap-3">
+            <span className="mt-[7px] w-1 h-1 rounded-full bg-amber/85 shrink-0" />
+            <span className="truncate">{t}</span>
           </li>
         ))}
       </ul>
-      <div className="mt-auto pt-2 text-[10px] font-mono text-steel">{evLabel}</div>
+      <div className="mt-5 pt-4 border-t border-white/[0.04] text-[10px] font-mono text-steel/55">{evLabel}</div>
     </Panel>
   );
 }

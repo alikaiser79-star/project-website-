@@ -27,7 +27,7 @@ function Tile({ delay = 0, children }: { delay?: number; children: React.ReactNo
     <motion.div
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1, transition: { delay, duration: 0.5 } }}
-      className="glass rounded-md px-3 py-2.5 flex-1 min-w-[180px]"
+      className="glass rounded-lg px-4 py-4 flex-1 min-w-[240px]"
     >
       {children}
     </motion.div>
@@ -60,7 +60,7 @@ export default function IntelStrip({ delay = 0 }: { delay?: number }) {
   });
 
   return (
-    <div className="flex gap-3 flex-wrap">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* Weather */}
       <Tile delay={delay}>
         <div className="flex items-center gap-2">
