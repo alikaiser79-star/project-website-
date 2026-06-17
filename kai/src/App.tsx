@@ -31,7 +31,8 @@ const OrbAudio       = lazy(() => import('./components/OrbAudio'));
 const InstagramPanel = lazy(() => import('./components/panels/InstagramPanel'));
 import { loadState, saveState } from './lib/store';
 import { setSoundEnabled, sfx } from './lib/sound';
-import { voice } from './lib/speech';
+import { voice, type VoiceState } from './lib/speech';
+import VoiceBanner from './components/VoiceBanner';
 import { emit } from './hooks/useKaiPulse';
 import { runBuiltin } from './lib/commands';
 import { toast } from './hooks/useToasts';
@@ -52,6 +53,8 @@ export default function App() {
   const [onbOpen, setOnbOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [settings, setSettings] = useState<KaiSettings>(initial.settings);
+  const [voiceState, setVoiceState] = useState<VoiceState>(() => voice.getState());
+  const [lastHeard, setLastHeard] = useState('');
 
   const onSettings = useCallback((s: KaiSettings) => {
     setSettings(s);
@@ -61,29 +64,63 @@ export default function App() {
   // settings change → persist + sound enable flag
   useEffect(() => { setSoundEnabled(settings.soundEnabled); }, [settings.soundEnabled]);
 
-  // voice recognition lifecycle
+  /* Voice state — always subscribed so the banner reflects the
+     wrapper's truth (starting / listening / error / idle / unsupported)
+     even when the user just toggled off. */
   useEffect(() => {
-    if (!settings.voiceEnabled) { voice.stop(); emit('listen-end'); return; }
+    const offState = voice.onState((s) => {
+      setVoiceState(s);
+      /* Tie the orb's listening pulse to the AUTHORITATIVE onstart
+         signal, not the user's toggle. */
+      if (s.kind === 'listening')              emit('listen-start');
+      else if (s.kind === 'idle' || s.kind === 'unsupported') emit('listen-end');
+      /* Surface actionable errors as toasts; transient ones (no-speech,
+         aborted) just show in the banner and auto-restart. */
+      if (s.kind === 'error') {
+        const fatal = ['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'];
+        if (fatal.includes(s.code)) toast.err(`Voice error · ${s.code}`, 'VOICE', 7000);
+      }
+    });
+    return offState;
+  }, []);
+
+  /* Voice recognition lifecycle — start/stop based on user toggle. */
+  useEffect(() => {
+    if (!settings.voiceEnabled) { voice.stop(); return; }
     if (!voice.supported()) {
       toast.err('Voice recognition not supported in this browser.');
       return;
     }
-    emit('listen-start');
     voice.start();
-    voice.onResult(({ final, text }) => {
-      if (!final) return;
-      // Wake-word gate: when on, ignore phrases that don't lead with
-      // "kai" / "hey kai" / "core".
+    return () => { voice.stop(); };
+  }, [settings.voiceEnabled]);
+
+  /* Voice results — registered separately so interim text always
+     surfaces (banner + last-heard) even when the wake-word gate
+     decides not to run a command. */
+  useEffect(() => {
+    if (!settings.voiceEnabled || !voice.supported()) return;
+    const offRes = voice.onResult(({ final, text }) => {
+      if (!text) return;
+      if (!final) {
+        /* Interim — never discarded, always visible. */
+        setLastHeard(text);
+        return;
+      }
+      /* Final — remember as last-heard regardless of wake-word match. */
+      setLastHeard(text);
+
       const lower = text.toLowerCase().trim();
       const wakeRe = /^(?:hey )?(?:kai|core)[,.\s]+(.+)$/i;
-      let payload = lower;
+      let payload: string | null = null;
       if (settings.wakeWord) {
         const m = lower.match(wakeRe);
-        if (!m) return;
-        payload = m[1];
+        if (m) payload = m[1];
       } else {
         payload = lower.replace(/^(?:hey )?(?:kai|core)[,.\s]*/i, '').trim();
       }
+      if (!payload) return;
+
       const reply = runBuiltin(payload);
       if (reply) {
         emit('command');
@@ -98,7 +135,7 @@ export default function App() {
         toast.ok(`Heard: “${text}”`, 'VOICE');
       }
     });
-    return () => { voice.stop(); emit('listen-end'); };
+    return offRes;
   }, [settings.voiceEnabled, settings.voiceRate, settings.voicePitch, settings.voiceName, settings.wakeWord]);
 
   // global keyboard shortcuts
@@ -242,6 +279,15 @@ export default function App() {
             soundOn={settings.soundEnabled}
             setSoundOn={(b) => onSettings({ ...settings, soundEnabled: b })}
             operatorName={settings.operatorName}
+            voiceState={voiceState}
+          />
+
+          {/* Live voice status / interim transcript — sits below the
+              top bar whenever voice is on. */}
+          <VoiceBanner
+            state={voiceState}
+            lastHeard={lastHeard}
+            voiceOn={settings.voiceEnabled}
           />
 
           {/* Orb — full width on mobile, embedded in the center column on desktop */}

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Command, Mic, MicOff, Volume2, VolumeX, Settings, Download } from 'lucide-react';
+import { Command, Mic, MicOff, Volume2, VolumeX, Settings, Download, AlertTriangle, Loader2 } from 'lucide-react';
 import { operator } from '../kaiConfig';
 import { sfx } from '../lib/sound';
+import type { VoiceState } from '../lib/speech';
 
 type Props = {
   onCmdK: () => void;
@@ -12,6 +13,7 @@ type Props = {
   soundOn: boolean;
   setSoundOn: (b: boolean) => void;
   operatorName: string;
+  voiceState?: VoiceState;
 };
 
 function fmtTime(d: Date) {
@@ -27,7 +29,7 @@ function fmtDate(d: Date) {
   }).toUpperCase();
 }
 
-export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundOn, setSoundOn, operatorName }: Props) {
+export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundOn, setSoundOn, operatorName, voiceState }: Props) {
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
@@ -90,19 +92,11 @@ export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundO
         >
           {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
         </button>
-        <button
-          id="tour-voice"
+        <MicChip
+          voiceOn={voiceOn}
+          voiceState={voiceState}
           onClick={() => { sfx.click(); setVoiceOn(!voiceOn); }}
-          onMouseEnter={() => sfx.hover()}
-          className={"px-2.5 py-1.5 rounded border transition " +
-            (voiceOn
-              ? 'border-amber bg-amber/10 text-amber shadow-glow-amber'
-              : 'border-amber/25 text-amber/70 hover:border-amber/60')
-          }
-          title="Toggle voice (V)"
-        >
-          {voiceOn ? <Mic size={14} /> : <MicOff size={14} />}
-        </button>
+        />
         {installEvt && (
           <button
             onClick={install}
@@ -135,5 +129,73 @@ export default function TopBar({ onCmdK, onSettings, voiceOn, setVoiceOn, soundO
         </div>
       </div>
     </motion.header>
+  );
+}
+
+/* Voice mic chip with full status feedback:
+   - off:        muted mic, amber/25
+   - on + starting:   spinner, amber
+   - on + listening:  mic + green pulse dot, ok colour
+   - on + error:      warning icon, danger colour, error code in title
+   - on + unsupported: muted mic, danger, "unsupported" title */
+function MicChip({
+  voiceOn, voiceState, onClick,
+}: { voiceOn: boolean; voiceState?: VoiceState; onClick: () => void }) {
+  if (!voiceOn) {
+    return (
+      <button
+        id="tour-voice"
+        onClick={onClick}
+        onMouseEnter={() => sfx.hover()}
+        className="px-2.5 py-1.5 rounded border border-amber/25 text-amber/70 hover:border-amber/60 transition"
+        title="Toggle voice (V) — currently off"
+      >
+        <MicOff size={14} />
+      </button>
+    );
+  }
+
+  /* voice is on — paint by current state */
+  const s = voiceState;
+  let icon: JSX.Element = <Mic size={14} />;
+  let className =
+    'relative px-2.5 py-1.5 rounded border border-amber bg-amber/10 text-amber shadow-glow-amber transition';
+  let dot: JSX.Element | null = null;
+  let title = 'Voice on (V)';
+
+  if (s?.kind === 'starting') {
+    icon = <Loader2 size={14} className="animate-spin" />;
+    title = 'Voice · starting…';
+  } else if (s?.kind === 'listening') {
+    className =
+      'relative px-2.5 py-1.5 rounded border border-ok bg-ok/10 text-ok shadow-[0_0_10px_rgba(122,230,168,0.45)] transition';
+    dot = (
+      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-ok shadow-[0_0_6px_#7AE6A8] animate-pulse-soft" />
+    );
+    title = 'Voice · listening';
+  } else if (s?.kind === 'error') {
+    className =
+      'relative px-2.5 py-1.5 rounded border border-danger bg-danger/10 text-danger transition';
+    icon = <AlertTriangle size={14} />;
+    title = `Voice · ${s.code}${s.message ? ' · ' + s.message : ''}`;
+  } else if (s?.kind === 'unsupported') {
+    className =
+      'relative px-2.5 py-1.5 rounded border border-amber2/60 bg-amber2/10 text-amber2 transition';
+    icon = <AlertTriangle size={14} />;
+    title = 'Voice · unsupported (no SpeechRecognition in this browser)';
+  }
+
+  return (
+    <button
+      id="tour-voice"
+      onClick={onClick}
+      onMouseEnter={() => sfx.hover()}
+      className={className}
+      title={title}
+      aria-label={title}
+    >
+      {icon}
+      {dot}
+    </button>
   );
 }
