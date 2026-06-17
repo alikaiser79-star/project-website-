@@ -173,7 +173,6 @@ export default function App() {
         }
       }
     });
-    return () => { offAct(); };
 
     // First-run onboarding
     if (!settings.onboarded) {
@@ -188,7 +187,7 @@ export default function App() {
     if (open > 0) {
       setTimeout(() => toast.ok(`${open} open priorit${open === 1 ? 'y' : 'ies'} for today.`, 'TODAY'), 2200);
     }
-    if (makadi.fixLock) {
+    if (loadState().makadi.fixLock) {
       setTimeout(() => toast.warn('Makadi door lock still flagged — book the locksmith.', 'REMINDER', 7000), 3600);
     }
 
@@ -210,6 +209,8 @@ export default function App() {
         localStorage.setItem('kai.lastBriefing', today);
       }, 5200);
     }
+
+    return () => { offAct(); };
   }, [booted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

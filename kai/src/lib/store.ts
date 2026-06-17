@@ -112,16 +112,20 @@ export function updateMakadi(patch: Partial<MakadiState>) {
   saveState(s);
 }
 export function upsertInstagram(handle: string, followers: number) {
+  const h = String(handle ?? '').trim();
+  if (!h) return;
+  const norm = h.startsWith('@') ? h : '@' + h;
   const s = loadState();
-  const norm = handle.startsWith('@') ? handle : '@' + handle;
-  const idx = s.instagram.findIndex(a => a.handle.toLowerCase() === norm.toLowerCase());
+  const idx = s.instagram.findIndex(a => String(a.handle ?? '').toLowerCase() === norm.toLowerCase());
   if (idx >= 0) s.instagram[idx] = { ...s.instagram[idx], followers };
   else          s.instagram = [...s.instagram, { handle: norm, followers }];
   saveState(s);
 }
 export function removeInstagram(handle: string) {
+  const h = String(handle ?? '').trim().toLowerCase();
+  if (!h) return;
   const s = loadState();
-  s.instagram = s.instagram.filter(a => a.handle.toLowerCase() !== handle.toLowerCase());
+  s.instagram = s.instagram.filter(a => String(a.handle ?? '').toLowerCase() !== h);
   saveState(s);
 }
 export function setFx(rate: number) {

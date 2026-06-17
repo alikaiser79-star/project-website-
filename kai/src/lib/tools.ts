@@ -382,7 +382,8 @@ export async function runTool(call: ToolCall): Promise<string> {
         return JSON.stringify({ ok: false, reason: 'followers must be a non-negative number' });
       }
       upsertInstagram(handle, Math.round(followers));
-      toast.ok(`IG ${handle.startsWith('@') ? handle : '@' + handle} · ${followers.toLocaleString('en-GB')}`, 'KAI · TOOL', 3000);
+      const display = handle.startsWith('@') ? handle : '@' + handle;
+      toast.ok(`IG ${display} · ${followers.toLocaleString('en-GB')}`, 'KAI · TOOL', 3000);
       return JSON.stringify({ ok: true, instagram: loadState().instagram });
     }
     case 'set_fx_rate': {

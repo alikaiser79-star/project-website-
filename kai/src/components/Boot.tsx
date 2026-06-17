@@ -61,16 +61,19 @@ export default function Boot({ onDone }: { onDone: () => void }) {
             </div>
 
             <div className="h-[260px] overflow-hidden text-amber/85 text-[13px] leading-relaxed">
-              {shown.map((l, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className={l.startsWith('[KAI]') ? 'text-amber font-bold' : l.startsWith('[OK]') ? 'text-ok' : 'text-amber/60'}
-                >
-                  {l}
-                </motion.div>
-              ))}
+              {shown.filter(Boolean).map((l, idx) => {
+                const s = typeof l === 'string' ? l : String(l ?? '');
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className={s.startsWith('[KAI]') ? 'text-amber font-bold' : s.startsWith('[OK]') ? 'text-ok' : 'text-amber/60'}
+                  >
+                    {s}
+                  </motion.div>
+                );
+              })}
               <span className="text-amber inline-block animate-pulse-soft">▍</span>
             </div>
 
