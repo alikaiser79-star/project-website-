@@ -15,7 +15,7 @@ import ToastStack from './components/ToastStack';
 import { resumeReminders } from './lib/reminders';
 import { recordSnapshot } from './lib/history';
 import { fetchCalendar } from './lib/calendar';
-import { onAction } from './lib/actions';
+import { onAction, emitAction } from './lib/actions';
 import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
@@ -133,7 +133,18 @@ export default function App() {
           () => emit('speak-end'),
         );
         toast.ok(`Heard: “${text}”`, 'VOICE');
+        return;
       }
+
+      /* No built-in match → route the spoken question through the
+         exact same pipeline as typed input: open the command bar and
+         submit. CommandBar streams Claude, shows the answer, and
+         speaks it sentence-by-sentence when voiceEnabled. */
+      emit('command');
+      sfx.confirm();
+      toast.ok(`Heard: “${text}”`, 'VOICE');
+      setCmdOpen(true);
+      emitAction({ type: 'open-cmd', prefill: payload, submit: true });
     });
     return offRes;
   }, [settings.voiceEnabled, settings.voiceRate, settings.voicePitch, settings.voiceName, settings.wakeWord]);

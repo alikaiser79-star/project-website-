@@ -10,6 +10,7 @@ import { voice } from '../lib/speech';
 import { claudeConfig } from '../kaiConfig';
 import { emit } from '../hooks/useKaiPulse';
 import { loadState, saveState } from '../lib/store';
+import { onAction } from '../lib/actions';
 import type { ChatTurn, KaiSettings } from '../types';
 
 const suggestions = ['status', 'debt', 'income', 'tasks', 'garden', 'makadi', 'instagram'];
@@ -42,6 +43,22 @@ export default function CommandBar({ open, onClose, settings }: Props) {
     const s = loadState(); s.history = history.slice(-30); saveState(s);
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [history]);
+
+  /* External callers (App's voice handler, Spotlight) can ask the
+     command bar to open with a prefilled prompt and optionally run
+     submit() immediately. Keeps voice and typed input on the SAME
+     pipeline: runBuiltin → fall through to streaming Claude. */
+  useEffect(() => {
+    const off = onAction((a) => {
+      if (a.type !== 'open-cmd') return;
+      if (a.prefill) setInput(a.prefill);
+      if (a.submit && a.prefill) {
+        /* Defer so the open animation can mount before we start. */
+        setTimeout(() => submit(a.prefill!), 60);
+      }
+    });
+    return off;
+  }, [history, thinking, settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit(rawText?: string) {
     const text = (rawText ?? input).trim();
