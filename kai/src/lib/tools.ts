@@ -14,6 +14,7 @@ import { briefing, weeklyReview } from './commands';
 import { getSnapshots, trend, coverage } from './history';
 import { toggleHabit } from './habits';
 import { updateGoal as updateGoalFn, goalCurrent, goalPct } from './goals';
+import { fetchCalendar } from './calendar';
 import { toast } from '../hooks/useToasts';
 import {
   debt, monthlyTotalEGP, debtClearedPct, operator,
@@ -186,6 +187,11 @@ export const TOOL_SCHEMAS = [
     },
   },
   {
+    name: 'get_calendar',
+    description: "Read the user's upcoming Google Calendar events. Returns up to 10 events with title, start, end, all-day flag, and optional location. Use this for any 'what's on my calendar', 'what's next', 'when is X' question, and to enrich the briefing.",
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
     name: 'update_goal',
     description: "Edit a long-term goal — label, target, current, or unit. Pass only the fields the user changed. When a goal has a `liveSource`, its current value is derived from live data and `current` is ignored.",
     input_schema: {
@@ -280,6 +286,25 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_briefing': {
       return briefing();
+    }
+    case 'get_calendar': {
+      try {
+        const r = await fetchCalendar(true);
+        return JSON.stringify({
+          ok: r.ok,
+          status: r.status,
+          events: r.events,
+          ...(r.message ? { message: r.message } : {}),
+          ...(typeof r.cached_at === 'number' ? { cached_at: r.cached_at } : {}),
+        });
+      } catch (e: any) {
+        return JSON.stringify({
+          ok: false,
+          status: 'tool-error',
+          events: [],
+          message: String(e?.message || e || 'unknown'),
+        });
+      }
     }
     case 'get_weekly_review': {
       return weeklyReview();

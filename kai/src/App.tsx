@@ -14,6 +14,7 @@ import Tour from './components/Tour';
 import ToastStack from './components/ToastStack';
 import { resumeReminders } from './lib/reminders';
 import { recordSnapshot } from './lib/history';
+import { fetchCalendar } from './lib/calendar';
 import { onAction } from './lib/actions';
 import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
@@ -187,6 +188,10 @@ export default function App() {
 
     // Record today's snapshot for trend lines (idempotent per ISO day)
     recordSnapshot();
+
+    // Warm the calendar cache so the briefing + Agenda have data
+    // ready instead of waiting for the first AgendaTile mount.
+    fetchCalendar().catch(() => {});
 
     // Spotlight-driven UI actions
     const offAct = onAction((a) => {

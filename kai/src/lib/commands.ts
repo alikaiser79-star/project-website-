@@ -10,6 +10,7 @@ import { focusTimer } from './focusTimer';
 import { addJournal } from './journal';
 import { addReminder, parseDuration } from './reminders';
 import { trend } from './history';
+import { getCalendarCached } from './calendar';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -161,6 +162,23 @@ export function briefing(): string {
   /* Candidate actions, weighted. Higher weight = more important. */
   type Cand = { weight: number; text: string };
   const candidates: Cand[] = [];
+
+  /* Real Google Calendar events — highest priority when imminent. */
+  try {
+    const cal = getCalendarCached();
+    if (cal.ok && Array.isArray(cal.events)) {
+      const evs = cal.events.slice(0, 3);
+      for (const ev of evs) {
+        const d = new Date(ev.start);
+        if (Number.isNaN(+d)) continue;
+        const days = Math.ceil((+d - Date.now()) / 86_400_000);
+        if (days < 0 || days > 7) continue;
+        const when = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days}d`;
+        const weight = days <= 0 ? 15 : days === 1 ? 14 : days === 2 ? 12 : 10 - days;
+        candidates.push({ weight, text: `${ev.title} ${when}` });
+      }
+    }
+  } catch { /* defensive */ }
 
   /* Imminent garden event takes top weight when ≤2 days away. */
   const ev = new Date(s.garden?.nextEvent?.when ?? 0);
