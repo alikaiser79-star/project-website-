@@ -9,6 +9,7 @@ import { loadState } from './store';
 import { focusTimer } from './focusTimer';
 import { addJournal } from './journal';
 import { addReminder, parseDuration } from './reminders';
+import { trend } from './history';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -146,33 +147,77 @@ export function runBuiltin(cmd: string): CmdResult | null {
   return null;
 }
 
+/* Action-oriented briefing — names the top 2-3 things to do today.
+   Kept under 6 lines. Reads live state, debt, income, priorities,
+   garden tasks, Makadi flags, habits, and real trend deltas. */
 export function briefing(): string {
   const s = loadState();
-  const open = s.priorities.filter(p => !p.done);
+  const h = new Date().getHours();
+  const greet = h < 5 ? "You're up late" : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  const name = s.settings?.operatorName || 'commander';
   const total = monthlyTotalEGP(s.income, s.fxEgpPerEur);
   const cleared = debtClearedPct();
-  const lines: string[] = [];
-  const h = new Date().getHours();
-  const time = h < 5 ? "You're up late" : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 
-  lines.push(`${time}, ${s.settings.operatorName}. Daily briefing.`);
-  lines.push(`Throughput projecting ${fmt(total)} EGP this month, roughly ${fmt(total / s.fxEgpPerEur)} euros.`);
-  lines.push(`Credit card paydown at ${cleared.toFixed(0)} percent.`);
+  /* Candidate actions, weighted. Higher weight = more important. */
+  type Cand = { weight: number; text: string };
+  const candidates: Cand[] = [];
 
-  if (open.length) lines.push(`${open.length} open priorit${open.length === 1 ? 'y' : 'ies'}: ${open.slice(0, 3).map(p => p.text).join('; ')}${open.length > 3 ? '; and more' : ''}.`);
-  else lines.push(`Priority list clear.`);
-
-  lines.push(`Hidden Garden — ${s.garden.todayTasks.length} task${s.garden.todayTasks.length === 1 ? '' : 's'} for today.`);
-  if (s.makadi.fixLock) lines.push(`Reminder — Makadi door lock still needs the locksmith.`);
-
-  const ev = new Date(s.garden.nextEvent.when);
+  /* Imminent garden event takes top weight when ≤2 days away. */
+  const ev = new Date(s.garden?.nextEvent?.when ?? 0);
   if (!Number.isNaN(+ev)) {
-    const days = Math.max(0, Math.ceil((+ev - Date.now()) / 86_400_000));
-    lines.push(`Next event: ${s.garden.nextEvent.title} in ${days} day${days === 1 ? '' : 's'}.`);
+    const days = Math.ceil((+ev - Date.now()) / 86_400_000);
+    if (days >= 0 && days <= 2) {
+      candidates.push({
+        weight: 14,
+        text: `Prep for ${s.garden?.nextEvent?.title || 'garden event'} — ${days === 0 ? 'today' : days === 1 ? 'tomorrow' : `${days}d`}`,
+      });
+    }
   }
 
-  lines.push(`That's the picture. What's the move?`);
-  return lines.join(' ');
+  /* Fix-lock is high-priority operational drag. */
+  if (s.makadi?.fixLock) {
+    candidates.push({ weight: 13, text: 'Book the Makadi locksmith — still flagged' });
+  }
+
+  /* Open priorities — earlier ones weighted higher. */
+  (s.priorities ?? []).filter(p => !p.done).forEach((p, i) => {
+    candidates.push({ weight: 11 - Math.min(i, 5), text: p.text });
+  });
+
+  /* Garden tasks for today (a notch below explicit priorities). */
+  (s.garden?.todayTasks ?? []).forEach(t => {
+    candidates.push({ weight: 6, text: t });
+  });
+
+  /* Pick the top 3 distinct actions. Dedupe on text. */
+  candidates.sort((a, b) => b.weight - a.weight);
+  const seen = new Set<string>();
+  const top = candidates.filter(c => {
+    const k = c.text.toLowerCase().trim();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).slice(0, 3);
+
+  /* Trend tail — only included when we have real data. */
+  const debtTrend = trend('debt', 14);
+  let tail = '';
+  if (debtTrend && debtTrend.delta < -500) {
+    tail = ` Debt down ${Math.abs(Math.round(debtTrend.delta)).toLocaleString('en-GB')} EGP over ${debtTrend.samples}d — momentum holding.`;
+  } else if (debtTrend && debtTrend.delta > 500) {
+    tail = ` Debt up ${Math.round(debtTrend.delta).toLocaleString('en-GB')} EGP over ${debtTrend.samples}d — watch it.`;
+  }
+
+  const lines: string[] = [];
+  lines.push(`${greet}, ${name}. Debt at ${cleared.toFixed(0)}% cleared. ~${fmt(total)} EGP projecting this month.${tail}`);
+  if (top.length === 0) {
+    lines.push(`Priority list clear and no garden tasks queued. Take the morning.`);
+  } else {
+    top.forEach((c, i) => lines.push(`${i + 1}. ${c.text}.`));
+  }
+  lines.push(`What's the first move?`);
+  /* Hard cap at 6 lines. */
+  return lines.slice(0, 6).join('\n');
 }
 
 /* A narrative recap of the last 7 days from the data we have locally. */

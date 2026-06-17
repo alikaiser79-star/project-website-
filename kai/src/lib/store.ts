@@ -1,5 +1,5 @@
 import type {
-  KaiPersisted, IncomeOverride, GardenState, MakadiState, IgAccount,
+  KaiPersisted, IncomeOverride, GardenState, MakadiState, IgAccount, Goal,
 } from '../types';
 import {
   defaultPriorities, defaultGoals, income as configIncome,
@@ -32,7 +32,7 @@ export const defaults: KaiPersisted = {
     { id: 'h4', label: 'No takeaway',  history: [] },
   ],
   reminders: [],
-  goals: defaultGoals.map(g => ({ id: g.id, current: g.current })),
+  goals: defaultGoals,
   income: configIncome.map<IncomeOverride>(s => ({
     id: s.id, label: s.label, amount: s.amount, ccy: s.ccy,
     cadence: s.cadence, note: s.note, trend: s.trend,
@@ -57,25 +57,63 @@ export const defaults: KaiPersisted = {
   fxEgpPerEur: currency.egpPerEur,
 };
 
+/* Migrate a legacy `goals: GoalState[]` ({id, current}) array into
+   the new full Goal[] shape using the defaults as the source of label
+   / target / liveSource. Unknown ids are dropped. */
+function migrateGoals(parsed: any): Goal[] {
+  if (!Array.isArray(parsed)) return defaultGoals;
+  if (parsed.length === 0) return defaultGoals;
+  const sample = parsed[0];
+  const looksFull = sample && typeof sample === 'object' && 'label' in sample && 'target' in sample;
+  if (looksFull) {
+    return parsed.filter(g => g && typeof g === 'object' && typeof g.id === 'string')
+                 .map(g => ({
+                   id: String(g.id),
+                   label: String(g.label ?? ''),
+                   current: Number(g.current) || 0,
+                   target: Number(g.target) || 0,
+                   unit: String(g.unit ?? ''),
+                   lowerIsBetter: !!g.lowerIsBetter,
+                   liveSource: g.liveSource,
+                   liveHandle: g.liveHandle,
+                 }));
+  }
+  /* Legacy {id, current} shape — merge with defaults */
+  const out: Goal[] = [];
+  for (const def of defaultGoals) {
+    const old = parsed.find((p: any) => p && p.id === def.id);
+    out.push({ ...def, current: old ? (Number(old.current) || def.current) : def.current });
+  }
+  return out;
+}
+
 export function loadState(): KaiPersisted {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return cloneDefaults();
-    const parsed = JSON.parse(raw) as Partial<KaiPersisted>;
+    const parsed = JSON.parse(raw) as Partial<KaiPersisted> & { goals?: any };
+
+    /* Every field reaches a known-good value even if the persisted
+       payload is partial, mis-shaped, or completely missing the key. */
     return {
       ...defaults,
       ...parsed,
-      settings: { ...defaults.settings, ...(parsed.settings || {}) },
-      priorities: parsed.priorities && parsed.priorities.length ? parsed.priorities : defaults.priorities,
-      journal: parsed.journal ?? [],
-      habits: parsed.habits && parsed.habits.length ? parsed.habits : defaults.habits,
-      reminders: parsed.reminders ?? [],
-      goals: parsed.goals && parsed.goals.length ? parsed.goals : defaults.goals,
-      income: parsed.income && parsed.income.length ? parsed.income : defaults.income,
-      snapshots: parsed.snapshots ?? [],
-      garden:    { ...defaults.garden,   ...(parsed.garden   || {}) },
-      makadi:    { ...defaults.makadi,   ...(parsed.makadi   || {}) },
-      instagram: parsed.instagram && parsed.instagram.length ? parsed.instagram : defaults.instagram,
+      settings:   { ...defaults.settings, ...(parsed.settings || {}) },
+      priorities: Array.isArray(parsed.priorities) && parsed.priorities.length ? parsed.priorities : defaults.priorities,
+      history:    Array.isArray(parsed.history)    ? parsed.history    : [],
+      journal:    Array.isArray(parsed.journal)    ? parsed.journal    : [],
+      habits:     Array.isArray(parsed.habits) && parsed.habits.length    ? parsed.habits    : defaults.habits,
+      reminders:  Array.isArray(parsed.reminders)  ? parsed.reminders  : [],
+      goals:      migrateGoals(parsed.goals),
+      income:     Array.isArray(parsed.income) && parsed.income.length    ? parsed.income    : defaults.income,
+      snapshots:  Array.isArray(parsed.snapshots)  ? parsed.snapshots  : [],
+      garden:     { ...defaults.garden,   ...(parsed.garden   || {}),
+                    nextEvent: { ...defaults.garden.nextEvent, ...((parsed.garden as any)?.nextEvent || {}) },
+                    todayTasks: Array.isArray((parsed.garden as any)?.todayTasks) ? (parsed.garden as any).todayTasks : defaults.garden.todayTasks },
+      makadi:     { ...defaults.makadi,   ...(parsed.makadi   || {}) },
+      instagram:  Array.isArray(parsed.instagram) && parsed.instagram.length
+                    ? parsed.instagram.filter((a: any) => a && typeof a === 'object')
+                    : defaults.instagram,
       fxEgpPerEur: typeof parsed.fxEgpPerEur === 'number' && parsed.fxEgpPerEur > 0
         ? parsed.fxEgpPerEur
         : defaults.fxEgpPerEur,
@@ -91,15 +129,12 @@ function cloneDefaults(): KaiPersisted {
   return JSON.parse(JSON.stringify(defaults));
 }
 
-/* ── Live-data accessors ───────────────────────────────────────
-   Components read these instead of importing from kaiConfig so that
-   edits in the Settings drawer and Claude tool calls take effect
-   without a reload. */
+/* ── Live-data accessors ───────────────────────────────────── */
 
-export function getGarden(): GardenState   { return loadState().garden; }
-export function getMakadi(): MakadiState   { return loadState().makadi; }
-export function getInstagram(): IgAccount[]{ return loadState().instagram; }
-export function getFx(): number            { return loadState().fxEgpPerEur; }
+export function getGarden(): GardenState    { return loadState().garden; }
+export function getMakadi(): MakadiState    { return loadState().makadi; }
+export function getInstagram(): IgAccount[] { return loadState().instagram; }
+export function getFx(): number             { return loadState().fxEgpPerEur; }
 
 export function updateGarden(patch: Partial<GardenState>) {
   const s = loadState();
@@ -116,7 +151,7 @@ export function upsertInstagram(handle: string, followers: number) {
   if (!h) return;
   const norm = h.startsWith('@') ? h : '@' + h;
   const s = loadState();
-  const idx = s.instagram.findIndex(a => String(a.handle ?? '').toLowerCase() === norm.toLowerCase());
+  const idx = s.instagram.findIndex(a => String(a?.handle ?? '').toLowerCase() === norm.toLowerCase());
   if (idx >= 0) s.instagram[idx] = { ...s.instagram[idx], followers };
   else          s.instagram = [...s.instagram, { handle: norm, followers }];
   saveState(s);
@@ -125,7 +160,7 @@ export function removeInstagram(handle: string) {
   const h = String(handle ?? '').trim().toLowerCase();
   if (!h) return;
   const s = loadState();
-  s.instagram = s.instagram.filter(a => String(a.handle ?? '').toLowerCase() !== h);
+  s.instagram = s.instagram.filter(a => String(a?.handle ?? '').toLowerCase() !== h);
   saveState(s);
 }
 export function setFx(rate: number) {

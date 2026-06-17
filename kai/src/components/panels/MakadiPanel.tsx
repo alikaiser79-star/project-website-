@@ -23,10 +23,10 @@ export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
     };
   }, []);
 
-  const rate   = useCounter(m.nightlyRate, { duration: 1.6 });
-  const occ    = useCounter(m.occupancy30d * 100, { decimals: 0, duration: 1.6 });
-  const rating = useCounter(m.rating, { decimals: 2, duration: 1.4 });
-  const next   = new Date(m.nextBooking);
+  const rate   = useCounter(Number(m?.nightlyRate) || 0, { duration: 1.6 });
+  const occ    = useCounter((Number(m?.occupancy30d) || 0) * 100, { decimals: 0, duration: 1.6 });
+  const rating = useCounter(Number(m?.rating) || 0, { decimals: 2, duration: 1.4 });
+  const next   = m?.nextBooking ? new Date(m.nextBooking) : new Date(NaN);
   const nextLabel = Number.isNaN(+next)
     ? '—'
     : next.toLocaleDateString(operator.locale, { weekday: 'long', day: '2-digit', month: 'short' });
@@ -57,7 +57,7 @@ export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
           <div className="font-mono text-amber text-xl tabular-nums">{rating}</div>
         </div>
       </div>
-      {m.fixLock && (
+      {m?.fixLock && (
         <div className="mt-4 flex items-center gap-2 p-3 border border-danger/40 bg-danger/5 rounded">
           <AlertTriangle size={16} className="text-danger shrink-0" />
           <div className="text-[12px] text-bone">

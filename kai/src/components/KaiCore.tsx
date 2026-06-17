@@ -1,8 +1,14 @@
+import type { CSSProperties } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { MeshDistortMaterial, Points, PointMaterial, Float } from '@react-three/drei';
+/* Slimmed drei + postprocessing imports — only the components we actually
+   render. `Float` was dropped (decorative bobbing not worth the chunk). */
+import { MeshDistortMaterial, Points, PointMaterial } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useMemo, useRef } from 'react';
-import * as THREE from 'three';
+/* Named imports from three so the bundler can tree-shake everything
+   else out of the namespace. */
+import { Color, MathUtils } from 'three';
+import type { Mesh as ThreeMesh, Points as ThreePoints } from 'three';
 import { useKaiPulse } from '../hooks/useKaiPulse';
 import type { Accent } from '../types';
 
@@ -15,7 +21,7 @@ const ACCENT_HEX: Record<Accent, string> = {
 function Orb({ accent }: { accent: Accent }) {
   const { speaking, pulseTick, listening } = useKaiPulse();
   const targetHex = ACCENT_HEX[accent];
-  const ref = useRef<THREE.Mesh>(null!);
+  const ref = useRef<ThreeMesh>(null!);
   const matRef = useRef<any>(null!);
   const pulseRef = useRef(0);
 
@@ -28,7 +34,7 @@ function Orb({ accent }: { accent: Accent }) {
     ref.current.rotation.x = Math.sin(t * 0.25) * 0.12;
 
     // Breathing scale + speaking pulse
-    pulseRef.current = THREE.MathUtils.damp(pulseRef.current, 0, 3.5, dt);
+    pulseRef.current = MathUtils.damp(pulseRef.current, 0, 3.5, dt);
     const breath = 1 + Math.sin(t * 1.05) * 0.025;
     const speakBoost = speaking ? (1 + Math.sin(t * 11) * 0.05) : 1;
     const scale = breath * speakBoost * (1 + pulseRef.current * 0.12);
@@ -39,9 +45,9 @@ function Orb({ accent }: { accent: Accent }) {
       matRef.current.speed = speaking ? 4 : 1.2;
       matRef.current.emissiveIntensity = 1.1 + Math.sin(t * 1.2) * 0.15
         + (speaking ? 0.5 : 0) + pulseRef.current * 0.6;
-      if (listening) matRef.current.color.lerp(new THREE.Color('#5FE3FF'), 0.04);
-      else           matRef.current.color.lerp(new THREE.Color(targetHex), 0.04);
-      matRef.current.emissive.lerp(new THREE.Color(targetHex), 0.05);
+      if (listening) matRef.current.color.lerp(new Color('#5FE3FF'), 0.04);
+      else           matRef.current.color.lerp(new Color(targetHex), 0.04);
+      matRef.current.emissive.lerp(new Color(targetHex), 0.05);
     }
   });
 
@@ -55,21 +61,19 @@ function Orb({ accent }: { accent: Accent }) {
   });
 
   return (
-    <Float speed={1.2} rotationIntensity={0.2} floatIntensity={0.4}>
-      <mesh ref={ref}>
-        <sphereGeometry args={[1, 96, 96]} />
-        <MeshDistortMaterial
-          ref={matRef}
-          color="#FFB300"
-          emissive="#FFB300"
-          emissiveIntensity={1.1}
-          roughness={0.25}
-          metalness={0.2}
-          distort={0.32}
-          speed={1.2}
-        />
-      </mesh>
-    </Float>
+    <mesh ref={ref}>
+      <sphereGeometry args={[1, 96, 96]} />
+      <MeshDistortMaterial
+        ref={matRef}
+        color="#FFB300"
+        emissive="#FFB300"
+        emissiveIntensity={1.1}
+        roughness={0.25}
+        metalness={0.2}
+        distort={0.32}
+        speed={1.2}
+      />
+    </mesh>
   );
 }
 
@@ -87,7 +91,7 @@ function Particles({ color = '#FFB300' }: { color?: string }) {
     }
     return arr;
   }, []);
-  const ref = useRef<THREE.Points>(null!);
+  const ref = useRef<ThreePoints>(null!);
   useFrame((_, dt) => {
     if (ref.current) {
       ref.current.rotation.y += dt * 0.06;
@@ -102,7 +106,7 @@ function Particles({ color = '#FFB300' }: { color?: string }) {
 }
 
 function Ring({ radius, color, tilt, speed, dashed }: { radius: number; color: string; tilt: number; speed: number; dashed?: boolean }) {
-  const ref = useRef<THREE.Mesh>(null!);
+  const ref = useRef<ThreeMesh>(null!);
   useFrame((_, dt) => { if (ref.current) ref.current.rotation.z += dt * speed; });
   return (
     <mesh ref={ref} rotation={[tilt, 0, 0]}>
@@ -112,11 +116,13 @@ function Ring({ radius, color, tilt, speed, dashed }: { radius: number; color: s
   );
 }
 
-export default function KaiCore({ size = 460, accent = 'amber' as Accent }: { size?: number; accent?: Accent }) {
+export default function KaiCore({ size, accent = 'amber' as Accent }: { size?: number; accent?: Accent }) {
   const hex = ACCENT_HEX[accent];
   const rgba = (a: number) => hex + Math.floor(a * 255).toString(16).padStart(2, '0');
+  /* If a size is provided, lock to it; otherwise fill the parent. */
+  const wrap: CSSProperties = size ? { width: size, height: size } : { width: '100%', height: '100%' };
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div className="relative" style={wrap}>
       <div
         className="absolute inset-0 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${rgba(0.25)} 0%, ${rgba(0.08)} 30%, transparent 65%)`, filter: 'blur(8px)' }}

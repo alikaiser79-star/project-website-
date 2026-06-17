@@ -187,8 +187,17 @@ export default function App() {
     if (open > 0) {
       setTimeout(() => toast.ok(`${open} open priorit${open === 1 ? 'y' : 'ies'} for today.`, 'TODAY'), 2200);
     }
-    if (loadState().makadi.fixLock) {
-      setTimeout(() => toast.warn('Makadi door lock still flagged — book the locksmith.', 'REMINDER', 7000), 3600);
+    if (loadState().makadi?.fixLock) {
+      /* Surface at most once per calendar day. The toast is already
+         click-to-dismiss; this gate stops it firing every reload. */
+      const today = new Date().toISOString().slice(0, 10);
+      const last = localStorage.getItem('kai.fixlock.lastShown');
+      if (last !== today) {
+        setTimeout(() => {
+          toast.warn('Makadi door lock still flagged — book the locksmith.', 'REMINDER', 9000);
+          try { localStorage.setItem('kai.fixlock.lastShown', today); } catch {}
+        }, 3600);
+      }
     }
 
     // Auto daily briefing — once per calendar day
@@ -224,7 +233,7 @@ export default function App() {
       )}
 
       {booted && (
-        <div className={'relative z-10 h-full p-4 flex flex-col gap-4 ' + (idle ? 'idle-mode' : '')}>
+        <div className={'relative z-10 min-h-screen p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 ' + (idle ? 'idle-mode' : '')}>
           <TopBar
             onCmdK={() => setCmdOpen(true)}
             onSettings={() => setSetOpen(true)}
@@ -235,35 +244,55 @@ export default function App() {
             operatorName={settings.operatorName}
           />
 
-          {/* Main grid */}
-          <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
-            <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 min-h-0">
+          {/* Orb — full width on mobile, embedded in the center column on desktop */}
+          <motion.div
+            className="kai-core-wrap relative w-full grid place-items-center lg:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.6 } }}
+          >
+            <Suspense fallback={<div className="text-amber font-mono text-xs py-12">spinning up core…</div>}>
+              <div className="relative w-[min(300px,80vw)] aspect-square">
+                <KaiCore size={300} accent={settings.accent} />
+                <OrbAudio accent={settings.accent} />
+              </div>
+            </Suspense>
+            <div className="absolute bottom-1 inset-x-0 text-center pointer-events-none">
+              <div className="font-mono text-[9px] tracking-[0.4em] text-steel uppercase">KAI CORE</div>
+            </div>
+          </motion.div>
+
+          {/* Main grid — single column on mobile, 3 columns from lg up.
+              Each column lays out its panels with gap, no flex-1 traps. */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+            {/* Left */}
+            <div className="flex flex-col gap-3 sm:gap-4 min-w-0">
               <IncomePanel delay={0.20} />
               <PrioritiesPanel delay={0.55} />
             </div>
 
-            <div className="col-span-12 lg:col-span-4 flex flex-col items-center min-h-0">
+            {/* Center — orb only on desktop, garden below */}
+            <div className="flex flex-col gap-3 sm:gap-4 items-stretch min-w-0">
               <motion.div
-                className="kai-core-wrap relative flex-1 grid place-items-center w-full"
+                className="kai-core-wrap relative hidden lg:grid place-items-center w-full"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.6 } }}
               >
-                <Suspense fallback={<div className="text-amber font-mono text-xs">spinning up core…</div>}>
-                  <div className="relative" style={{ width: 420, height: 420 }}>
+                <Suspense fallback={<div className="text-amber font-mono text-xs py-12">spinning up core…</div>}>
+                  <div className="relative w-[min(420px,100%)] aspect-square">
                     <KaiCore size={420} accent={settings.accent} />
                     <OrbAudio accent={settings.accent} />
                   </div>
                 </Suspense>
-                <div className="absolute inset-x-0 bottom-2 text-center pointer-events-none">
+                <div className="absolute inset-x-0 bottom-1 text-center pointer-events-none">
                   <div className="font-mono text-[10px] tracking-[0.4em] text-steel uppercase">KAI CORE</div>
                   <div className="font-mono text-[10px] tracking-[0.3em] text-amber/80 uppercase">command presence</div>
                 </div>
               </motion.div>
-
               <GardenPanel delay={0.45} />
             </div>
 
-            <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 min-h-0">
+            {/* Right */}
+            <div className="flex flex-col gap-3 sm:gap-4 min-w-0">
               <DebtPanel delay={0.30} />
               <MakadiPanel delay={0.40} />
               <Suspense fallback={<div className="glass rounded-md p-4 text-amber/70 font-mono text-xs">loading charts…</div>}>
@@ -273,7 +302,7 @@ export default function App() {
           </div>
 
           {/* Live intel strip + HN ticker */}
-          <div className="intel-strip-anchor flex flex-col gap-4">
+          <div className="intel-strip-anchor flex flex-col gap-3 sm:gap-4">
             <IntelStrip delay={1.1} />
             <NewsRow />
           </div>
@@ -282,10 +311,10 @@ export default function App() {
           <motion.footer
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
-            className="glass flex items-center justify-between px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
+            className="glass flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase text-steel rounded-none"
           >
-            <span>kai · v1.12.0</span>
-            <span>
+            <span>kai · v1.13.0</span>
+            <span className="hidden md:inline">
               <kbd>⌘</kbd><kbd>K</kbd> cmd · <span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd> search</span> · <kbd>⌘</kbd><kbd>J</kbd> journal · <kbd>V</kbd> voice · <kbd>S</kbd> settings · <kbd>?</kbd> shortcuts
             </span>
             <span className="text-amber">◊ presence stable</span>

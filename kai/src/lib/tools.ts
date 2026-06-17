@@ -13,6 +13,7 @@ import {
 import { briefing, weeklyReview } from './commands';
 import { getSnapshots, trend, coverage } from './history';
 import { toggleHabit } from './habits';
+import { updateGoal as updateGoalFn, goalCurrent, goalPct } from './goals';
 import { toast } from '../hooks/useToasts';
 import {
   debt, monthlyTotalEGP, debtClearedPct, operator,
@@ -184,6 +185,21 @@ export const TOOL_SCHEMAS = [
       required: ['egp_per_eur'],
     },
   },
+  {
+    name: 'update_goal',
+    description: "Edit a long-term goal — label, target, current, or unit. Pass only the fields the user changed. When a goal has a `liveSource`, its current value is derived from live data and `current` is ignored.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        id:      { type: 'string', description: 'Goal id, e.g. g-debt, g-savings, g-plants, g-ig.' },
+        label:   { type: 'string' },
+        target:  { type: 'number' },
+        current: { type: 'number' },
+        unit:    { type: 'string' },
+      },
+      required: ['id'],
+    },
+  },
 ];
 
 export async function runTool(call: ToolCall): Promise<string> {
@@ -254,6 +270,11 @@ export async function runTool(call: ToolCall): Promise<string> {
         journal_recent: s.journal.slice(0, 5).map(e => e.text),
         habits: s.habits.map(h => ({ label: h.label, history_count: h.history.length })),
         pending_reminders: s.reminders.filter(r => !r.fired).map(r => ({ at: r.at, text: r.text })),
+        goals: s.goals.map(g => ({
+          id: g.id, label: g.label, target: g.target, unit: g.unit,
+          current: goalCurrent(g), percent: Math.round(goalPct(g)),
+          live_source: g.liveSource ?? null,
+        })),
       };
       return JSON.stringify(snap);
     }
@@ -394,6 +415,21 @@ export async function runTool(call: ToolCall): Promise<string> {
       setFx(rate);
       toast.ok(`FX rate: 1 EUR = ${rate.toFixed(2)} EGP`, 'KAI · TOOL', 3000);
       return JSON.stringify({ ok: true, fx_egp_per_eur: rate });
+    }
+    case 'update_goal': {
+      const id = String(call.input?.id || '');
+      if (!id) return JSON.stringify({ ok: false, reason: 'missing id' });
+      const patch: any = {};
+      if (typeof call.input?.label   === 'string') patch.label   = call.input.label;
+      if (typeof call.input?.target  === 'number') patch.target  = call.input.target;
+      if (typeof call.input?.current === 'number') patch.current = call.input.current;
+      if (typeof call.input?.unit    === 'string') patch.unit    = call.input.unit;
+      if (Object.keys(patch).length === 0) return JSON.stringify({ ok: false, reason: 'no fields provided' });
+      const existing = loadState().goals.find(g => g.id === id);
+      if (!existing) return JSON.stringify({ ok: false, reason: 'unknown goal id' });
+      updateGoalFn(id, patch);
+      toast.ok(`Goal updated: ${existing.label}`, 'KAI · TOOL', 3000);
+      return JSON.stringify({ ok: true, goal: loadState().goals.find(g => g.id === id) });
     }
     default:
       return 'error: unknown tool';

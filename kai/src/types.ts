@@ -65,7 +65,23 @@ export type IncomeOverride = {
   custom?: boolean;
 };
 
-/* Track in-progress numbers per goal (target/label live in kaiConfig). */
+/* A goal is now FULLY editable from the UI — label, target, current,
+   plus an optional `liveSource` that wires the current value to live
+   store data (debt, plant count, ig followers). */
+export type GoalLiveSource = 'debt' | 'plants' | 'ig-by-handle' | 'ig-total';
+export type Goal = {
+  id: string;
+  label: string;
+  current: number;          // ignored when liveSource is set
+  target: number;
+  unit: string;
+  lowerIsBetter?: boolean;
+  liveSource?: GoalLiveSource;
+  liveHandle?: string;      // when liveSource === 'ig-by-handle'
+};
+
+/* Legacy persisted goal — just {id, current}. Used only for migrating
+   older saves into the new full Goal shape. */
 export type GoalState = { id: string; current: number };
 
 export type KaiPersisted = {
@@ -76,7 +92,7 @@ export type KaiPersisted = {
   journal: JournalEntry[];
   habits: Habit[];
   reminders: Reminder[];
-  goals: GoalState[];
+  goals: Goal[];
   income: IncomeOverride[];
   snapshots: Snapshot[];
   garden: GardenState;

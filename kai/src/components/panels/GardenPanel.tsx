@@ -18,7 +18,6 @@ function countdownTo(iso: string) {
 
 export default function GardenPanel({ delay = 0 }: { delay?: number }) {
   const [g, setG] = useState<GardenState>(() => getGarden());
-  const [cd, setCd] = useState(() => countdownTo(g.nextEvent.when));
 
   /* Live sync — same polling/visibility pattern as IncomePanel. */
   useEffect(() => {
@@ -32,21 +31,25 @@ export default function GardenPanel({ delay = 0 }: { delay?: number }) {
       clearInterval(t);
     };
   }, []);
-  useEffect(() => {
-    setCd(countdownTo(g.nextEvent.when));
-    const t = setInterval(() => setCd(countdownTo(g.nextEvent.when)), 30_000);
-    return () => clearInterval(t);
-  }, [g.nextEvent.when]);
 
-  const plants  = useCounter(g.plantCount,   { duration: 1.6 });
-  const species = useCounter(g.speciesCount);
-  const evDate  = new Date(g.nextEvent.when);
+  const eventWhen = g?.nextEvent?.when ?? '';
+  const [cd, setCd] = useState(() => countdownTo(eventWhen));
+  useEffect(() => {
+    setCd(countdownTo(eventWhen));
+    const t = setInterval(() => setCd(countdownTo(eventWhen)), 30_000);
+    return () => clearInterval(t);
+  }, [eventWhen]);
+
+  const plants  = useCounter(Number(g?.plantCount)   || 0, { duration: 1.6 });
+  const species = useCounter(Number(g?.speciesCount) || 0);
+  const evDate  = new Date(eventWhen);
   const evLabel = Number.isNaN(+evDate)
     ? '—'
     : evDate.toLocaleString(operator.locale, {
         weekday: 'long', day: '2-digit', month: 'short',
         hour: '2-digit', minute: '2-digit', timeZone: operator.timezone,
       });
+  const tasks = Array.isArray(g?.todayTasks) ? g.todayTasks : [];
 
   return (
     <Panel num="03" title="Hidden Garden" tag="LIVE" delay={delay}>
@@ -62,16 +65,16 @@ export default function GardenPanel({ delay = 0 }: { delay?: number }) {
           <div className="flex items-center gap-2 text-cyan text-[10px] tracking-[0.22em] uppercase font-mono">
             <CalendarClock size={12} /> Next Event
           </div>
-          <div className="font-mono text-bone text-sm leading-tight mt-1">{g.nextEvent.title || '—'}</div>
+          <div className="font-mono text-bone text-sm leading-tight mt-1">{g?.nextEvent?.title || '—'}</div>
           <div className="font-mono text-cyan text-[11px] tabular-nums">{cd.d}d · {cd.h}h · {cd.m}m</div>
         </div>
       </div>
       <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-steel mb-2">today’s tasks</div>
       <ul className="space-y-1.5 font-mono text-[12px] overflow-y-auto">
-        {g.todayTasks.length === 0 && (
+        {tasks.length === 0 && (
           <li className="text-steel">No tasks set. Edit in Settings → Garden.</li>
         )}
-        {g.todayTasks.map((t, i) => (
+        {tasks.map((t, i) => (
           <li key={i} className="flex items-start gap-2 text-bone">
             <span className="text-amber mt-1.5 w-1.5 h-1.5 rounded-full bg-amber shadow-[0_0_6px_rgba(255,179,0,0.6)] shrink-0" />
             {t}

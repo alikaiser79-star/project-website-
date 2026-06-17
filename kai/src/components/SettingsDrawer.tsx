@@ -5,8 +5,15 @@ import {
   loadState, saveState, defaults,
   updateGarden, updateMakadi, upsertInstagram, removeInstagram, setFx,
 } from '../lib/store';
-import { defaultGoals } from '../kaiConfig';
-import type { KaiSettings, Accent, IncomeOverride, Habit, GoalState, GardenState, MakadiState, IgAccount } from '../types';
+import {
+  listGoals,
+  goalCurrent,
+  goalPct,
+  upsertGoal,
+  updateGoal as updateGoalLib,
+  removeGoal as removeGoalLib,
+} from '../lib/goals';
+import type { KaiSettings, Accent, IncomeOverride, Habit, Goal, GardenState, MakadiState, IgAccount } from '../types';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { toast } from '../hooks/useToasts';
@@ -382,41 +389,88 @@ function IncomeEditor() {
 }
 
 function GoalsEditor() {
-  const [vals, setVals] = useState<GoalState[]>(() => loadState().goals);
+  const [items, setItems] = useState<Goal[]>(() => listGoals());
 
-  function set(id: string, current: number) {
-    const next = vals.map(g => g.id === id ? { ...g, current } : g);
-    setVals(next);
-    const s = loadState(); s.goals = next; saveState(s);
+  function refresh() { setItems(listGoals()); }
+  function edit(id: string, patch: Partial<Goal>) {
+    updateGoalLib(id, patch);
+    refresh();
+  }
+  function add() {
+    const g: Goal = { id: 'g-' + Date.now(), label: 'New goal', current: 0, target: 1000, unit: '' };
+    upsertGoal(g);
+    refresh();
+    sfx.click();
+  }
+  function remove(id: string) {
+    removeGoalLib(id);
+    refresh();
+    sfx.click();
   }
 
   return (
-    <ul className="space-y-1.5">
-      {defaultGoals.map(g => {
-        const cur = vals.find(v => v.id === g.id)?.current ?? g.current;
-        const pct = g.lowerIsBetter
-          ? Math.max(0, Math.min(100, (1 - cur / Math.max(1, g.current)) * 100))
-          : Math.max(0, Math.min(100, (cur / g.target) * 100));
-        return (
-          <li key={g.id} className="p-2 border border-amber/15 rounded">
-            <div className="flex items-baseline justify-between">
-              <span className="text-bone text-[12px]">{g.label}</span>
-              <span className="font-mono text-[10px] text-amber tabular-nums">{pct.toFixed(0)}%</span>
-            </div>
-            <div className="flex items-center gap-2 mt-1 font-mono text-[11px]">
-              <span className="text-steel text-[10px] tracking-[0.14em] uppercase">current</span>
-              <input
-                type="number"
-                value={cur}
-                onChange={e => set(g.id, parseFloat(e.target.value) || 0)}
-                className="flex-1 bg-transparent border border-amber/15 focus:border-amber/40 rounded px-1.5 py-0.5 text-bone tabular-nums outline-none"
-              />
-              <span className="text-steel text-[10px]">/ {g.lowerIsBetter ? 0 : g.target.toLocaleString('en-GB')} {g.unit}</span>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className="space-y-1.5">
+        {items.map(g => {
+          const live = goalCurrent(g);
+          const pct = goalPct(g);
+          const isLive = !!g.liveSource;
+          return (
+            <li key={g.id} className="p-2 border border-amber/15 rounded space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <input
+                  value={g.label}
+                  onChange={e => edit(g.id, { label: e.target.value })}
+                  className="flex-1 bg-transparent border-b border-amber/20 focus:border-amber py-0.5 text-bone text-[12px] outline-none font-sans"
+                />
+                <span className="font-mono text-[10px] text-amber tabular-nums">{pct.toFixed(0)}%</span>
+                <button onClick={() => remove(g.id)} className="text-steel hover:text-danger transition" title="Remove">
+                  <Trash2 size={11} />
+                </button>
+              </div>
+              <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-1.5 font-mono text-[11px]">
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[9px] tracking-[0.14em] uppercase text-steel">Current{isLive ? ' · live' : ''}</span>
+                  <input
+                    type="number"
+                    value={isLive ? live : g.current}
+                    disabled={isLive}
+                    onChange={e => edit(g.id, { current: parseFloat(e.target.value) || 0 })}
+                    className={'bg-transparent border border-amber/15 focus:border-amber/40 rounded px-1.5 py-0.5 text-bone tabular-nums outline-none ' + (isLive ? 'opacity-60' : '')}
+                  />
+                </label>
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[9px] tracking-[0.14em] uppercase text-steel">Target</span>
+                  <input
+                    type="number"
+                    value={g.target}
+                    onChange={e => edit(g.id, { target: parseFloat(e.target.value) || 0 })}
+                    className="bg-transparent border border-amber/15 focus:border-amber/40 rounded px-1.5 py-0.5 text-bone tabular-nums outline-none"
+                  />
+                </label>
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[9px] tracking-[0.14em] uppercase text-steel">Unit</span>
+                  <input
+                    value={g.unit}
+                    onChange={e => edit(g.id, { unit: e.target.value })}
+                    className="w-16 bg-transparent border border-amber/15 focus:border-amber/40 rounded px-1.5 py-0.5 text-bone outline-none font-sans"
+                  />
+                </label>
+              </div>
+            </li>
+          );
+        })}
+        {items.length === 0 && (
+          <li className="font-mono text-[11px] text-steel">No goals.</li>
+        )}
+      </ul>
+      <button
+        onClick={add}
+        className="mt-2 w-full flex items-center justify-center gap-1.5 px-2 py-1.5 border border-amber/30 text-amber hover:border-amber hover:shadow-glow-amber rounded text-[10px] tracking-[0.16em] uppercase"
+      >
+        <Plus size={11} /> Add goal
+      </button>
+    </>
   );
 }
 
