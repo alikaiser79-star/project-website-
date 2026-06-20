@@ -1,75 +1,71 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
 import SectionHeading from "../components/SectionHeading.jsx";
-import CoachModal from "../components/CoachModal.jsx";
-import { COACHES } from "../data/content.js";
+import { Check, Star, Whatsapp } from "../components/Icons.jsx";
+import { WHATSAPP_URL } from "../data/content.js";
+
+const POINTS = [
+  "Candidate Master of Sports (CMS) in synchronized swimming",
+  "Experienced with children of all ages",
+  "Personal approach to every student",
+  "Builds skills, confidence and a love for the water",
+];
 
 export default function About() {
-  const [active, setActive] = useState(null);
-
   return (
-    <section id="about" className="relative py-24 md:py-32 bg-navy">
-      <div className="mx-auto max-w-7xl px-4 md:px-8">
-        <div className="grid gap-12 lg:grid-cols-12 lg:items-end">
-          <div className="lg:col-span-5">
-            <SectionHeading
-              align="left"
-              eyebrow="About AquaGrace"
-              title="A magical home for girls who love the water"
-              subtitle="Founded in 2013, AquaGrace was built around one simple idea — that every girl who steps into our pool should feel safe, seen and a little bit extraordinary. We pair caring coaches with modern training science to help her bloom."
-            />
-            <div className="mt-8 grid grid-cols-3 gap-4 text-sm">
-              {[
-                ["12 yrs", "Established"],
-                ["3", "Pools on-site"],
-                ["6", "Tournaments / yr"],
-              ].map(([v, l]) => (
-                <div key={l} className="rounded-2xl border border-white/15 bg-white/[0.04] p-4">
-                  <p className="font-display text-2xl font-semibold text-white">{v}</p>
-                  <p className="mt-1 text-xs uppercase tracking-widest text-blossom/80">{l}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:col-span-7">
-            <div className="mb-6 flex items-center justify-between">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-blossom">Meet the team</p>
-              <p className="hidden text-xs text-white/55 sm:block">Tap a coach for their story</p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {COACHES.map((c, i) => (
-                <motion.button
-                  key={c.name}
-                  type="button"
-                  onClick={() => setActive(c)}
-                  initial={{ opacity: 0, y: 18 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{ duration: 0.45, delay: i * 0.05 }}
-                  className="group overflow-hidden rounded-3xl border border-white/15 bg-white/[0.04] text-left transition hover:border-blossom/40"
-                >
-                  <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-lavender/40 via-blossom/30 to-navy">
-                    <div className="absolute inset-0 grid place-items-center">
-                      <span className="font-display text-5xl font-semibold text-white/40 transition group-hover:scale-110 group-hover:text-blossom">
-                        {c.initials}
-                      </span>
-                    </div>
-                    <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-navy to-transparent" />
-                  </div>
-                  <div className="p-4">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-blossom">{c.role}</p>
-                    <h4 className="mt-1 font-display text-lg font-semibold text-white">{c.name}</h4>
-                    <p className="mt-0.5 text-sm text-white/60">{c.spec}</p>
-                  </div>
-                </motion.button>
-              ))}
+    <section id="about" className="py-16 sm:py-20 md:py-24">
+      <div className="section grid gap-10 md:grid-cols-12 md:items-center">
+        {/* Photo placeholder */}
+        <div className="md:col-span-5">
+          <div className="relative mx-auto w-full max-w-sm md:max-w-none">
+            <div className="absolute -inset-4 -z-10 rounded-[2rem] bg-aqua-pale/50 blur-2xl" />
+            <div className="relative overflow-hidden rounded-3xl border border-line bg-surface shadow-card">
+              <div className="relative aspect-[4/5] bg-gradient-to-br from-aqua-pale to-bg">
+                <svg viewBox="0 0 400 500" className="absolute inset-0 h-full w-full">
+                  <circle cx="200" cy="210" r="80" fill="#0e7490" opacity="0.18" />
+                  <circle cx="200" cy="210" r="56" fill="#0e7490" opacity="0.32" />
+                  <path d="M120 350 Q200 270 280 350 L280 420 Q200 380 120 420 Z" fill="#0e7490" opacity="0.42" />
+                </svg>
+                <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-ocean shadow-card backdrop-blur">
+                  Coach Katie · photo placeholder
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <CoachModal coach={active} onClose={() => setActive(null)} />
+        {/* Bio */}
+        <div className="md:col-span-7">
+          <SectionHeading
+            eyebrow="About the coach"
+            title="Meet Katie"
+            subtitle="A calm, attentive coach who builds real swimmers — one careful lesson at a time."
+          />
+
+          <ul className="mt-6 space-y-3">
+            {POINTS.map((p) => (
+              <li key={p} className="flex items-start gap-3 text-ink">
+                <span className="mt-0.5 grid h-6 w-6 flex-none place-items-center rounded-full bg-aqua-pale text-ocean">
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+                <span className="text-base">{p}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <a
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-primary"
+            >
+              <Whatsapp className="h-5 w-5" /> Message Katie
+            </a>
+            <p className="inline-flex items-center gap-2 text-sm text-ink-soft">
+              <Star className="h-4 w-4 fill-current text-coral" /> First trial lesson is free
+            </p>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
