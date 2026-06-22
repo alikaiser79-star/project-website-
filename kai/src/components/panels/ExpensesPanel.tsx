@@ -27,6 +27,7 @@ import { operator } from '../../kaiConfig';
 import { sfx } from '../../lib/sound';
 import { toast } from '../../hooks/useToasts';
 import ReceiptConfirm, { type Draft } from '../ReceiptConfirm';
+import { onAction } from '../../lib/actions';
 import type { Expense, ExpenseCategory } from '../../types';
 
 function fmtCcy(n: number, ccy = 'EGP') {
@@ -75,6 +76,31 @@ export default function ExpensesPanel({ delay = 0 }: { delay?: number }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   function refresh() { setItems(listExpenses()); }
+
+  /* Phone bridge — /api/ingest opens ReceiptConfirm with the
+     server-extracted draft. Falls back to an empty draft + a
+     "couldn't read this" note if vision returned null. */
+  useEffect(() => {
+    const off = onAction((a) => {
+      if (a.type !== 'open-receipt') return;
+      const d = (a.draft || null) as any;
+      if (d && typeof d === 'object' && d.merchant && typeof d.total === 'number') {
+        setDraft({
+          merchant: String(d.merchant),
+          total:    Number(d.total),
+          currency: String(d.currency || 'EGP').toUpperCase(),
+          date:     String(d.date || new Date().toISOString().slice(0, 10)),
+          category: (CATEGORIES as string[]).includes(d.category) ? d.category : 'other',
+        });
+        setConfirmNote('Read by KAI from the share. Fix anything that looks off, then Save.');
+      } else {
+        setDraft({ ...emptyDraft() });
+        setConfirmNote("Couldn't read that image — enter it manually below.");
+      }
+      setEditing(null);
+    });
+    return off;
+  }, []);
 
   /* ── Upload flow ────────────────────────────────────── */
 

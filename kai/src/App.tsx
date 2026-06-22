@@ -19,6 +19,7 @@ import { recordSnapshot } from './lib/history';
 import { fetchCalendar } from './lib/calendar';
 import { onAction, emitAction } from './lib/actions';
 import { isCapturing } from './lib/captureMode';
+import { logEvent as logEventSpine } from './lib/kai/events';
 import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
@@ -61,6 +62,7 @@ export default function App() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
+  const [brainPrefill, setBrainPrefill] = useState<string | undefined>(undefined);
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -95,6 +97,49 @@ export default function App() {
      mount, every 6h, and on tab visibility change. Idempotent
      and safe to call any time. */
   useEffect(() => startMirror(), []);
+
+  /* Phone-bridge intake — /api/ingest stashed the shared payload
+     in sessionStorage and 302'd here. Route it to the right
+     surface, log the share to the Spine, then clear. Runs once
+     on boot (and again whenever the tab is revisited after a
+     share, since iOS opens the PWA fresh each time). */
+  useEffect(() => {
+    function takeShare() {
+      try {
+        const raw = sessionStorage.getItem('kai.pendingShare');
+        if (!raw) return;
+        sessionStorage.removeItem('kai.pendingShare');
+        const payload = JSON.parse(raw);
+        if (!payload || typeof payload !== 'object') return;
+
+        const kind = String(payload.kind || '');
+        try { logEventSpine({ domain: 'system', type: 'phone_share', value: 1, meta: { kind }, source: 'auto' }); } catch {}
+
+        if (kind === 'text' && typeof payload.text === 'string') {
+          setBrainPrefill(payload.text);
+          setBrainOpen(true);
+          toast.ok('Share received — sorting…', 'PHONE', 3500);
+          return;
+        }
+        if (kind === 'receipt') {
+          emitAction({ type: 'open-receipt', draft: payload.draft });
+          const msg = payload.draft
+            ? `Receipt read: ${payload.draft.merchant} · ${payload.draft.total} ${payload.draft.currency}`
+            : payload.extraction_error
+              ? `Couldn't read the image: ${String(payload.extraction_error).slice(0, 60)}`
+              : 'Receipt couldn\'t be read — enter manually.';
+          toast.ok(msg, 'PHONE', 4500);
+          return;
+        }
+      } catch { /* tolerate any sessionStorage / JSON oddity */ }
+    }
+    takeShare();
+    /* iOS sometimes restores the PWA from background without a
+       reload — listen for the visibility change too. */
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') takeShare();
+    });
+  }, []);
 
   /* Relock after the tab has been hidden for ≥ 5 minutes. The base
      idle-watermark fires sooner (5 min of inactivity in this tab),
@@ -463,7 +508,7 @@ export default function App() {
 
       <CommandBar open={cmdOpen} onClose={() => setCmdOpen(false)} settings={settings} />
       <ContentPanel open={contentOpen} onClose={() => setContentOpen(false)} />
-      <BrainDump    open={brainOpen}   onClose={() => setBrainOpen(false)} />
+      <BrainDump    open={brainOpen}   onClose={() => { setBrainOpen(false); setBrainPrefill(undefined); }} initialText={brainPrefill} />
       <SettingsDrawer
         open={setOpen}
         onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}
