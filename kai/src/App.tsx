@@ -61,10 +61,17 @@ import { makadi } from './kaiConfig';
 import type { KaiSettings } from './types';
 import LockOverlay from './components/LockOverlay';
 import { loadLockConfig, type LockConfig } from './lib/lock';
-import ViewNav, { VIEW_LABEL, type ViewKey } from './components/ViewNav';
+import ViewNav, { VIEW_LABEL, VIEWS, type ViewKey } from './components/ViewNav';
+import ViewHeader, { type ViewChip } from './components/ViewHeader';
+import NowStrip from './components/NowStrip';
 import { getPending } from './lib/kai/pending';
 import { getWatchtower } from './lib/kai/watchtower';
 import { useKaiVersion } from './lib/kai/mirror';
+import { mirrorScore } from './lib/kai/commitments';
+import { computeRunway } from './lib/kai/runway';
+import { liveBeats } from './lib/kai/crown';
+import { listPromises } from './lib/kai/ledger';
+import { Inbox as InboxIcon, ShieldCheck, Wallet, Crown as CrownIcon, Eye, Send } from 'lucide-react';
 
 const VIEW_STORE_KEY = 'kai.view';
 
@@ -124,6 +131,75 @@ export default function App() {
   const navBadges: Partial<Record<ViewKey, number>> = {
     comms: pendingCount,
     command: alertCount,
+  };
+
+  /* Per-view metric chips for the ViewHeader. Each is a tight
+     read off the Spine / store — no extra fetches. */
+  const chipsFor = (v: ViewKey): ViewChip[] => {
+    try {
+      if (v === 'command') {
+        const ms = mirrorScore();
+        const chips: ViewChip[] = [];
+        if (ms.score !== null) chips.push({
+          label: 'kept',
+          value: `${ms.score}%`,
+          tone: ms.score >= 80 ? 'good' : ms.score >= 50 ? 'warn' : 'danger',
+          Icon: ShieldCheck,
+        });
+        if (pendingCount > 0) chips.push({
+          label: 'gate',
+          value: pendingCount,
+          tone: 'warn', Icon: Send,
+        });
+        if (alertCount > 0) chips.push({
+          label: 'alerts',
+          value: alertCount,
+          tone: 'danger', Icon: Eye,
+        });
+        return chips;
+      }
+      if (v === 'money') {
+        const r = computeRunway();
+        const chips: ViewChip[] = [];
+        if (r.runwayDays !== null) chips.push({
+          label: 'runway',
+          value: `${Math.floor(r.runwayDays)}d`,
+          tone: r.runwayDays < 7 ? 'danger' : r.runwayDays < 14 ? 'warn' : 'good',
+          Icon: Wallet,
+        });
+        return chips;
+      }
+      if (v === 'growth') {
+        const beats = liveBeats().filter(b => b.status === 'new').length;
+        const chips: ViewChip[] = [];
+        if (beats > 0) chips.push({
+          label: 'legend',
+          value: `${beats} new`,
+          tone: 'accent', Icon: CrownIcon,
+        });
+        return chips;
+      }
+      if (v === 'ops') {
+        const overdue = listPromises().filter(p => p.status === 'open' && p.deadline < Date.now()).length;
+        const chips: ViewChip[] = [];
+        if (overdue > 0) chips.push({
+          label: 'overdue',
+          value: overdue,
+          tone: 'danger',
+        });
+        return chips;
+      }
+      if (v === 'comms') {
+        const chips: ViewChip[] = [];
+        if (pendingCount > 0) chips.push({
+          label: 'gate',
+          value: pendingCount,
+          tone: 'warn', Icon: Send,
+        });
+        return chips;
+      }
+    } catch { /* defensive */ }
+    return [];
   };
 
   const setView = useCallback((v: ViewKey) => {
@@ -336,6 +412,12 @@ export default function App() {
       }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const k = e.key.toLowerCase();
+      /* View shortcuts — 1..5 jump straight to the matching view. */
+      if (/^[1-5]$/.test(k)) {
+        const v = VIEWS[parseInt(k, 10) - 1];
+        if (v) { setView(v.key); sfx.whoosh(); }
+        return;
+      }
       if (k === 'm') { const next = { ...settings, soundEnabled: !settings.soundEnabled }; saveSettings(next); sfx.click(); }
       else if (k === 'v') { const next = { ...settings, voiceEnabled: !settings.voiceEnabled }; saveSettings(next); sfx.click(); }
       else if (k === 's') { setSetOpen(o => !o); sfx.click(); }
@@ -512,11 +594,11 @@ export default function App() {
             transition={{ duration: 0.32, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="flex flex-col gap-6 sm:gap-8"
           >
-            {/* View heading — orientation, not chrome */}
-            <div className="flex items-baseline gap-3 px-1">
-              <h2 className="font-sans text-bone text-lg font-light tracking-tight">{VIEW_LABEL[view].label}</h2>
-              <span className="font-mono text-[10px] tracking-[0.16em] uppercase text-steel/65 truncate">{VIEW_LABEL[view].hint}</span>
-            </div>
+            <ViewHeader
+              title={VIEW_LABEL[view].label}
+              hint={VIEW_LABEL[view].hint}
+              chips={chipsFor(view)}
+            />
 
             {/* COMMAND — the daily cockpit. Orb is the hero. */}
             {view === 'command' && (
@@ -541,6 +623,7 @@ export default function App() {
                       </div>
                     </Suspense>
                   </motion.div>
+                  <NowStrip />
                 </div>
               </div>
             )}
@@ -603,7 +686,7 @@ export default function App() {
           >
             <span title="Vercel commit SHA, injected at build time">kai · {__BUILD_ID__}</span>
             <span className="hidden md:inline normal-case tracking-normal text-steel/50">
-              <kbd>⌘</kbd><kbd>K</kbd>&nbsp;commands&nbsp;·&nbsp;<span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd>&nbsp;search</span>&nbsp;·&nbsp;<kbd>⌘</kbd><kbd>J</kbd>&nbsp;journal
+              <kbd>⌘</kbd><kbd>K</kbd>&nbsp;commands&nbsp;·&nbsp;<span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd>&nbsp;search</span>&nbsp;·&nbsp;<kbd>⌘</kbd><kbd>J</kbd>&nbsp;journal&nbsp;·&nbsp;<kbd>1</kbd>&hairsp;–&hairsp;<kbd>5</kbd>&nbsp;views
             </span>
             <span className="text-steel/55">presence stable</span>
           </motion.footer>
