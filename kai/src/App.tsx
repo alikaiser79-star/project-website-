@@ -61,10 +61,35 @@ import { makadi } from './kaiConfig';
 import type { KaiSettings } from './types';
 import LockOverlay from './components/LockOverlay';
 import { loadLockConfig, type LockConfig } from './lib/lock';
+import ViewNav, { VIEW_LABEL, type ViewKey } from './components/ViewNav';
+import { getPending } from './lib/kai/pending';
+import { getWatchtower } from './lib/kai/watchtower';
+import { useKaiVersion } from './lib/kai/mirror';
+
+const VIEW_STORE_KEY = 'kai.view';
+
+/* Which view each panel (by data-panel num) lives on — so deep
+   links / Spotlight jumps switch to the right view first. */
+const PANEL_VIEW: Record<string, ViewKey> = {
+  '17': 'command', '09': 'command', '06': 'command', '18': 'command',
+  '10': 'money',   '01': 'money',   '02': 'money',   '07': 'money',
+  '12': 'growth',  '08': 'growth',  '05': 'growth',  '15': 'growth', '19': 'growth',
+  '03': 'ops',     '04': 'ops',     '11': 'ops',
+  '13': 'comms',   '16': 'comms',   '14': 'comms',   '20': 'comms',  '21': 'comms',
+};
+
+function loadView(): ViewKey {
+  try {
+    const v = localStorage.getItem(VIEW_STORE_KEY);
+    if (v === 'command' || v === 'money' || v === 'growth' || v === 'ops' || v === 'comms') return v;
+  } catch { /* ignore */ }
+  return 'command';
+}
 
 export default function App() {
   const initial = loadState();
   const [booted, setBooted]   = useState(false);
+  const [view, setViewState]  = useState<ViewKey>(() => loadView());
   const [cmdOpen, setCmdOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
@@ -90,6 +115,23 @@ export default function App() {
   const [lockCfg, setLockCfg] = useState<LockConfig>(() => loadLockConfig());
   const [unlocked, setUnlocked] = useState<boolean>(() => !loadLockConfig().enabled);
   const [showSetup, setShowSetup] = useState<boolean>(false);
+
+  /* Subscribe to the Spine bus so nav badges recompute when the
+     gate fills or the watchtower fires. */
+  useKaiVersion();
+  const pendingCount = (() => { try { return getPending().length; } catch { return 0; } })();
+  const alertCount   = (() => { try { return getWatchtower().alerts.length; } catch { return 0; } })();
+  const navBadges: Partial<Record<ViewKey, number>> = {
+    comms: pendingCount,
+    command: alertCount,
+  };
+
+  const setView = useCallback((v: ViewKey) => {
+    setViewState(v);
+    try { localStorage.setItem(VIEW_STORE_KEY, v); } catch { /* ignore */ }
+    /* Jump to top when switching views — each view is its own page. */
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* ignore */ }
+  }, []);
 
   const onSettings = useCallback((s: KaiSettings) => {
     setSettings(s);
@@ -339,15 +381,20 @@ export default function App() {
       } else if (a.type === 'open-cmd') {
         setCmdOpen(true);
       } else if (a.type === 'ping-panel') {
-        const el = document.querySelector<HTMLElement>(`[data-panel="${a.panel}"]`);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          el.classList.remove('panel-flash');
-          // Force a reflow so the animation restarts on re-add
-          void el.offsetWidth;
-          el.classList.add('panel-flash');
-          setTimeout(() => el.classList.remove('panel-flash'), 1400);
-        }
+        /* Switch to the view that owns this panel first, then flash
+           it (after the view transition mounts the element). */
+        const targetView = PANEL_VIEW[a.panel];
+        if (targetView) setView(targetView);
+        setTimeout(() => {
+          const el = document.querySelector<HTMLElement>(`[data-panel="${a.panel}"]`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.remove('panel-flash');
+            void el.offsetWidth;
+            el.classList.add('panel-flash');
+            setTimeout(() => el.classList.remove('panel-flash'), 1400);
+          }
+        }, targetView ? 160 : 0);
       }
     });
 
@@ -419,17 +466,20 @@ export default function App() {
             onContent={() => setContentOpen(true)}
             onBrainDump={() => setBrainOpen(true)}
             onAutopilot={() => {
-              /* Scroll the Autopilot panel into view; the panel's
-                 Run button is the actual trigger so the user always
-                 sees the status surface while it's running. */
-              const el = document.querySelector<HTMLElement>('[data-panel="17"]');
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.remove('panel-flash');
-                void el.offsetWidth;
-                el.classList.add('panel-flash');
-                setTimeout(() => el.classList.remove('panel-flash'), 1400);
-              }
+              /* Autopilot lives on the Command view — switch there,
+                 then flash the panel so the user sees the live
+                 status surface while it runs. */
+              setView('command');
+              setTimeout(() => {
+                const el = document.querySelector<HTMLElement>('[data-panel="17"]');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.remove('panel-flash');
+                  void el.offsetWidth;
+                  el.classList.add('panel-flash');
+                  setTimeout(() => el.classList.remove('panel-flash'), 1400);
+                }
+              }, 120);
             }}
             voiceOn={settings.voiceEnabled}
             setVoiceOn={(b) => onSettings({ ...settings, voiceEnabled: b })}
@@ -446,71 +496,98 @@ export default function App() {
             voiceOn={settings.voiceEnabled}
           />
 
-          {/* Pending external actions — invisible when none, sticky
-              attention-grabber when KAI has proposed something. */}
+          {/* Pending external actions — pinned across all views,
+              invisible when none, attention-grabber when KAI has
+              proposed something. */}
           <ConfirmationGate />
 
-          {/* Orb — mobile only, gets its own breathing room */}
+          {/* View navigation — breaks 21 panels into 5 focused views. */}
+          <ViewNav active={view} onChange={setView} badges={navBadges} />
+
+          {/* Active view */}
           <motion.div
-            className="kai-core-wrap relative w-full grid place-items-center lg:hidden py-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.8 } }}
+            key={view}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="flex flex-col gap-6 sm:gap-8"
           >
-            <Suspense fallback={<div className="text-steel font-mono text-[10px] py-12">spinning up core…</div>}>
-              <div className="relative w-[min(280px,72vw)] aspect-square">
-                <KaiCore size={280} accent={settings.accent} />
-              </div>
-            </Suspense>
-          </motion.div>
-
-          {/* Main grid — 1 col mobile, 3 col desktop. Generous gaps. */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-            {/* Left */}
-            <div className="flex flex-col gap-6 sm:gap-8 min-w-0">
-              <AutopilotPanel delay={0.15} />
-              <IncomePanel delay={0.20} />
-              <TollgatePanel delay={0.50} />
-              <PrioritiesPanel delay={0.55} />
-              <EnvoyPanel delay={0.58} />
+            {/* View heading — orientation, not chrome */}
+            <div className="flex items-baseline gap-3 px-1">
+              <h2 className="font-sans text-bone text-lg font-light tracking-tight">{VIEW_LABEL[view].label}</h2>
+              <span className="font-mono text-[10px] tracking-[0.16em] uppercase text-steel/65 truncate">{VIEW_LABEL[view].hint}</span>
             </div>
 
-            {/* Center — orb (desktop only) sits in its own column, then Garden */}
-            <div className="flex flex-col gap-6 sm:gap-8 items-stretch min-w-0">
-              <motion.div
-                className="kai-core-wrap relative hidden lg:grid place-items-center w-full py-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: { delay: 0.8, duration: 0.8 } }}
-              >
-                <Suspense fallback={<div className="text-steel font-mono text-[10px] py-12">spinning up core…</div>}>
-                  <div className="relative w-[min(460px,100%)] aspect-square">
-                    <KaiCore size={460} accent={settings.accent} />
+            {/* COMMAND — the daily cockpit. Orb is the hero. */}
+            {view === 'command' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+                <div className="lg:col-span-2 order-2 lg:order-1 flex flex-col gap-6 sm:gap-8 items-start">
+                  <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 items-start">
+                    <AutopilotPanel delay={0.10} />
+                    <MirrorPanel delay={0.15} />
+                    <PrioritiesPanel delay={0.20} />
+                    <WatchtowerPanel delay={0.25} />
                   </div>
-                </Suspense>
-              </motion.div>
-              <GardenPanel delay={0.45} />
-              <ContentQueuePanel delay={0.60} />
-              <LedgerPanel delay={0.65} />
-              <CrownPanel delay={0.70} />
-              <ScribePanel delay={0.75} />
-            </div>
+                </div>
+                <div className="order-1 lg:order-2 flex flex-col gap-6 items-stretch">
+                  <motion.div
+                    className="kai-core-wrap relative grid place-items-center w-full py-2 lg:py-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1, transition: { delay: 0.5, duration: 0.8 } }}
+                  >
+                    <Suspense fallback={<div className="text-steel font-mono text-[10px] py-12">spinning up core…</div>}>
+                      <div className="relative w-[min(320px,80vw)] aspect-square">
+                        <KaiCore size={320} accent={settings.accent} />
+                      </div>
+                    </Suspense>
+                  </motion.div>
+                </div>
+              </div>
+            )}
 
-            {/* Right */}
-            <div className="flex flex-col gap-6 sm:gap-8 min-w-0">
-              <DebtPanel delay={0.30} />
-              <MirrorPanel delay={0.35} />
-              <MakadiPanel delay={0.40} />
-              <Suspense fallback={<div className="glass rounded-lg p-5 text-steel font-mono text-xs">loading charts…</div>}>
-                <InstagramPanel delay={0.50} />
-              </Suspense>
-              <ExpensesPanel delay={0.55} />
-              <InboxPanel delay={0.62} />
-              <SitePanel delay={0.68} />
-              <IgFeedPanel delay={0.72} />
-              <PhonePanel delay={0.76} />
-              <WatchtowerPanel delay={0.80} />
-              <DelegatePanel delay={0.84} />
-            </div>
-          </div>
+            {/* MONEY */}
+            {view === 'money' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+                <TollgatePanel delay={0.10} />
+                <IncomePanel delay={0.15} />
+                <DebtPanel delay={0.20} />
+                <ExpensesPanel delay={0.25} />
+              </div>
+            )}
+
+            {/* GROWTH */}
+            {view === 'growth' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+                <CrownPanel delay={0.10} />
+                <ContentQueuePanel delay={0.15} />
+                <Suspense fallback={<div className="glass rounded-lg p-5 text-steel font-mono text-xs">loading charts…</div>}>
+                  <InstagramPanel delay={0.20} />
+                </Suspense>
+                <IgFeedPanel delay={0.25} />
+                <ScribePanel delay={0.30} />
+              </div>
+            )}
+
+            {/* OPERATIONS */}
+            {view === 'ops' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+                <GardenPanel delay={0.10} />
+                <MakadiPanel delay={0.15} />
+                <LedgerPanel delay={0.20} />
+              </div>
+            )}
+
+            {/* COMMS */}
+            {view === 'comms' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+                <InboxPanel delay={0.10} />
+                <PhonePanel delay={0.15} />
+                <SitePanel delay={0.20} />
+                <EnvoyPanel delay={0.25} />
+                <DelegatePanel delay={0.30} />
+              </div>
+            )}
+          </motion.div>
 
           {/* Live intel strip + HN ticker */}
           <div className="intel-strip-anchor flex flex-col gap-4 sm:gap-5">
