@@ -35,6 +35,7 @@ import LedgerPanel from './components/panels/LedgerPanel';
 import CrownPanel from './components/panels/CrownPanel';
 import InboxPanel from './components/panels/InboxPanel';
 import SitePanel from './components/panels/SitePanel';
+import IgFeedPanel from './components/panels/IgFeedPanel';
 import ConfirmationGate from './lib/kai/ConfirmationGate';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
@@ -431,6 +432,7 @@ export default function App() {
               <ExpensesPanel delay={0.55} />
               <InboxPanel delay={0.62} />
               <SitePanel delay={0.68} />
+              <IgFeedPanel delay={0.72} />
             </div>
           </div>
 
