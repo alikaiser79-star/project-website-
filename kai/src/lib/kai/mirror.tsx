@@ -40,11 +40,23 @@ export function useMirror() {
   return { commitments, score, add, remove, resolveNow: () => resolveCommitments() };
 }
 
-/* Call once at App boot. */
+/* Call once at App boot. Resolves the Mirror AND the Ledger
+   on the same cadence — both feed off the Spine and a single
+   pass keeps state consistent. */
 export function startMirror(): () => void {
+  /* Imported lazily to keep the import graph acyclic. */
+  import('./ledger').then(m => m.resolvePromises()).catch(() => {});
   resolveCommitments();
-  const iv = setInterval(() => resolveCommitments(), 6 * 60 * 60 * 1000);
-  const onVisible = () => { if (document.visibilityState === 'visible') resolveCommitments(); };
+  const iv = setInterval(() => {
+    resolveCommitments();
+    import('./ledger').then(m => m.resolvePromises()).catch(() => {});
+  }, 6 * 60 * 60 * 1000);
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') {
+      resolveCommitments();
+      import('./ledger').then(m => m.resolvePromises()).catch(() => {});
+    }
+  };
   document.addEventListener('visibilitychange', onVisible);
   return () => {
     clearInterval(iv);

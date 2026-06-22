@@ -21,6 +21,10 @@ import { logEvent, getEvents } from './kai/events';
 import { addCommitment } from './kai/commitments';
 import { extractCommitment } from './kai/ai';
 import { runwaySnapshot, costInDays } from './kai/runway';
+import {
+  ledgerSnapshot, addPerson as addLedgerPerson,
+  listPeople, addPromise as addLedgerPromise,
+} from './kai/ledger';
 import { toast } from '../hooks/useToasts';
 import {
   debt, monthlyTotalEGP, debtClearedPct, operator,
@@ -196,6 +200,45 @@ export const TOOL_SCHEMAS = [
     name: 'get_calendar',
     description: "Read the user's upcoming Google Calendar events. Returns up to 10 events with title, start, end, all-day flag, and optional location. Use this for any 'what's on my calendar', 'what's next', 'when is X' question, and to enrich the briefing.",
     input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_ledger',
+    description:
+      "Read the Ledger — people Ali depends on, their reliability score (delivered ÷ resolved over 6 months), open / overdue counts, and their tracked promises with metric + deadline + status. Use this BEFORE recommending Ali lean on someone, to answer 'who's reliable / unreliable', or to warn him about flakes.",
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'add_person',
+    description:
+      "Add a person to the Ledger so KAI can start tracking promises from them. Use when Ali names someone he depends on (renter, contractor, ally, guest). Returns the new person id for follow-up promise creation.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        role: { type: 'string', description: "Short label, e.g. 'Honda renter', 'Court ally'." },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'log_promise',
+    description:
+      "Log a promise made by another person. Maps to a Spine event so the Ledger can auto-resolve it as delivered (event fires before deadline) or flaked (deadline passes with no event). Pass person_name to match or auto-create the person.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        person_name: { type: 'string', description: 'Person who made the promise. Auto-creates if missing.' },
+        person_role: { type: 'string', description: "Optional role used when auto-creating the person." },
+        text:        { type: 'string', description: 'Short restatement of the promise.' },
+        domain:      { type: 'string', description: 'Spine domain to watch, e.g. income, makadi, system.' },
+        event:       { type: 'string', description: 'Spine event type, e.g. rent_paid, review_left, task_completed.' },
+        op:          { type: 'string', description: '>= | <= | ==', enum: ['>=', '<=', '=='] },
+        target:      { type: 'number', description: 'Numeric target.' },
+        deadline:    { type: 'string', description: 'YYYY-MM-DD.' },
+        recurring_days: { type: 'number', description: 'Optional. Days between recurrences (e.g. 30 for monthly).' },
+      },
+      required: ['person_name', 'text', 'domain', 'event', 'target', 'deadline'],
+    },
   },
   {
     name: 'get_runway',
@@ -506,6 +549,49 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_content_queue': {
       return JSON.stringify(queueSnapshot());
+    }
+    case 'get_ledger': {
+      return JSON.stringify(ledgerSnapshot());
+    }
+    case 'add_person': {
+      const name = String(call.input?.name || '').trim();
+      if (!name) return JSON.stringify({ ok: false, reason: 'missing name' });
+      const role = String(call.input?.role || '').trim() || 'Contact';
+      const p = addLedgerPerson({ name, role });
+      toast.ok(`${p.name} added to the Ledger.`, 'KAI · LEDGER', 3000);
+      return JSON.stringify({ ok: true, id: p.id, name: p.name, role: p.role });
+    }
+    case 'log_promise': {
+      const input = call.input || {};
+      const name = String(input.person_name || '').trim();
+      if (!name) return JSON.stringify({ ok: false, reason: 'missing person_name' });
+      const existing = listPeople().find(p => p.name.toLowerCase() === name.toLowerCase());
+      const person = existing || addLedgerPerson({ name, role: String(input.person_role || '').trim() || 'Contact' });
+      const text     = String(input.text || '').trim();
+      const domain   = String(input.domain || '').trim();
+      const event    = String(input.event  || '').trim();
+      const opRaw    = String(input.op     || '>=');
+      const op       = ['>=', '<=', '=='].includes(opRaw) ? (opRaw as '>=' | '<=' | '==') : '>=';
+      const target   = Number(input.target);
+      const deadline = String(input.deadline || '');
+      if (!text || !domain || !event || !Number.isFinite(target)
+          || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+        return JSON.stringify({ ok: false, reason: 'missing or invalid fields' });
+      }
+      const recurringDays = Number.isFinite(Number(input.recurring_days))
+        ? Math.max(1, Math.round(Number(input.recurring_days))) : undefined;
+      const pr = addLedgerPromise({
+        personId: person.id,
+        text,
+        metric: { domain: domain as any, event, op, target },
+        deadline: new Date(deadline + 'T23:59:59').getTime(),
+        recurringDays,
+      });
+      toast.ok(`Promise logged: ${person.name} — ${text}`, 'KAI · LEDGER', 4000);
+      return JSON.stringify({
+        ok: true, promise_id: pr.id, person_id: person.id, person_name: person.name,
+        deadline: new Date(pr.deadline).toISOString().slice(0, 10),
+      });
     }
     case 'get_runway': {
       const snap = runwaySnapshot();
