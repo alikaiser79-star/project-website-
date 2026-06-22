@@ -13,6 +13,7 @@ import { trend } from './history';
 import { getCalendarCached } from './calendar';
 import { monthlyTotal, categoryBreakdown, currentMonthKey } from './expenses';
 import { queueCount } from './content';
+import { mirrorBriefing } from './kai/commitments';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -258,9 +259,16 @@ export function briefing(): string {
   } else {
     top.forEach((c, i) => lines.push(`${i + 1}. ${c.text}.`));
   }
+
+  /* Mirror lines — overdue / countdown / recently broken / score.
+     Quiet when there's nothing to say. */
+  try {
+    for (const m of mirrorBriefing()) lines.push(m);
+  } catch { /* defensive */ }
+
   lines.push(`What's the first move?`);
-  /* Hard cap at 6 lines. */
-  return lines.slice(0, 6).join('\n');
+  /* Hard cap at 8 lines now that the Mirror can chime in. */
+  return lines.slice(0, 8).join('\n');
 }
 
 /* A narrative recap of the last 7 days from the data we have locally. */

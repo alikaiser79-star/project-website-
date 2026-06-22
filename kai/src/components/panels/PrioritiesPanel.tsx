@@ -6,6 +6,7 @@ import { loadState, saveState } from '../../lib/store';
 import type { Priority } from '../../types';
 import { sfx } from '../../lib/sound';
 import { celebrate } from '../../lib/celebrate';
+import { logEvent } from '../../lib/kai/events';
 
 export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
   const [items, setItems] = useState<Priority[]>(() => loadState().priorities);
@@ -23,6 +24,8 @@ export default function PrioritiesPanel({ delay = 0 }: { delay?: number }) {
       sfx.confirm();
       if (ev) celebrate(ev.clientX, ev.clientY);
       else    celebrate();
+      /* Spine — task closed by the user from the panel. */
+      logEvent({ domain: 'priorities', type: 'task_done', value: 1, meta: { text: it.text }, source: 'user' });
     } else {
       sfx.click();
     }

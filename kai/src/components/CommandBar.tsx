@@ -4,6 +4,8 @@ import { ChevronRight, Loader2, Sparkles, X, Trash2, Download } from 'lucide-rea
 import Markdown from './Markdown';
 import { runBuiltin } from '../lib/commands';
 import { askClaude, askClaudeStream } from '../lib/claude';
+import { extractCommitment } from '../lib/kai/ai';
+import { addCommitment } from '../lib/kai/commitments';
 import { toast } from '../hooks/useToasts';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
@@ -65,6 +67,28 @@ export default function CommandBar({ open, onClose, settings }: Props) {
     if (!text || thinking) return;
     setInput('');
     emit('command');
+
+    /* Commitment intent — extract via /api/claude into the Spine's
+       vocab, then save into the Mirror. If extraction returns null,
+       fall through to the rest of the pipeline so the user still
+       gets an answer. */
+    if (/\b(i commit|i'?ll|i will|promise|by next|by friday|by monday|by tuesday|by wednesday|by thursday|by saturday|by sunday)\b/i.test(text)) {
+      setThinking(true);
+      pushTurn(text, '');
+      try {
+        const draft = await extractCommitment(text);
+        if (draft) {
+          const c = addCommitment({ ...draft, source: 'kai' });
+          const dl = new Date(c.deadline).toDateString();
+          replaceLast(`Logged. ${c.text} — by ${dl}. I'll hold you to it.`);
+          return;
+        }
+        /* No measurable commitment — let normal pipeline take over,
+           replacing the empty turn rather than leaving a dead row. */
+        setHistory(h => h.slice(0, -1));
+      } catch { /* fall through */ }
+      finally { setThinking(false); }
+    }
 
     const built = runBuiltin(text);
     if (built) {

@@ -6,6 +6,7 @@ import {
   debt, operator, garden as configGarden, makadi as configMakadi,
   instagram as configInstagram, currency,
 } from '../kaiConfig';
+import { logEvent } from './kai/events';
 
 const KEY = 'kai.state.v1';
 
@@ -148,13 +149,29 @@ export function getFx(): number             { return loadState().fxEgpPerEur; }
 
 export function updateGarden(patch: Partial<GardenState>) {
   const s = loadState();
+  const prevPlants = s.garden.plantCount;
   s.garden = { ...s.garden, ...patch };
   saveState(s);
+  /* Spine — fire plant_added with the new absolute count whenever
+     plants went UP. Sets target compatibility with "have N plants
+     by date" commitments. */
+  if (typeof patch.plantCount === 'number' && patch.plantCount > prevPlants) {
+    logEvent({ domain: 'garden', type: 'plant_added', value: patch.plantCount, source: 'user' });
+  }
 }
 export function updateMakadi(patch: Partial<MakadiState>) {
   const s = loadState();
+  const prevRate = s.makadi.nightlyRate;
+  const prevOcc  = s.makadi.occupancy30d;
   s.makadi = { ...s.makadi, ...patch };
   saveState(s);
+  /* Spine — Makadi rate / occupancy changes are commitment-relevant. */
+  if (typeof patch.nightlyRate === 'number' && patch.nightlyRate !== prevRate) {
+    logEvent({ domain: 'makadi', type: 'rate_changed', value: patch.nightlyRate, source: 'user' });
+  }
+  if (typeof patch.occupancy30d === 'number' && patch.occupancy30d !== prevOcc) {
+    logEvent({ domain: 'makadi', type: 'occupancy_set', value: patch.occupancy30d, source: 'user' });
+  }
 }
 export function upsertInstagram(handle: string, followers: number) {
   const h = String(handle ?? '').trim();
@@ -165,6 +182,8 @@ export function upsertInstagram(handle: string, followers: number) {
   if (idx >= 0) s.instagram[idx] = { ...s.instagram[idx], followers };
   else          s.instagram = [...s.instagram, { handle: norm, followers }];
   saveState(s);
+  /* Spine — follower count for this handle (absolute). */
+  logEvent({ domain: 'instagram', type: 'follower_synced', value: followers, meta: { handle: norm }, source: 'auto' });
 }
 export function removeInstagram(handle: string) {
   const h = String(handle ?? '').trim().toLowerCase();
