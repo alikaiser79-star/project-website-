@@ -33,6 +33,8 @@ import { MirrorPanel, startMirror } from './lib/kai/mirror';
 import TollgatePanel from './components/panels/TollgatePanel';
 import LedgerPanel from './components/panels/LedgerPanel';
 import CrownPanel from './components/panels/CrownPanel';
+import InboxPanel from './components/panels/InboxPanel';
+import ConfirmationGate from './lib/kai/ConfirmationGate';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -372,6 +374,10 @@ export default function App() {
             voiceOn={settings.voiceEnabled}
           />
 
+          {/* Pending external actions — invisible when none, sticky
+              attention-grabber when KAI has proposed something. */}
+          <ConfirmationGate />
+
           {/* Orb — mobile only, gets its own breathing room */}
           <motion.div
             className="kai-core-wrap relative w-full grid place-items-center lg:hidden py-4"
@@ -422,6 +428,7 @@ export default function App() {
                 <InstagramPanel delay={0.50} />
               </Suspense>
               <ExpensesPanel delay={0.55} />
+              <InboxPanel delay={0.62} />
             </div>
           </div>
 
