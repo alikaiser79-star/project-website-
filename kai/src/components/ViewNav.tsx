@@ -51,7 +51,7 @@ export default function ViewNav({ active, onChange, badges }: Props) {
       className="glass rounded-lg px-1.5 py-1.5 flex items-center gap-1 overflow-x-auto"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
     >
-      {VIEWS.map(v => {
+      {VIEWS.map((v, idx) => {
         const isActive = v.key === active;
         const badge = badges?.[v.key] || 0;
         const Icon = v.Icon;
@@ -59,7 +59,7 @@ export default function ViewNav({ active, onChange, badges }: Props) {
           <button
             key={v.key}
             onClick={() => { if (!isActive) { sfx.whoosh(); onChange(v.key); } }}
-            title={v.hint}
+            title={`${v.hint} · press ${idx + 1}`}
             className={
               'relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md transition shrink-0 ' +
               (isActive
