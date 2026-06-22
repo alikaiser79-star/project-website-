@@ -32,6 +32,7 @@ import ContentQueuePanel from './components/panels/ContentQueuePanel';
 import { MirrorPanel, startMirror } from './lib/kai/mirror';
 import TollgatePanel from './components/panels/TollgatePanel';
 import LedgerPanel from './components/panels/LedgerPanel';
+import CrownPanel from './components/panels/CrownPanel';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -409,6 +410,7 @@ export default function App() {
               <GardenPanel delay={0.45} />
               <ContentQueuePanel delay={0.60} />
               <LedgerPanel delay={0.65} />
+              <CrownPanel delay={0.70} />
             </div>
 
             {/* Right */}

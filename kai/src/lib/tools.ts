@@ -25,6 +25,7 @@ import {
   ledgerSnapshot, addPerson as addLedgerPerson,
   listPeople, addPromise as addLedgerPromise,
 } from './kai/ledger';
+import { crownSnapshot } from './kai/crown';
 import { toast } from '../hooks/useToasts';
 import {
   debt, monthlyTotalEGP, debtClearedPct, operator,
@@ -199,6 +200,12 @@ export const TOOL_SCHEMAS = [
   {
     name: 'get_calendar',
     description: "Read the user's upcoming Google Calendar events. Returns up to 10 events with title, start, end, all-day flag, and optional location. Use this for any 'what's on my calendar', 'what's next', 'when is X' question, and to enrich the briefing.",
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_legend',
+    description:
+      "Read the Crown — Ali's milestone timeline (debt cleared, follower tiers crossed, garden growth, first-of-a-kind moments). Each is a story beat for @alikaiser1. Use to answer 'what milestones have I hit', 'what's worth posting', or to nudge Ali to document a recent win.",
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -549,6 +556,9 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_content_queue': {
       return JSON.stringify(queueSnapshot());
+    }
+    case 'get_legend': {
+      return JSON.stringify(crownSnapshot());
     }
     case 'get_ledger': {
       return JSON.stringify(ledgerSnapshot());
