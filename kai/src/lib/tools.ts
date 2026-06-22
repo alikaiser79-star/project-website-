@@ -20,6 +20,7 @@ import { queueSnapshot } from './content';
 import { logEvent, getEvents } from './kai/events';
 import { addCommitment } from './kai/commitments';
 import { extractCommitment } from './kai/ai';
+import { runwaySnapshot, costInDays } from './kai/runway';
 import { toast } from '../hooks/useToasts';
 import {
   debt, monthlyTotalEGP, debtClearedPct, operator,
@@ -195,6 +196,17 @@ export const TOOL_SCHEMAS = [
     name: 'get_calendar',
     description: "Read the user's upcoming Google Calendar events. Returns up to 10 events with title, start, end, all-day flag, and optional location. Use this for any 'what's on my calendar', 'what's next', 'when is X' question, and to enrich the briefing.",
     input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_runway',
+    description:
+      "Read the Tollgate — financial runway in DAYS OF FREEDOM. Returns liquid cash, 30-day daily burn, runway days, projected broke date, and payday cushion. Use for 'how long can I survive', 'what's my runway', survive-till-payday questions, and to price discretionary spends. Pass spend_egp to also get what a specific spend costs in days.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        spend_egp: { type: 'number', description: 'Optional. A discretionary amount in EGP to price as days of freedom lost.' },
+      },
+    },
   },
   {
     name: 'query_events',
@@ -494,6 +506,21 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_content_queue': {
       return JSON.stringify(queueSnapshot());
+    }
+    case 'get_runway': {
+      const snap = runwaySnapshot();
+      const spend = Number(call.input?.spend_egp);
+      if (Number.isFinite(spend) && spend > 0) {
+        const d = costInDays(spend);
+        return JSON.stringify({
+          ...snap,
+          priced_spend: {
+            amount_egp: Math.round(spend),
+            days_of_freedom: d === null ? null : Math.round(d * 10) / 10,
+          },
+        });
+      }
+      return JSON.stringify(snap);
     }
     case 'query_events': {
       const sinceDays = Math.max(0, Math.min(365, Number(call.input?.sinceDays ?? 30)));

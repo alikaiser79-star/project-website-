@@ -4,6 +4,7 @@ import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, 
 import {
   loadState, saveState, defaults,
   updateGarden, updateMakadi, upsertInstagram, removeInstagram, setFx,
+  getLiquidCash, setLiquidCash,
 } from '../lib/store';
 import {
   listGoals,
@@ -209,6 +210,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
 
               <Section icon={<Wallet size={12} />} title="FX rate">
                 <FxEditor />
+              </Section>
+
+              <Section icon={<Wallet size={12} />} title="Liquid cash">
+                <CashEditor />
               </Section>
 
               <Section icon={<Leaf size={12} />} title="Hidden Garden">
@@ -603,6 +608,33 @@ function FxEditor() {
       </div>
       <p className="mt-2 text-[10px] text-steel leading-relaxed">
         Used everywhere KAI converts EUR streams to EGP and back.
+      </p>
+    </>
+  );
+}
+
+/* ───────── Liquid-cash editor (Tollgate runway numerator) ───────── */
+function CashEditor() {
+  const [cash, setCash] = useState<number>(() => getLiquidCash());
+  function commit(v: number) {
+    if (!Number.isFinite(v) || v < 0) return;
+    setCash(v); setLiquidCash(v);
+  }
+  return (
+    <>
+      <div className="flex items-baseline gap-2 font-mono text-[11px]">
+        <span className="text-steel text-[10px] tracking-[0.18em] uppercase">Cash</span>
+        <input
+          type="number"
+          step="100"
+          value={cash}
+          onChange={e => commit(parseFloat(e.target.value))}
+          className="flex-1 bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
+        />
+        <span className="text-steel text-[10px]">EGP</span>
+      </div>
+      <p className="mt-2 text-[10px] text-steel leading-relaxed">
+        Cash on hand. The Tollgate divides this (plus remaining monthly income) by your 30-day burn to show days of runway.
       </p>
     </>
   );

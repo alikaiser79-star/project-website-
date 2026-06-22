@@ -22,6 +22,7 @@ import {
   monthlyTotal, categoryBreakdown, currentMonthKey, CATEGORIES,
 } from '../../lib/expenses';
 import { compressImage, extractReceipt } from '../../lib/receipts';
+import { costInDays } from '../../lib/kai/runway';
 import { operator } from '../../kaiConfig';
 import { sfx } from '../../lib/sound';
 import { toast } from '../../hooks/useToasts';
@@ -36,6 +37,13 @@ function fmtCcy(n: number, ccy = 'EGP') {
   } catch {
     return `${Math.round(n).toLocaleString(operator.locale)} ${ccy}`;
   }
+}
+
+/* "−1.4 days" — what a spend costs in runway. null when no burn. */
+function fmtDays(amount: number): string | null {
+  const d = costInDays(amount);
+  if (d === null) return null;
+  return `−${d.toFixed(1)}d`;
 }
 
 function emptyDraft(): Draft {
@@ -166,8 +174,9 @@ export default function ExpensesPanel({ delay = 0 }: { delay?: number }) {
           <div className="font-sans text-bone text-[34px] sm:text-[40px] leading-none tabular-nums">
             {fmtCcy(total)}
           </div>
-          <div className="font-mono text-[10px] tracking-[0.15em] text-steel/70 mt-1">
-            {items.filter(e => e.date.startsWith(ym)).length} entr{items.filter(e => e.date.startsWith(ym)).length === 1 ? 'y' : 'ies'}
+          <div className="font-mono text-[10px] tracking-[0.15em] text-steel/70 mt-1 flex items-center gap-2">
+            <span>{items.filter(e => e.date.startsWith(ym)).length} entr{items.filter(e => e.date.startsWith(ym)).length === 1 ? 'y' : 'ies'}</span>
+            {fmtDays(total) && <span className="text-amber/80">· {fmtDays(total)} of freedom</span>}
           </div>
         </div>
 
@@ -270,8 +279,13 @@ export default function ExpensesPanel({ delay = 0 }: { delay?: number }) {
                         {e.date} · {e.category}
                       </div>
                     </div>
-                    <div className="font-mono text-[12px] text-bone/95 tabular-nums shrink-0">
-                      {fmtCcy(e.total, e.currency)}
+                    <div className="text-right shrink-0">
+                      <div className="font-mono text-[12px] text-bone/95 tabular-nums">
+                        {fmtCcy(e.total, e.currency)}
+                      </div>
+                      {e.currency === 'EGP' && fmtDays(e.total) && (
+                        <div className="font-mono text-[9px] text-amber/70 tabular-nums">{fmtDays(e.total)}</div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition">
                       <button

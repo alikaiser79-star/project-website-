@@ -134,4 +134,7 @@ export type KaiPersisted = {
   fxEgpPerEur: number;
   expenses: Expense[];
   contentQueue: ContentItem[];
+  /* Liquid cash on hand in EGP — the numerator of the Tollgate
+     runway. Editable in Settings; 0 means "not set yet". */
+  liquidCash: number;
 };

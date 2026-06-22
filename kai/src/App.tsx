@@ -30,6 +30,7 @@ import PrioritiesPanel from './components/panels/PrioritiesPanel';
 import ExpensesPanel   from './components/panels/ExpensesPanel';
 import ContentQueuePanel from './components/panels/ContentQueuePanel';
 import { MirrorPanel, startMirror } from './lib/kai/mirror';
+import TollgatePanel from './components/panels/TollgatePanel';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -387,6 +388,7 @@ export default function App() {
             {/* Left */}
             <div className="flex flex-col gap-6 sm:gap-8 min-w-0">
               <IncomePanel delay={0.20} />
+              <TollgatePanel delay={0.50} />
               <PrioritiesPanel delay={0.55} />
             </div>
 

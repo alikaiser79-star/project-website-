@@ -58,6 +58,7 @@ export const defaults: KaiPersisted = {
   fxEgpPerEur: currency.egpPerEur,
   expenses: [],
   contentQueue: [],
+  liquidCash: 0,
 };
 
 /* Migrate a legacy `goals: GoalState[]` ({id, current}) array into
@@ -128,6 +129,9 @@ export function loadState(): KaiPersisted {
         ? (parsed as any).contentQueue.filter((c: any) =>
             c && typeof c === 'object' && typeof c.id === 'string' && typeof c.hook === 'string')
         : [],
+      liquidCash: typeof (parsed as any).liquidCash === 'number' && (parsed as any).liquidCash >= 0
+        ? (parsed as any).liquidCash
+        : 0,
     };
   } catch { return cloneDefaults(); }
 }
@@ -197,4 +201,14 @@ export function setFx(rate: number) {
   const s = loadState();
   s.fxEgpPerEur = rate;
   saveState(s);
+}
+
+export function getLiquidCash(): number { return loadState().liquidCash; }
+export function setLiquidCash(amount: number) {
+  if (!Number.isFinite(amount) || amount < 0) return;
+  const s = loadState();
+  s.liquidCash = Math.round(amount);
+  saveState(s);
+  /* Spine — cash adjustments are runway-relevant history. */
+  try { logEvent({ domain: 'income', type: 'cash_set', value: s.liquidCash, source: 'user' }); } catch {}
 }
