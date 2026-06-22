@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame, Leaf, Bed, AtSign } from 'lucide-react';
+import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame, Leaf, Bed, AtSign, ShieldCheck, Fingerprint, KeyRound } from 'lucide-react';
 import {
   loadState, saveState, defaults,
   updateGarden, updateMakadi, upsertInstagram, removeInstagram, setFx,
@@ -18,6 +18,13 @@ import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
 import { toast } from '../hooks/useToasts';
 import { listReminders, cancelReminder } from '../lib/reminders';
+import {
+  loadLockConfig, saveLockConfig, clearLock,
+  webAuthnSupported, platformAuthAvailable,
+  registerCredential, verifyCredential,
+  setPin, verifyPin,
+  type LockConfig,
+} from '../lib/lock';
 
 const ACCENTS: { id: Accent; label: string; hex: string }[] = [
   { id: 'amber',   label: 'Amber',   hex: '#FFB300' },
@@ -252,6 +259,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
                 <p className="mt-2 text-[10px] text-steel leading-relaxed">
                   Recolours the KAI Core orb and a few highlights. The UI palette stays amber.
                 </p>
+              </Section>
+
+              <Section icon={<ShieldCheck size={12} />} title="Security">
+                <SecurityEditor />
               </Section>
 
               <Section icon={<Download size={12} />} title="Backup">
@@ -828,5 +839,242 @@ function InstagramEditor() {
       </div>
     </>
   );
+}
+
+/* ── Security · biometric / PIN lock ────────────────────
+   Device-local convenience lock. Turning the lock OFF
+   requires passing the lock once. Re-enrolment of Face ID
+   and PIN change live here too. */
+function SecurityEditor() {
+  const [cfg, setCfg] = useState<LockConfig>(() => loadLockConfig());
+  const [hasPlatform, setHasPlatform] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [pin1, setPin1] = useState('');
+  const [pin2, setPin2] = useState('');
+  const [verifyPinInput, setVerifyPinInput] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const [ok,  setOk]  = useState<string | null>(null);
+
+  useEffect(() => {
+    platformAuthAvailable().then(setHasPlatform);
+  }, []);
+
+  function refresh() { setCfg(loadLockConfig()); }
+  function flash(message: string) { setOk(message); setTimeout(() => setOk(null), 2400); }
+
+  async function toggleLock(next: boolean) {
+    setErr(null);
+    if (next) {
+      if (!cfg.credentialId && !cfg.pinHash) {
+        setErr('Register Face ID or set a PIN before turning the lock on.');
+        return;
+      }
+      const updated = { ...cfg, enabled: true, offered: true };
+      saveLockConfig(updated); setCfg(updated);
+      flash('Lock armed.');
+      return;
+    }
+
+    /* Turning OFF requires passing the lock — biometric preferred,
+       PIN fallback. */
+    setBusy(true);
+    try {
+      let passed = false;
+      if (cfg.credentialId && webAuthnSupported()) {
+        passed = await verifyCredential(cfg.credentialId);
+      }
+      if (!passed && cfg.pinHash) {
+        const entered = window.prompt('Enter your PIN to disable the lock:');
+        if (entered) passed = await verifyPin(entered, cfg);
+      }
+      if (!passed) { setErr('Could not verify — lock left on.'); return; }
+      const updated = { ...cfg, enabled: false };
+      saveLockConfig(updated); setCfg(updated);
+      flash('Lock disabled.');
+    } catch (e: any) {
+      setErr(humanize(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function enrollBiometric() {
+    setErr(null); setBusy(true);
+    try {
+      const id = await registerCredential('KAI Operator');
+      const updated = { ...loadLockConfig(), credentialId: id, offered: true };
+      saveLockConfig(updated); setCfg(updated);
+      flash('Biometric registered.');
+    } catch (e: any) {
+      setErr(humanize(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function clearBiometric() {
+    const updated = { ...cfg, credentialId: undefined };
+    /* If that was the only unlock method and the lock was on, force
+       it off so the user can't lock themselves out. */
+    if (!updated.pinHash) updated.enabled = false;
+    saveLockConfig(updated); setCfg(updated);
+    flash('Biometric cleared.');
+  }
+
+  async function savePinFlow() {
+    setErr(null);
+    if (pin1 !== pin2)                   { setErr("PINs don't match.");        return; }
+    if (!/^\d{4,6}$/.test(pin1))         { setErr('PIN must be 4-6 digits.');  return; }
+    /* Changing a PIN when one exists requires verifying the old one. */
+    if (cfg.pinHash) {
+      if (!verifyPinInput)               { setErr('Enter the current PIN.');   return; }
+      const ok = await verifyPin(verifyPinInput, cfg);
+      if (!ok)                           { setErr('Current PIN is wrong.');    return; }
+    }
+    try {
+      const updated = await setPin(pin1, { ...loadLockConfig(), offered: true });
+      saveLockConfig(updated); setCfg(updated);
+      setPin1(''); setPin2(''); setVerifyPinInput('');
+      flash('PIN saved.');
+    } catch (e: any) {
+      setErr(e?.message || 'Could not save PIN.');
+    }
+  }
+
+  function clearPin() {
+    const updated = { ...cfg, pinHash: undefined, pinSalt: undefined };
+    if (!updated.credentialId) updated.enabled = false;
+    saveLockConfig(updated); setCfg(updated);
+    flash('PIN cleared.');
+  }
+
+  function fullReset() {
+    if (!confirm('Wipe the lock entirely? You will be asked to set it up again next launch.')) return;
+    clearLock(); refresh(); flash('Lock reset.');
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[10px] text-steel/80 leading-relaxed">
+        Device-local convenience lock — no backend verification. Uses your
+        platform authenticator (Face&nbsp;ID, Touch&nbsp;ID, Windows&nbsp;Hello,
+        Android biometric). PIN is the backup so you can't be locked out.
+      </p>
+
+      <Toggle
+        label="Require lock on launch"
+        value={cfg.enabled}
+        onChange={toggleLock}
+      />
+
+      <div className="space-y-2 pt-1">
+        <div className="flex items-center gap-2 text-[10px] tracking-[0.18em] uppercase text-steel">
+          <Fingerprint size={11} /> Biometric
+          {cfg.credentialId && <span className="text-emerald normal-case tracking-normal">· registered</span>}
+        </div>
+        {webAuthnSupported() ? (
+          <div className="flex gap-2">
+            <button
+              onClick={enrollBiometric}
+              disabled={busy}
+              className="flex-1 px-2 py-1.5 border border-amber/40 text-amber rounded hover:border-amber hover:bg-amber/10 text-[11px] tracking-[0.14em] uppercase disabled:opacity-50"
+            >
+              {cfg.credentialId ? 'Re-enrol' : (hasPlatform ? 'Enrol Face ID / biometric' : 'Try biometric')}
+            </button>
+            {cfg.credentialId && (
+              <button
+                onClick={clearBiometric}
+                className="px-2 py-1.5 border border-steel/30 text-steel rounded hover:text-bone hover:border-steel text-[11px] tracking-[0.14em] uppercase"
+                title="Forget biometric credential"
+              >
+                <Trash2 size={11} />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="text-steel/80 text-[11px] leading-relaxed">
+            WebAuthn isn't available in this browser. PIN-only.
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2 pt-1">
+        <div className="flex items-center gap-2 text-[10px] tracking-[0.18em] uppercase text-steel">
+          <KeyRound size={11} /> PIN
+          {cfg.pinHash && <span className="text-emerald normal-case tracking-normal">· set</span>}
+        </div>
+        {cfg.pinHash && (
+          <input
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            value={verifyPinInput}
+            onChange={e => setVerifyPinInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="Current PIN"
+            className="w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1.5 text-bone tabular-nums tracking-[0.3em] outline-none"
+          />
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            value={pin1}
+            onChange={e => setPin1(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder={cfg.pinHash ? 'New PIN' : 'PIN'}
+            className="bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1.5 text-bone tabular-nums tracking-[0.3em] outline-none"
+          />
+          <input
+            type="password"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={6}
+            value={pin2}
+            onChange={e => setPin2(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="Confirm"
+            className="bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1.5 text-bone tabular-nums tracking-[0.3em] outline-none"
+          />
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={savePinFlow}
+            className="flex-1 px-2 py-1.5 border border-amber/40 text-amber rounded hover:border-amber hover:bg-amber/10 text-[11px] tracking-[0.14em] uppercase"
+          >
+            {cfg.pinHash ? 'Change PIN' : 'Set PIN'}
+          </button>
+          {cfg.pinHash && (
+            <button
+              onClick={clearPin}
+              className="px-2 py-1.5 border border-steel/30 text-steel rounded hover:text-bone hover:border-steel text-[11px] tracking-[0.14em] uppercase"
+              title="Forget PIN"
+            >
+              <Trash2 size={11} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {err && <div className="text-danger text-[11px] leading-relaxed">{err}</div>}
+      {ok  && !err && <div className="text-emerald text-[11px] leading-relaxed">{ok}</div>}
+
+      <button
+        onClick={fullReset}
+        className="w-full px-2 py-1.5 border border-steel/30 text-steel rounded hover:text-bone hover:border-steel text-[10px] tracking-[0.18em] uppercase"
+      >
+        Reset lock state
+      </button>
+    </div>
+  );
+
+  function humanize(e: any): string {
+    const name = String(e?.name || '');
+    if (name === 'NotAllowedError')   return 'Cancelled or timed out.';
+    if (name === 'SecurityError')     return 'Origin not allowed by the authenticator.';
+    if (name === 'InvalidStateError') return 'A credential is already registered.';
+    if (name === 'NotSupportedError') return 'No platform authenticator on this device.';
+    return String(e?.message || 'Authenticator error.').slice(0, 140);
+  }
 }
 
