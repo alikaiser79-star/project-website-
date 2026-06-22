@@ -12,6 +12,7 @@ import { addReminder, parseDuration } from './reminders';
 import { trend } from './history';
 import { getCalendarCached } from './calendar';
 import { monthlyTotal, categoryBreakdown, currentMonthKey } from './expenses';
+import { queueCount } from './content';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -207,6 +208,18 @@ export function briefing(): string {
   (s.garden?.todayTasks ?? []).forEach(t => {
     candidates.push({ weight: 6, text: t });
   });
+
+  /* Content queue nudge — surface unshot items as a single action.
+     One slot only so it doesn't crowd out priorities / events. */
+  try {
+    const qc = queueCount();
+    if (qc.idea > 0) {
+      candidates.push({
+        weight: 7,
+        text: `Shoot ${qc.idea} planned ${qc.idea === 1 ? 'item' : 'items'} from the content queue`,
+      });
+    }
+  } catch { /* defensive */ }
 
   /* Pick the top 3 distinct actions. Dedupe on text. */
   candidates.sort((a, b) => b.weight - a.weight);

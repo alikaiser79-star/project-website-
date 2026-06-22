@@ -16,6 +16,7 @@ import { toggleHabit } from './habits';
 import { updateGoal as updateGoalFn, goalCurrent, goalPct } from './goals';
 import { fetchCalendar } from './calendar';
 import { expensesSnapshot } from './expenses';
+import { queueSnapshot } from './content';
 import { toast } from '../hooks/useToasts';
 import {
   debt, monthlyTotalEGP, debtClearedPct, operator,
@@ -190,6 +191,12 @@ export const TOOL_SCHEMAS = [
   {
     name: 'get_calendar',
     description: "Read the user's upcoming Google Calendar events. Returns up to 10 events with title, start, end, all-day flag, and optional location. Use this for any 'what's on my calendar', 'what's next', 'when is X' question, and to enrich the briefing.",
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_content_queue',
+    description:
+      "Read the user's saved Instagram content queue — items planned for the week with hook, format, account, status (idea/shot/posted), shotlist, caption, hashtags. Use this whenever the user asks 'what content do I have planned', 'what's still to shoot', or you need to nudge unshot items in the briefing.",
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -450,6 +457,9 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_expenses': {
       return JSON.stringify(expensesSnapshot());
+    }
+    case 'get_content_queue': {
+      return JSON.stringify(queueSnapshot());
     }
     case 'update_goal': {
       const id = String(call.input?.id || '');

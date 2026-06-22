@@ -11,6 +11,10 @@
    ============================================================ */
 
 import { claudeConfig } from '../kaiConfig';
+import { loadState, saveState } from './store';
+import type {
+  ContentItem, ContentAccount, ContentFormat, ContentStatus,
+} from '../types';
 
 export type Account = 'ali' | 'garden';
 
@@ -173,4 +177,225 @@ export function parseHooks(raw: string): Hook[] {
 
 function clean(v: any): string {
   return String(v ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/* ════════════════════════════════════════════════════════════
+   Week planner — same brand context and web_search, different
+   shape. Returns 5-7 ContentItems ready to drop into the queue.
+   ══════════════════════════════════════════════════════════ */
+
+export const FORMATS: ContentFormat[] = ['reel', 'carousel', 'story'];
+export function isFormat(v: any): v is ContentFormat {
+  return v === 'reel' || v === 'carousel' || v === 'story';
+}
+export function isAccount(v: any): v is ContentAccount {
+  return v === 'ali' || v === 'garden';
+}
+export function isStatus(v: any): v is ContentStatus {
+  return v === 'idea' || v === 'shot' || v === 'posted';
+}
+
+export type PlannedItem = Omit<ContentItem, 'id' | 'status' | 'createdAt'>;
+
+export async function planWeek(accounts: Account[]): Promise<PlannedItem[]> {
+  if (!claudeConfig.enabled) throw new Error('NO_API_KEY');
+  if (accounts.length === 0) throw new Error('NO_ACCOUNTS');
+
+  const brandBlock = accounts.map(a =>
+    `· ${a === 'ali' ? '@alikaiser1' : '@hiddengarden.eg'}: ${brandFor(a)}`
+  ).join('\n');
+  const nicheBlock = accounts.map(a => nicheFor(a)).join(' / ');
+  const accountList = accounts.map(a => a === 'ali' ? 'ali' : 'garden').join(' or ');
+  const count = accounts.length === 1 ? '5-7' : '6-7';
+
+  const system =
+    `You are KAI's content planner for Ali Kaiser. You build ` +
+    `weekly Instagram content plans grounded in what is actually ` +
+    `trending RIGHT NOW.\n\n` +
+    `BRAND CONTEXT\n${brandBlock}\n\n` +
+    `WORKFLOW\n` +
+    `1. Use the web_search tool to find what is trending right now ` +
+    `   across these niches: ${nicheBlock}. Search Cairo / Egypt ` +
+    `   angles when they fit. Look for viral audio, format trends, ` +
+    `   seasonal moments, news beats. 3-5 targeted searches max.\n` +
+    `2. Synthesise. Plan a week — ${count} items total — that mixes ` +
+    `   formats (reel / carousel / story), spreads the days, and ` +
+    `   stays on-brand for each account.\n` +
+    (accounts.length > 1
+      ? `3. Split the items across both accounts; lean to the format ` +
+        `   that fits each account best (reels for @alikaiser1, ` +
+        `   carousels for @hiddengarden.eg are great defaults).\n`
+      : `3. All items belong to the single chosen account.\n`) +
+    `\nOUTPUT FORMAT — STRICT\n` +
+    `Reply with ONLY a JSON array. No prose, no markdown fences, no ` +
+    `preamble. Schema:\n` +
+    `[\n` +
+    `  {\n` +
+    `    "slot":     "<short day-or-slot label, e.g. 'Mon AM', 'Day 2', 'Wed'>",\n` +
+    `    "account":  "<${accountList}>",\n` +
+    `    "format":   "<reel | carousel | story>",\n` +
+    `    "hook":     "<spoken or on-screen first 2 seconds, 4-12 words, punchy>",\n` +
+    `    "shotlist": ["line 1", "line 2", "line 3"],\n` +
+    `    "caption":  "<ready-to-paste caption, 1-3 sentences, on-brand voice>",\n` +
+    `    "hashtags": ["#tag1", "#tag2", "#tag3"]\n` +
+    `  }, ...\n` +
+    `]\n` +
+    `Exactly ${count} items. shotlist has 2-4 short lines. 3-5 hashtags ` +
+    `per item. No extra keys. No commentary outside the JSON.`;
+
+  const user = accounts.length === 1
+    ? `Plan the next ${count} content items for the chosen account.`
+    : `Plan the next ${count} content items split across both accounts.`;
+
+  const res = await fetch(claudeConfig.endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: claudeConfig.model,
+      max_tokens: 2400,
+      system,
+      messages: [{ role: 'user', content: user }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
+    }),
+  });
+  if (res.status === 503) throw new Error('NO_API_KEY');
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error('API_ERROR: ' + res.status + ' ' + t.slice(0, 200));
+  }
+
+  const data = await res.json();
+  let text = '';
+  for (const b of (data?.content || [])) {
+    if (b?.type === 'text' && typeof b.text === 'string') text += b.text;
+  }
+  return parsePlan(text, accounts);
+}
+
+export function parsePlan(raw: string, allowed: Account[]): PlannedItem[] {
+  let s = String(raw || '').trim();
+  if (!s) throw new Error('PARSE_EMPTY');
+  s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const start = s.indexOf('[');
+  const end   = s.lastIndexOf(']');
+  if (start < 0 || end <= start) throw new Error('PARSE_NO_ARRAY');
+
+  let arr: any;
+  try { arr = JSON.parse(s.slice(start, end + 1)); }
+  catch (e: any) { throw new Error('PARSE_JSON: ' + (e?.message || 'invalid')); }
+  if (!Array.isArray(arr) || arr.length === 0) throw new Error('PARSE_EMPTY_ARRAY');
+
+  const allowedSet = new Set(allowed);
+  const items: PlannedItem[] = [];
+  for (const it of arr.slice(0, 10)) {
+    if (!it || typeof it !== 'object') continue;
+    const slot     = clean(it.slot) || `Item ${items.length + 1}`;
+    let account: ContentAccount = isAccount(it.account) ? it.account
+                                : allowed[0];
+    if (!allowedSet.has(account)) account = allowed[0];
+    const format: ContentFormat = isFormat(it.format) ? it.format : 'reel';
+    const hook    = clean(it.hook);
+    const caption = clean(it.caption);
+    const rawShot = Array.isArray(it.shotlist) ? it.shotlist : [];
+    const shotlist = rawShot.map((s: any) => clean(s)).filter(Boolean).slice(0, 4);
+    const rawTags  = Array.isArray(it.hashtags) ? it.hashtags : [];
+    const hashtags = rawTags
+      .map((t: any) => clean(t))
+      .filter(Boolean)
+      .map((t: string) => t.startsWith('#') ? t : '#' + t.replace(/\s+/g, ''))
+      .slice(0, 6);
+
+    if (!hook || !caption || shotlist.length === 0) continue;
+    items.push({ slot, account, format, hook, shotlist, caption, hashtags });
+  }
+  if (items.length === 0) throw new Error('PARSE_NO_VALID_ITEMS');
+  /* Aim for 5-7 in the queue. Cap at 7 to keep the panel sane. */
+  return items.slice(0, 7);
+}
+
+/* ── Queue store ─────────────────────────────────────────── */
+
+export function listQueue(): ContentItem[] {
+  return [...(loadState().contentQueue || [])];
+}
+
+export function queueCount(): { total: number; idea: number; shot: number; posted: number } {
+  const q = listQueue();
+  return {
+    total:  q.length,
+    idea:   q.filter(c => c.status === 'idea').length,
+    shot:   q.filter(c => c.status === 'shot').length,
+    posted: q.filter(c => c.status === 'posted').length,
+  };
+}
+
+export function addQueueItems(items: PlannedItem[]): ContentItem[] {
+  const s = loadState();
+  const now = new Date().toISOString();
+  const fresh: ContentItem[] = items.map((p, i) => ({
+    id: 'c-' + Date.now() + '-' + i + '-' + Math.random().toString(36).slice(2, 6),
+    slot: p.slot,
+    account: p.account,
+    format: p.format,
+    hook: p.hook,
+    shotlist: p.shotlist.slice(0, 4),
+    caption: p.caption,
+    hashtags: p.hashtags.slice(0, 6),
+    status: 'idea',
+    createdAt: now,
+  }));
+  s.contentQueue = [...fresh, ...(s.contentQueue || [])];
+  saveState(s);
+  return fresh;
+}
+
+export function updateQueueItem(id: string, patch: Partial<ContentItem>): ContentItem | null {
+  const s = loadState();
+  const idx = (s.contentQueue || []).findIndex(c => c.id === id);
+  if (idx < 0) return null;
+  const cur = s.contentQueue[idx];
+  const next: ContentItem = {
+    ...cur,
+    ...(typeof patch.slot     === 'string'  ? { slot:     clean(patch.slot) || cur.slot } : {}),
+    ...(isAccount(patch.account)            ? { account:  patch.account! } : {}),
+    ...(isFormat(patch.format)              ? { format:   patch.format! } : {}),
+    ...(typeof patch.hook     === 'string'  ? { hook:     clean(patch.hook) } : {}),
+    ...(Array.isArray(patch.shotlist)       ? { shotlist: patch.shotlist.map(String).map(clean).filter(Boolean).slice(0, 4) } : {}),
+    ...(typeof patch.caption  === 'string'  ? { caption:  clean(patch.caption) } : {}),
+    ...(Array.isArray(patch.hashtags)       ? { hashtags: patch.hashtags.map(String).map(clean).filter(Boolean).map(t => t.startsWith('#') ? t : '#' + t.replace(/\s+/g, '')).slice(0, 6) } : {}),
+    ...(isStatus(patch.status)              ? { status:   patch.status! } : {}),
+  };
+  s.contentQueue = s.contentQueue.map(c => c.id === id ? next : c);
+  saveState(s);
+  return next;
+}
+
+export function advanceStatus(id: string): ContentItem | null {
+  const order: ContentStatus[] = ['idea', 'shot', 'posted'];
+  const cur = listQueue().find(c => c.id === id);
+  if (!cur) return null;
+  const i = order.indexOf(cur.status);
+  const next = order[(i + 1) % order.length];
+  return updateQueueItem(id, { status: next });
+}
+
+export function deleteQueueItem(id: string): boolean {
+  const s = loadState();
+  const before = (s.contentQueue || []).length;
+  s.contentQueue = (s.contentQueue || []).filter(c => c.id !== id);
+  saveState(s);
+  return s.contentQueue.length !== before;
+}
+
+export function queueSnapshot() {
+  const q = listQueue();
+  const counts = queueCount();
+  return {
+    counts,
+    items: q.map(c => ({
+      id: c.id, slot: c.slot, account: c.account, format: c.format,
+      hook: c.hook, shotlist: c.shotlist, caption: c.caption,
+      hashtags: c.hashtags, status: c.status, created_at: c.createdAt,
+    })),
+  };
 }
