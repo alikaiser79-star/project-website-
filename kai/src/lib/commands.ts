@@ -15,6 +15,7 @@ import { monthlyTotal, categoryBreakdown, currentMonthKey } from './expenses';
 import { queueCount } from './content';
 import { mirrorBriefing } from './kai/commitments';
 import { computeRunway, costInDays, paydayCushion, runwayBriefing } from './kai/runway';
+import { ledgerBriefing } from './kai/ledger';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -311,9 +312,15 @@ export function briefing(): string {
     for (const m of mirrorBriefing()) lines.push(m);
   } catch { /* defensive */ }
 
+  /* Ledger lines — flakes you're about to lean on + overdue
+     promises owed to you. Quiet by default. */
+  try {
+    for (const m of ledgerBriefing()) lines.push(m);
+  } catch { /* defensive */ }
+
   lines.push(`What's the first move?`);
-  /* Hard cap — Tollgate + Mirror both feed in now. */
-  return lines.slice(0, 10).join('\n');
+  /* Hard cap — Tollgate + Mirror + Ledger all feed in now. */
+  return lines.slice(0, 12).join('\n');
 }
 
 /* A narrative recap of the last 7 days from the data we have locally. */
