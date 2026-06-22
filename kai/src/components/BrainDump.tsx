@@ -20,6 +20,8 @@ import {
   Bell, Sparkles, Receipt, NotebookPen, AlertTriangle, RefreshCw, ArrowRight, Check,
 } from 'lucide-react';
 import { sortDump, fileSorted, summarizeCounts, type Sorted } from '../lib/braindump';
+import { extractCommitment } from '../lib/kai/ai';
+import { addCommitment } from '../lib/kai/commitments';
 import { voice, type VoiceState } from '../lib/speech';
 import { setCapturing } from '../lib/captureMode';
 import { sfx } from '../lib/sound';
@@ -126,6 +128,15 @@ export default function BrainDump({ open, onClose }: Props) {
       setSorted(out);
       setPhase('review');
       sfx.confirm();
+      /* Mirror — try to extract a self-commitment from the raw
+         dump in parallel. Background; failure is silent so a
+         missing key or model hiccup doesn't block sorting. */
+      void extractCommitment(dump).then(draft => {
+        if (draft) {
+          const c = addCommitment({ ...draft, source: 'kai' });
+          toast.ok(`Mirror: "${c.text}" by ${new Date(c.deadline).toDateString()}`, 'COMMITMENT', 5000);
+        }
+      }).catch(() => { /* silent */ });
     } catch (e: any) {
       setErr(humanize(e));
       sfx.error();

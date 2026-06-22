@@ -8,6 +8,7 @@
 
 import { loadState, saveState } from './store';
 import type { Expense, ExpenseCategory } from '../types';
+import { logEvent } from './kai/events';
 
 export const CATEGORIES: ExpenseCategory[] = [
   'groceries', 'dining', 'fuel', 'transport', 'shopping', 'bills', 'other',
@@ -33,6 +34,14 @@ export function addExpense(e: Omit<Expense, 'id'>): Expense {
   const s = loadState();
   s.expenses = [next, ...(s.expenses || [])];
   saveState(s);
+  /* Spine — amount + category metadata so "spend under N on X this
+     month" commitments can resolve. */
+  logEvent({
+    domain: 'expense', type: 'expense_logged',
+    value: next.total,
+    meta: { merchant: next.merchant, category: next.category, currency: next.currency },
+    source: 'user',
+  });
   return next;
 }
 

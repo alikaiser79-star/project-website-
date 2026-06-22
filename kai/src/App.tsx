@@ -29,6 +29,7 @@ import MakadiPanel    from './components/panels/MakadiPanel';
 import PrioritiesPanel from './components/panels/PrioritiesPanel';
 import ExpensesPanel   from './components/panels/ExpensesPanel';
 import ContentQueuePanel from './components/panels/ContentQueuePanel';
+import { MirrorPanel, startMirror } from './lib/kai/mirror';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -81,6 +82,11 @@ export default function App() {
 
   // settings change → persist + sound enable flag
   useEffect(() => { setSoundEnabled(settings.soundEnabled); }, [settings.soundEnabled]);
+
+  /* The Mirror — resolves open commitments against the Spine on
+     mount, every 6h, and on tab visibility change. Idempotent
+     and safe to call any time. */
+  useEffect(() => startMirror(), []);
 
   /* Relock after the tab has been hidden for ≥ 5 minutes. The base
      idle-watermark fires sooner (5 min of inactivity in this tab),
@@ -404,6 +410,7 @@ export default function App() {
             {/* Right */}
             <div className="flex flex-col gap-6 sm:gap-8 min-w-0">
               <DebtPanel delay={0.30} />
+              <MirrorPanel delay={0.35} />
               <MakadiPanel delay={0.40} />
               <Suspense fallback={<div className="glass rounded-lg p-5 text-steel font-mono text-xs">loading charts…</div>}>
                 <InstagramPanel delay={0.50} />

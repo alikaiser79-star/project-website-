@@ -17,6 +17,9 @@ import { updateGoal as updateGoalFn, goalCurrent, goalPct } from './goals';
 import { fetchCalendar } from './calendar';
 import { expensesSnapshot } from './expenses';
 import { queueSnapshot } from './content';
+import { logEvent, getEvents } from './kai/events';
+import { addCommitment } from './kai/commitments';
+import { extractCommitment } from './kai/ai';
 import { toast } from '../hooks/useToasts';
 import {
   debt, monthlyTotalEGP, debtClearedPct, operator,
@@ -194,6 +197,32 @@ export const TOOL_SCHEMAS = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'query_events',
+    description:
+      "Read the KAI Spine — the append-only event stream of real mutations across the app. Use this to ground answers in actual history (debt payments, rate changes, follower syncs, completed priorities, posted content, expenses, commitments made/kept/broken). Default time window is last 30 days.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        domain:    { type: 'string', description: "income | debt | garden | makadi | instagram | priorities | expense | habit | content | commitment | system" },
+        type:      { type: 'string', description: 'Specific event type, e.g. payment_logged' },
+        sinceDays: { type: 'number', description: 'How many days back to scan. Default 30. Cap 365.' },
+        limit:     { type: 'number', description: 'Max events to return. Default 50. Cap 200.' },
+      },
+    },
+  },
+  {
+    name: 'make_commitment',
+    description:
+      "Capture a self-commitment Ali just made — a measurable promise with a deadline. Extracts and saves it so the Mirror can later grade it kept/broken against real Spine events. Use this when he says 'I'll', 'I commit', 'I promise', or names a target + deadline in conversation.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'The raw commitment phrase, verbatim, that Ali just said.' },
+      },
+      required: ['text'],
+    },
+  },
+  {
     name: 'get_content_queue',
     description:
       "Read the user's saved Instagram content queue — items planned for the week with hook, format, account, status (idea/shot/posted), shotlist, caption, hashtags. Use this whenever the user asks 'what content do I have planned', 'what's still to shoot', or you need to nudge unshot items in the briefing.",
@@ -260,6 +289,9 @@ export async function runTool(call: ToolCall): Promise<string> {
       const s = loadState();
       s.debtCurrent = Math.max(0, s.debtCurrent - amt);
       saveState(s);
+      /* Spine — payment + new balance, both commitment-resolvable. */
+      logEvent({ domain: 'debt', type: 'payment_logged',  value: amt,            source: 'user' });
+      logEvent({ domain: 'debt', type: 'balance_updated', value: s.debtCurrent,  source: 'user' });
       toast.ok(`Debt -${amt.toLocaleString('en-GB')} EGP applied`, 'KAI · TOOL', 3000);
       return JSON.stringify({ ok: true, newBalance: s.debtCurrent });
     }
@@ -360,6 +392,8 @@ export async function runTool(call: ToolCall): Promise<string> {
       if (!hit) return JSON.stringify({ ok: false, reason: 'no matching open priority' });
       s.priorities = s.priorities.map(p => p.id === hit.id ? { ...p, done: true } : p);
       saveState(s);
+      /* Spine — task closed. */
+      logEvent({ domain: 'priorities', type: 'task_done', value: 1, meta: { text: hit.text }, source: 'ai' });
       toast.ok(`Completed: “${hit.text}”`, 'KAI · TOOL', 3000);
       return JSON.stringify({ ok: true, completed: hit.text });
     }
@@ -460,6 +494,37 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_content_queue': {
       return JSON.stringify(queueSnapshot());
+    }
+    case 'query_events': {
+      const sinceDays = Math.max(0, Math.min(365, Number(call.input?.sinceDays ?? 30)));
+      const limit     = Math.max(1, Math.min(200, Number(call.input?.limit ?? 50)));
+      const since = Date.now() - sinceDays * 86_400_000;
+      const evs = getEvents({
+        domain: call.input?.domain,
+        type:   call.input?.type,
+        since,
+      }).slice(-limit);
+      return JSON.stringify({ count: evs.length, since_days: sinceDays, events: evs });
+    }
+    case 'make_commitment': {
+      const text = String(call.input?.text || '').trim();
+      if (!text) return JSON.stringify({ ok: false, reason: 'missing text' });
+      const draft = await extractCommitment(text);
+      if (!draft) {
+        return JSON.stringify({
+          ok: false,
+          reason: 'no measurable commitment — Ali needs a number and a date that maps to a tracked metric',
+        });
+      }
+      const saved = addCommitment({ ...draft, source: 'kai' });
+      toast.ok(`Commitment logged: ${saved.text}`, 'KAI · MIRROR', 4000);
+      return JSON.stringify({
+        ok: true,
+        id: saved.id,
+        text: saved.text,
+        deadline: new Date(saved.deadline).toISOString(),
+        metric: saved.metric,
+      });
     }
     case 'update_goal': {
       const id = String(call.input?.id || '');

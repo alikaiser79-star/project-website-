@@ -12,6 +12,7 @@
 
 import { claudeConfig } from '../kaiConfig';
 import { loadState, saveState } from './store';
+import { logEvent } from './kai/events';
 import type {
   ContentItem, ContentAccount, ContentFormat, ContentStatus,
 } from '../types';
@@ -354,6 +355,7 @@ export function updateQueueItem(id: string, patch: Partial<ContentItem>): Conten
   const idx = (s.contentQueue || []).findIndex(c => c.id === id);
   if (idx < 0) return null;
   const cur = s.contentQueue[idx];
+  const prevStatus = cur.status;
   const next: ContentItem = {
     ...cur,
     ...(typeof patch.slot     === 'string'  ? { slot:     clean(patch.slot) || cur.slot } : {}),
@@ -367,6 +369,22 @@ export function updateQueueItem(id: string, patch: Partial<ContentItem>): Conten
   };
   s.contentQueue = s.contentQueue.map(c => c.id === id ? next : c);
   saveState(s);
+  /* Spine — when status flips TO posted, emit format-specific
+     events so "post N reels" / "post N items" commitments resolve. */
+  if (prevStatus !== 'posted' && next.status === 'posted') {
+    logEvent({
+      domain: 'content', type: 'item_posted', value: 1,
+      meta: { format: next.format, account: next.account, hook: next.hook },
+      source: 'user',
+    });
+    if (next.format === 'reel') {
+      logEvent({
+        domain: 'content', type: 'reel_posted', value: 1,
+        meta: { account: next.account, hook: next.hook },
+        source: 'user',
+      });
+    }
+  }
   return next;
 }
 
