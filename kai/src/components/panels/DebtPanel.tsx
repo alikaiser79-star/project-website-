@@ -1,23 +1,36 @@
 import Panel from '../Panel';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { debt, operator } from '../../kaiConfig';
-import { loadState, saveState } from '../../lib/store';
+import { loadState, saveState, applyDebtPayment } from '../../lib/store';
 import { useCounter } from '../../hooks/useCounter';
 import { celebrate } from '../../lib/celebrate';
 import Sparkline from '../Sparkline';
 import { seriesFor, trend } from '../../lib/history';
+import { toast } from '../../hooks/useToasts';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
 export default function DebtPanel({ delay = 0 }: { delay?: number }) {
   const [current, setCurrent] = useState(() => loadState().debtCurrent);
-  useEffect(() => {
+
+  /* Quick-pay: actual card payment. Fires Spine events so the
+     Mirror can resolve "pay down to X" commitments. */
+  function pay(amount: number) {
+    const wasNonZero = current > 0;
+    const next = applyDebtPayment(amount);
+    setCurrent(next);
+    toast.ok(`-${fmt(amount)} EGP applied. Balance ${fmt(next)} EGP.`, 'DEBT', 3200);
+    if (wasNonZero && next === 0) celebrate();
+  }
+
+  /* Reset is a UI undo, NOT a payment — no Spine event. */
+  function reset() {
     const s = loadState();
-    const wasNonZero = s.debtCurrent > 0;
-    s.debtCurrent = current; saveState(s);
-    if (wasNonZero && current === 0) celebrate();
-  }, [current]);
+    s.debtCurrent = debt.current;
+    saveState(s);
+    setCurrent(debt.current);
+  }
 
   const cleared = Math.max(0, debt.original - current);
   const pct = Math.min(100, (cleared / debt.original) * 100);
@@ -72,15 +85,15 @@ export default function DebtPanel({ delay = 0 }: { delay?: number }) {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setCurrent(c => Math.max(0, c - 2000))}
+              onClick={() => pay(2000)}
               className="px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase rounded border border-white/[0.08] text-bone/80 hover:border-white/15 hover:text-bone transition"
             >−2k</button>
             <button
-              onClick={() => setCurrent(c => Math.max(0, c - 5000))}
+              onClick={() => pay(5000)}
               className="px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase rounded border border-white/[0.08] text-bone/80 hover:border-white/15 hover:text-bone transition"
             >−5k</button>
             <button
-              onClick={() => setCurrent(debt.current)}
+              onClick={reset}
               className="px-3 py-1.5 text-[11px] tracking-[0.16em] uppercase rounded text-steel/60 hover:text-bone/80 transition"
             >reset</button>
           </div>

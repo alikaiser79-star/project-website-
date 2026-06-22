@@ -212,3 +212,18 @@ export function setLiquidCash(amount: number) {
   /* Spine — cash adjustments are runway-relevant history. */
   try { logEvent({ domain: 'income', type: 'cash_set', value: s.liquidCash, source: 'user' }); } catch {}
 }
+
+/* Apply a card payment from anywhere in the UI. Returns the new
+   balance. Fires payment_logged + balance_updated so the Mirror
+   can resolve "pay down to X" commitments, and the Spine has a
+   real audit trail of payments. */
+export function applyDebtPayment(amountEgp: number): number {
+  const amt = Math.max(0, Math.round(amountEgp || 0));
+  if (amt <= 0) return loadState().debtCurrent;
+  const s = loadState();
+  s.debtCurrent = Math.max(0, s.debtCurrent - amt);
+  saveState(s);
+  logEvent({ domain: 'debt', type: 'payment_logged',  value: amt,           source: 'user' });
+  logEvent({ domain: 'debt', type: 'balance_updated', value: s.debtCurrent, source: 'user' });
+  return s.debtCurrent;
+}
