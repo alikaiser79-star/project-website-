@@ -39,6 +39,11 @@ import SitePanel from './components/panels/SitePanel';
 import IgFeedPanel from './components/panels/IgFeedPanel';
 import PhonePanel from './components/panels/PhonePanel';
 import AutopilotPanel from './components/panels/AutopilotPanel';
+import WatchtowerPanel from './components/panels/WatchtowerPanel';
+import ScribePanel from './components/panels/ScribePanel';
+import EnvoyPanel from './components/panels/EnvoyPanel';
+import DelegatePanel from './components/panels/DelegatePanel';
+import { startWatchtower } from './lib/kai/watchtower';
 import ConfirmationGate from './lib/kai/ConfirmationGate';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
@@ -98,6 +103,11 @@ export default function App() {
      mount, every 6h, and on tab visibility change. Idempotent
      and safe to call any time. */
   useEffect(() => startMirror(), []);
+
+  /* The Watchtower — ambient triggers. Ticks on boot, every 5 min
+     while visible, on visibility regain. Fires toasts and (if
+     granted) native Notifications. */
+  useEffect(() => startWatchtower(), []);
 
   /* Phone-bridge intake — /api/ingest stashed the shared payload
      in sessionStorage and 302'd here. Route it to the right
@@ -461,6 +471,7 @@ export default function App() {
               <IncomePanel delay={0.20} />
               <TollgatePanel delay={0.50} />
               <PrioritiesPanel delay={0.55} />
+              <EnvoyPanel delay={0.58} />
             </div>
 
             {/* Center — orb (desktop only) sits in its own column, then Garden */}
@@ -480,6 +491,7 @@ export default function App() {
               <ContentQueuePanel delay={0.60} />
               <LedgerPanel delay={0.65} />
               <CrownPanel delay={0.70} />
+              <ScribePanel delay={0.75} />
             </div>
 
             {/* Right */}
@@ -495,6 +507,8 @@ export default function App() {
               <SitePanel delay={0.68} />
               <IgFeedPanel delay={0.72} />
               <PhonePanel delay={0.76} />
+              <WatchtowerPanel delay={0.80} />
+              <DelegatePanel delay={0.84} />
             </div>
           </div>
 
