@@ -56,6 +56,7 @@ export const defaults: KaiPersisted = {
   })),
   fxEgpPerEur: currency.egpPerEur,
   expenses: [],
+  contentQueue: [],
 };
 
 /* Migrate a legacy `goals: GoalState[]` ({id, current}) array into
@@ -121,6 +122,10 @@ export function loadState(): KaiPersisted {
       expenses: Array.isArray(parsed.expenses)
         ? parsed.expenses.filter((e: any) =>
             e && typeof e === 'object' && typeof e.id === 'string' && typeof e.total === 'number')
+        : [],
+      contentQueue: Array.isArray((parsed as any).contentQueue)
+        ? (parsed as any).contentQueue.filter((c: any) =>
+            c && typeof c === 'object' && typeof c.id === 'string' && typeof c.hook === 'string')
         : [],
     };
   } catch { return cloneDefaults(); }

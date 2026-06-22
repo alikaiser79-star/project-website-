@@ -98,6 +98,25 @@ export type Expense = {
   category: ExpenseCategory;
 };
 
+/* Content queue — a saved planned reel/carousel/story.
+   account/format are constrained sets so panel rendering can branch.
+   shotlist is 2-4 short lines, hashtags are 3-5 normalised "#tag"s. */
+export type ContentAccount = 'ali' | 'garden';
+export type ContentFormat  = 'reel' | 'carousel' | 'story';
+export type ContentStatus  = 'idea' | 'shot' | 'posted';
+export type ContentItem = {
+  id: string;
+  slot: string;
+  account: ContentAccount;
+  format: ContentFormat;
+  hook: string;
+  shotlist: string[];
+  caption: string;
+  hashtags: string[];
+  status: ContentStatus;
+  createdAt: string;
+};
+
 export type KaiPersisted = {
   priorities: Priority[];
   settings: KaiSettings;
@@ -114,4 +133,5 @@ export type KaiPersisted = {
   instagram: IgAccount[];
   fxEgpPerEur: number;
   expenses: Expense[];
+  contentQueue: ContentItem[];
 };

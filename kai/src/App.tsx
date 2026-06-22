@@ -26,6 +26,7 @@ import GardenPanel    from './components/panels/GardenPanel';
 import MakadiPanel    from './components/panels/MakadiPanel';
 import PrioritiesPanel from './components/panels/PrioritiesPanel';
 import ExpensesPanel   from './components/panels/ExpensesPanel';
+import ContentQueuePanel from './components/panels/ContentQueuePanel';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -388,6 +389,7 @@ export default function App() {
                 </Suspense>
               </motion.div>
               <GardenPanel delay={0.45} />
+              <ContentQueuePanel delay={0.60} />
             </div>
 
             {/* Right */}

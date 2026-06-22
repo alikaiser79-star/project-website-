@@ -12,8 +12,11 @@
 
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sparkles, X, Copy, Check, RefreshCw, AtSign, Loader2, Globe, AlertTriangle } from 'lucide-react';
-import { generateReelHooks, type Account, type Hook } from '../lib/content';
+import { Sparkles, X, Copy, Check, RefreshCw, AtSign, Loader2, Globe, AlertTriangle, CalendarRange } from 'lucide-react';
+import {
+  generateReelHooks, planWeek, addQueueItems,
+  type Account, type Hook,
+} from '../lib/content';
 import { sfx } from '../lib/sound';
 import { toast } from '../hooks/useToasts';
 
@@ -47,6 +50,12 @@ export default function ContentPanel({ open, onClose }: Props) {
   const [busy, setBusy]    = useState(false);
   const [hooks, setHooks]  = useState<Hook[] | null>(null);
   const [err, setErr]      = useState<string | null>(null);
+  const [mode, setMode]    = useState<'idle' | 'hooks' | 'week'>('idle');
+  /* Week planner selection — independent of the one-off account
+     so the user can plan both at once without nuking their hook
+     prefs. */
+  const [weekAccounts, setWeekAccounts] = useState<Account[]>([initial.account]);
+  const [weekSavedCount, setWeekSavedCount] = useState<number | null>(null);
 
   useEffect(() => { savePersisted({ account, topic }); }, [account, topic]);
 
@@ -60,28 +69,52 @@ export default function ContentPanel({ open, onClose }: Props) {
 
   async function run() {
     if (busy) return;
+    setMode('hooks');
     setBusy(true);
     setErr(null);
+    setWeekSavedCount(null);
     sfx.whoosh();
     try {
       const out = await generateReelHooks(account, topic);
       setHooks(out);
       sfx.confirm();
     } catch (e: any) {
-      const msg = String(e?.message || 'unknown');
-      if (msg === 'NO_API_KEY') {
-        setErr("No Anthropic key on the server. Set ANTHROPIC_API_KEY in Vercel and try again.");
-      } else if (msg.startsWith('PARSE_')) {
-        setErr("KAI's reply didn't parse cleanly. Try again — model usually nails it second pass.");
-      } else if (msg.startsWith('API_ERROR')) {
-        setErr('Upstream API error — ' + msg.slice(11, 160));
-      } else {
-        setErr(msg.slice(0, 200));
-      }
+      setErr(humanizeApiError(e));
       sfx.error();
     } finally {
       setBusy(false);
     }
+  }
+
+  async function runWeek() {
+    if (busy) return;
+    if (weekAccounts.length === 0) {
+      setErr('Pick at least one account.');
+      return;
+    }
+    setMode('week');
+    setBusy(true);
+    setErr(null);
+    setHooks(null);
+    setWeekSavedCount(null);
+    sfx.whoosh();
+    try {
+      const items = await planWeek(weekAccounts);
+      const saved = addQueueItems(items);
+      setWeekSavedCount(saved.length);
+      sfx.confirm();
+      toast.ok(`${saved.length} items saved to the queue.`, 'CONTENT', 4000);
+    } catch (e: any) {
+      setErr(humanizeApiError(e));
+      sfx.error();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleWeekAccount(a: Account) {
+    sfx.click();
+    setWeekAccounts(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]);
   }
 
   return (
@@ -159,24 +192,54 @@ export default function ContentPanel({ open, onClose }: Props) {
                   'disabled:opacity-60 disabled:cursor-not-allowed'
                 }
               >
-                {busy
+                {busy && mode === 'hooks'
                   ? <><Loader2 size={14} className="animate-spin" /> Searching the web & generating…</>
                   : <><Sparkles size={14} /> Generate 3 reel hooks</>}
               </button>
+
+              {/* Week planner — separate accounts, separate output. */}
+              <div className="pt-3 border-t border-amber/10 space-y-2">
+                <label className="block text-[10px] tracking-[0.18em] text-steel uppercase">Plan a week · accounts</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <WeekToggle
+                    selected={weekAccounts.includes('ali')}
+                    onClick={() => toggleWeekAccount('ali')}
+                    label="@alikaiser1"
+                  />
+                  <WeekToggle
+                    selected={weekAccounts.includes('garden')}
+                    onClick={() => toggleWeekAccount('garden')}
+                    label="@hiddengarden.eg"
+                  />
+                </div>
+                <button
+                  onClick={runWeek}
+                  disabled={busy || weekAccounts.length === 0}
+                  className={
+                    'w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded border ' +
+                    'border-cyan/40 text-cyan hover:bg-cyan/10 transition ' +
+                    'disabled:opacity-60 disabled:cursor-not-allowed text-[12px] tracking-[0.06em]'
+                  }
+                >
+                  {busy && mode === 'week'
+                    ? <><Loader2 size={13} className="animate-spin" /> Planning the week…</>
+                    : <><CalendarRange size={13} /> Plan a week into the queue</>}
+                </button>
+              </div>
             </div>
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
-              {!hooks && !err && !busy && (
+              {!hooks && !err && !busy && weekSavedCount === null && (
                 <EmptyState />
               )}
 
               {busy && (
-                <BusyState />
+                <BusyState mode={mode} />
               )}
 
               {err && (
-                <ErrorState message={err} onRetry={run} />
+                <ErrorState message={err} onRetry={mode === 'week' ? runWeek : run} />
               )}
 
               {hooks && !busy && !err && (
@@ -191,6 +254,10 @@ export default function ContentPanel({ open, onClose }: Props) {
                     <RefreshCw size={12} /> Generate 3 more
                   </button>
                 </div>
+              )}
+
+              {weekSavedCount !== null && !busy && !err && (
+                <WeekSavedState count={weekSavedCount} onPlanMore={runWeek} />
               )}
             </div>
 
@@ -242,7 +309,8 @@ function EmptyState() {
   );
 }
 
-function BusyState() {
+function BusyState({ mode }: { mode: 'idle' | 'hooks' | 'week' }) {
+  const week = mode === 'week';
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
       <div className="relative">
@@ -252,11 +320,59 @@ function BusyState() {
         </div>
       </div>
       <p className="mt-4 font-mono text-[11px] tracking-[0.18em] uppercase text-steel">
-        scanning the web · drafting hooks
+        {week ? 'scanning the web · planning the week' : 'scanning the web · drafting hooks'}
       </p>
-      <p className="mt-1 font-mono text-[10px] text-steel/70">this takes 10-20 s</p>
+      <p className="mt-1 font-mono text-[10px] text-steel/70">{week ? 'this takes 20-40 s' : 'this takes 10-20 s'}</p>
     </div>
   );
+}
+
+function WeekSavedState({ count, onPlanMore }: { count: number; onPlanMore: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <Check size={26} className="text-emerald mb-3" />
+      <p className="font-sans text-bone text-[14px]">
+        {count} item{count === 1 ? '' : 's'} saved to the queue.
+      </p>
+      <p className="mt-2 font-mono text-[11px] text-steel max-w-[420px] leading-relaxed">
+        Open the Content Queue panel to shoot list, copy hooks &amp; captions, and mark items as shot or posted.
+      </p>
+      <button
+        onClick={onPlanMore}
+        className="mt-4 flex items-center gap-2 px-3 py-2 rounded border border-cyan/40 text-cyan hover:bg-cyan/10 text-[11px] tracking-[0.16em] uppercase"
+      >
+        <CalendarRange size={12} /> Plan another batch
+      </button>
+    </div>
+  );
+}
+
+function WeekToggle({
+  selected, onClick, label,
+}: { selected: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        'flex items-center justify-center gap-1.5 px-2.5 py-2 rounded border transition font-mono text-[11px] tracking-[0.06em] ' +
+        (selected
+          ? 'border-cyan bg-cyan/10 text-cyan'
+          : 'border-cyan/20 text-steel hover:text-bone hover:border-cyan/50')
+      }
+    >
+      <AtSign size={10} className={selected ? 'text-cyan' : 'text-steel'} />
+      {label.replace(/^@/, '')}
+    </button>
+  );
+}
+
+function humanizeApiError(e: any): string {
+  const msg = String(e?.message || 'unknown');
+  if (msg === 'NO_API_KEY')   return "No Anthropic key on the server. Set ANTHROPIC_API_KEY in Vercel and try again.";
+  if (msg === 'NO_ACCOUNTS')  return "Pick at least one account.";
+  if (msg.startsWith('PARSE_'))     return "KAI's reply didn't parse cleanly. Try again — model usually nails it second pass.";
+  if (msg.startsWith('API_ERROR'))  return 'Upstream API error — ' + msg.slice(11, 160);
+  return msg.slice(0, 200);
 }
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
