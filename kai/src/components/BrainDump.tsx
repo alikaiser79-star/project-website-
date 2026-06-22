@@ -28,9 +28,9 @@ import { sfx } from '../lib/sound';
 import { toast } from '../hooks/useToasts';
 import { loadState } from '../lib/store';
 
-type Props = { open: boolean; onClose: () => void };
+type Props = { open: boolean; onClose: () => void; initialText?: string };
 
-export default function BrainDump({ open, onClose }: Props) {
+export default function BrainDump({ open, onClose, initialText }: Props) {
   const [phase, setPhase] = useState<'capture' | 'review'>('capture');
   const [text, setText]   = useState('');
   const [busy, setBusy]   = useState(false);
@@ -48,7 +48,7 @@ export default function BrainDump({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     setPhase('capture');
-    setText('');
+    setText(initialText || '');
     setErr(null);
     setSorted(null);
     setListening(false);

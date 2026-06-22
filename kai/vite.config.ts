@@ -65,6 +65,23 @@ export default defineConfig({
           { src: 'icon.svg',          sizes: 'any',    type: 'image/svg+xml', purpose: 'any' },
           { src: 'icon-maskable.svg', sizes: 'any',    type: 'image/svg+xml', purpose: 'maskable' },
         ],
+        /* OS share-sheet target — iOS / Android can throw text or
+           an image into KAI. /api/ingest stashes the payload in
+           sessionStorage and redirects to /, the App's
+           shareHandler reads it and opens the right surface
+           (BrainDump prefilled, or ReceiptConfirm with the
+           extracted draft). */
+        share_target: {
+          action: '/api/ingest',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text:  'text',
+            url:   'url',
+            files: [{ name: 'media', accept: ['image/*'] }],
+          },
+        },
       },
     }),
   ],
