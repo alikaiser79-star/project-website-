@@ -2,6 +2,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X, Keyboard } from 'lucide-react';
 
 const rows: Array<[string[], string]> = [
+  [['1'],       'Command view'],
+  [['2'],       'Money view'],
+  [['3'],       'Growth view'],
+  [['4'],       'Operations view'],
+  [['5'],       'Comms view'],
   [['⌘', 'K'],  'Open command bar'],
   [['⌘', '/'],  'Spotlight search'],
   [['Esc'],     'Close any overlay'],

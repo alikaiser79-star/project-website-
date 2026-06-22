@@ -48,7 +48,8 @@ type Props = {
 export default function ViewNav({ active, onChange, badges }: Props) {
   return (
     <nav
-      className="glass rounded-lg px-1.5 py-1.5 flex items-center gap-1 overflow-x-auto"
+      data-viewnav
+      className="glass rounded-lg px-1.5 py-1.5 flex items-center gap-1 overflow-x-auto sticky top-2 sm:top-3 z-30"
       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
     >
       {VIEWS.map((v, idx) => {
