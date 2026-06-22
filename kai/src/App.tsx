@@ -6,6 +6,7 @@ import Boot from './components/Boot';
 import TopBar from './components/TopBar';
 import CommandBar from './components/CommandBar';
 import ContentPanel from './components/ContentPanel';
+import BrainDump from './components/BrainDump';
 import SettingsDrawer from './components/SettingsDrawer';
 import CheatSheet from './components/CheatSheet';
 import JournalDrawer from './components/JournalDrawer';
@@ -17,6 +18,7 @@ import { resumeReminders } from './lib/reminders';
 import { recordSnapshot } from './lib/history';
 import { fetchCalendar } from './lib/calendar';
 import { onAction, emitAction } from './lib/actions';
+import { isCapturing } from './lib/captureMode';
 import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
@@ -49,6 +51,7 @@ export default function App() {
   const [booted, setBooted]   = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
+  const [brainOpen, setBrainOpen] = useState(false);
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -152,6 +155,11 @@ export default function App() {
       }
       /* Final — remember as last-heard regardless of wake-word match. */
       setLastHeard(text);
+
+      /* Brain Dump (or another transient capture surface) is
+         currently grabbing voice — don't double-fire the global
+         wake-word / Claude pipeline. */
+      if (isCapturing()) return;
 
       const lower = text.toLowerCase().trim();
       const wakeRe = /^(?:hey )?(?:kai|core)[,.\s]+(.+)$/i;
@@ -339,6 +347,7 @@ export default function App() {
             onCmdK={() => setCmdOpen(true)}
             onSettings={() => setSetOpen(true)}
             onContent={() => setContentOpen(true)}
+            onBrainDump={() => setBrainOpen(true)}
             voiceOn={settings.voiceEnabled}
             setVoiceOn={(b) => onSettings({ ...settings, voiceEnabled: b })}
             soundOn={settings.soundEnabled}
@@ -428,6 +437,7 @@ export default function App() {
 
       <CommandBar open={cmdOpen} onClose={() => setCmdOpen(false)} settings={settings} />
       <ContentPanel open={contentOpen} onClose={() => setContentOpen(false)} />
+      <BrainDump    open={brainOpen}   onClose={() => setBrainOpen(false)} />
       <SettingsDrawer
         open={setOpen}
         onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}

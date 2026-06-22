@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Command, Mic, MicOff, Volume2, VolumeX, Settings, Download, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
+import { Command, Mic, MicOff, Volume2, VolumeX, Settings, Download, AlertTriangle, Loader2, Sparkles, Brain } from 'lucide-react';
 import { operator } from '../kaiConfig';
 import { sfx } from '../lib/sound';
 import type { VoiceState } from '../lib/speech';
@@ -9,6 +9,7 @@ type Props = {
   onCmdK: () => void;
   onSettings: () => void;
   onContent: () => void;
+  onBrainDump: () => void;
   voiceOn: boolean;
   setVoiceOn: (b: boolean) => void;
   soundOn: boolean;
@@ -25,7 +26,7 @@ function fmtTime(d: Date) {
 }
 
 export default function TopBar({
-  onCmdK, onSettings, onContent, voiceOn, setVoiceOn, soundOn, setSoundOn, operatorName, voiceState,
+  onCmdK, onSettings, onContent, onBrainDump, voiceOn, setVoiceOn, soundOn, setSoundOn, operatorName, voiceState,
 }: Props) {
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(t); }, []);
@@ -101,6 +102,15 @@ export default function TopBar({
             <Download size={11} /> Install
           </button>
         )}
+
+        <button
+          id="tour-braindump"
+          onClick={() => { sfx.whoosh(); onBrainDump(); }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-amber/35 text-amber/95 hover:border-amber hover:bg-amber/10 transition font-mono text-[10px] tracking-[0.16em] uppercase"
+          title="Brain Dump · capture & sort"
+        >
+          <Brain size={11} /> <span className="hidden sm:inline">Dump</span>
+        </button>
 
         <button
           id="tour-content"
