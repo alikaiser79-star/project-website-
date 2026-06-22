@@ -38,6 +38,7 @@ import InboxPanel from './components/panels/InboxPanel';
 import SitePanel from './components/panels/SitePanel';
 import IgFeedPanel from './components/panels/IgFeedPanel';
 import PhonePanel from './components/panels/PhonePanel';
+import AutopilotPanel from './components/panels/AutopilotPanel';
 import ConfirmationGate from './lib/kai/ConfirmationGate';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
@@ -407,6 +408,19 @@ export default function App() {
             onSettings={() => setSetOpen(true)}
             onContent={() => setContentOpen(true)}
             onBrainDump={() => setBrainOpen(true)}
+            onAutopilot={() => {
+              /* Scroll the Autopilot panel into view; the panel's
+                 Run button is the actual trigger so the user always
+                 sees the status surface while it's running. */
+              const el = document.querySelector<HTMLElement>('[data-panel="17"]');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.remove('panel-flash');
+                void el.offsetWidth;
+                el.classList.add('panel-flash');
+                setTimeout(() => el.classList.remove('panel-flash'), 1400);
+              }
+            }}
             voiceOn={settings.voiceEnabled}
             setVoiceOn={(b) => onSettings({ ...settings, voiceEnabled: b })}
             soundOn={settings.soundEnabled}
@@ -443,6 +457,7 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
             {/* Left */}
             <div className="flex flex-col gap-6 sm:gap-8 min-w-0">
+              <AutopilotPanel delay={0.15} />
               <IncomePanel delay={0.20} />
               <TollgatePanel delay={0.50} />
               <PrioritiesPanel delay={0.55} />
