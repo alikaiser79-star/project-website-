@@ -38,6 +38,8 @@ import { runBuiltin } from './lib/commands';
 import { toast } from './hooks/useToasts';
 import { makadi } from './kaiConfig';
 import type { KaiSettings } from './types';
+import LockOverlay from './components/LockOverlay';
+import { loadLockConfig, type LockConfig } from './lib/lock';
 
 export default function App() {
   const initial = loadState();
@@ -56,6 +58,15 @@ export default function App() {
   const [voiceState, setVoiceState] = useState<VoiceState>(() => voice.getState());
   const [lastHeard, setLastHeard] = useState('');
 
+  /* Biometric / PIN lock state.
+     - lockCfg.enabled  → dashboard hidden behind LockOverlay
+     - showSetup        → first-run "Protect KAI" prompt
+     - unlocked         → true after a successful WebAuthn/PIN pass
+     Device-local only; see lib/lock.ts. */
+  const [lockCfg, setLockCfg] = useState<LockConfig>(() => loadLockConfig());
+  const [unlocked, setUnlocked] = useState<boolean>(() => !loadLockConfig().enabled);
+  const [showSetup, setShowSetup] = useState<boolean>(false);
+
   const onSettings = useCallback((s: KaiSettings) => {
     setSettings(s);
     setSoundEnabled(s.soundEnabled);
@@ -63,6 +74,34 @@ export default function App() {
 
   // settings change → persist + sound enable flag
   useEffect(() => { setSoundEnabled(settings.soundEnabled); }, [settings.soundEnabled]);
+
+  /* Relock after the tab has been hidden for ≥ 5 minutes. The base
+     idle-watermark fires sooner (5 min of inactivity in this tab),
+     but visibility hiding is the stronger signal — the user
+     switched apps / locked the device. */
+  useEffect(() => {
+    if (!lockCfg.enabled) return;
+    let hiddenAt = 0;
+    function onVis() {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+      } else if (hiddenAt && Date.now() - hiddenAt > 5 * 60_000) {
+        setUnlocked(false);
+      }
+    }
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [lockCfg.enabled]);
+
+  /* Offer setup once after boot, if the user has never been asked
+     and the device has any unlock capability. Null-safe — if the
+     check throws or the user skipped before, we just don't show it. */
+  useEffect(() => {
+    if (!booted) return;
+    if (lockCfg.enabled || lockCfg.offered) return;
+    const id = setTimeout(() => setShowSetup(true), 1600);
+    return () => clearTimeout(id);
+  }, [booted, lockCfg.enabled, lockCfg.offered]);
 
   /* Voice state — always subscribed so the banner reflects the
      wrapper's truth (starting / listening / error / idle / unsupported)
@@ -190,6 +229,10 @@ export default function App() {
   // Choreograph entrance + proactive boot notifications
   useEffect(() => {
     if (!booted) return;
+    /* Don't fire welcome toasts / briefing TTS while the lock overlay
+       is up — would speak through it before the user has even passed
+       auth. Effect re-runs the moment unlocked flips true. */
+    if (lockCfg.enabled && !unlocked) return;
     const tl = gsap.timeline();
     tl.from('.kai-core-wrap', { scale: 0.6, opacity: 0, duration: 1.1, ease: 'power3.out' });
 
@@ -272,7 +315,7 @@ export default function App() {
     }
 
     return () => { offAct(); };
-  }, [booted]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [booted, unlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -416,6 +459,30 @@ export default function App() {
       />
       <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
       <ToastStack />
+
+      {/* Biometric / PIN lock. Setup is one-time, unlock gates every
+          relaunch + post-idle resume when enabled. */}
+      {lockCfg.enabled && !unlocked && (
+        <LockOverlay
+          mode="unlock"
+          onUnlocked={() => setUnlocked(true)}
+          onSetupDone={() => {}}
+        />
+      )}
+      {showSetup && !lockCfg.enabled && (
+        <LockOverlay
+          mode="setup"
+          onUnlocked={() => {}}
+          onSetupDone={(cfg) => {
+            setLockCfg(cfg);
+            setShowSetup(false);
+            if (cfg.enabled) {
+              setUnlocked(true);
+              toast.ok('Lock armed. KAI will ask on next launch.', 'SECURITY', 5000);
+            }
+          }}
+        />
+      )}
     </>
   );
 }
