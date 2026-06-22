@@ -17,7 +17,7 @@
 import { read, write, uid, emit } from './store';
 import { logEvent } from './events';
 
-export type PendingKind = 'email_send' | 'ig_publish' | 'site_commit' | 'site_deploy';
+export type PendingKind = 'email_send' | 'ig_publish' | 'site_commit' | 'site_deploy' | 'sms_send';
 
 export interface PendingAction {
   id: string;
@@ -97,6 +97,14 @@ const EXECUTORS: Record<PendingKind, (p: any) => Promise<void>> = {
   site_deploy: async (p) => {
     await post('/api/site/deploy', p);
     logEvent({ domain: 'system', type: 'site_deployed', meta: { repo: p?.repo }, source: 'ai' });
+  },
+  sms_send: async (p) => {
+    await post('/api/phone/send', p);
+    logEvent({
+      domain: 'system', type: 'sms_sent',
+      meta: { to: p?.to, channel: p?.channel || 'sms' },
+      source: 'ai',
+    });
   },
 };
 
