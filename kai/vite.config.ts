@@ -6,14 +6,33 @@ import { VitePWA } from 'vite-plugin-pwa';
    Override with `VITE_BASE=/foo/` at build time for other hosts. */
 const base = process.env.VITE_BASE || '/';
 
+/* Build identity — short SHA on Vercel, "dev" locally. Used as
+   BOTH the footer version string (so the user can tell builds
+   apart) AND as the Workbox `cacheId`, which becomes part of every
+   precache name. New deploy → new id → old caches drop. */
+const BUILD_ID = (process.env.VERCEL_GIT_COMMIT_SHA || 'dev').slice(0, 7);
+
 export default defineConfig({
   base,
+  define: {
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-maskable.svg'],
       workbox: {
+        /* cacheId is prefixed onto every Workbox cache name. Bumping
+           it per build means the old precache is no longer owned by
+           the new SW and gets cleaned up on activation. */
+        cacheId: 'kai-' + BUILD_ID,
+        /* Take over from any previously-installed SW IMMEDIATELY.
+           The client-side reload-on-activation in main.tsx swaps
+           the page once the new SW is in control. */
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         navigateFallback: 'index.html',
         runtimeCaching: [
