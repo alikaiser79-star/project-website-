@@ -12,9 +12,10 @@
 
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Instagram, RefreshCw, Loader2, AlertTriangle, Heart, MessageCircle, Film, Image as ImageIcon, ExternalLink } from 'lucide-react';
+import { Instagram, RefreshCw, Loader2, AlertTriangle, Heart, MessageCircle, Film, Image as ImageIcon, ExternalLink, ShieldCheck, KeyRound } from 'lucide-react';
 import Panel from '../Panel';
 import { sfx } from '../../lib/sound';
+import { logEvent } from '../../lib/kai/events';
 
 interface MediaItem {
   id: string;
@@ -39,6 +40,14 @@ interface Account {
   media: MediaItem[];
   error?: string;
 }
+interface HealthRow {
+  key: string;
+  status: 'ok' | 'expiring' | 'near_expiry' | 'broken' | 'unknown';
+  token_type: 'USER' | 'PAGE' | null;
+  expires_at: string | null;
+  expires_in_days: number | null;
+  message: string;
+}
 
 type State =
   | { kind: 'loading' }
@@ -48,6 +57,7 @@ type State =
 
 export default function IgFeedPanel({ delay = 0 }: { delay?: number }) {
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const [health, setHealth] = useState<Map<string, HealthRow>>(new Map());
 
   async function load() {
     setState({ kind: 'loading' });
@@ -68,6 +78,52 @@ export default function IgFeedPanel({ delay = 0 }: { delay?: number }) {
     }
   }
   useEffect(() => { load(); }, []);
+
+  /* Token health — runs alongside /list. Fire Spine events on
+     warnings so the Mirror / Web can later spot a connector
+     about to die. Throttled to once per panel mount; the
+     real-time check is the read call below. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch('/api/ig/health');
+        if (!r.ok) return;
+        const data = await r.json();
+        if (cancelled) return;
+        const map = new Map<string, HealthRow>();
+        for (const h of (data?.accounts || [])) map.set(h.key, h);
+        setHealth(map);
+        /* Spine: warn the rest of the system when a token is in
+           trouble. Limit cardinality by tagging the day in meta. */
+        const today = new Date().toISOString().slice(0, 10);
+        for (const h of map.values()) {
+          if (h.status === 'broken') {
+            try { logEvent({
+              domain: 'system', type: 'token_warning',
+              value: 0,
+              meta: { handle: h.key, status: 'broken', day: today, message: h.message },
+              source: 'auto',
+            }); } catch {}
+          } else if (h.status === 'near_expiry' || (h.expires_in_days !== null && h.expires_in_days <= 14)) {
+            try { logEvent({
+              domain: 'system', type: 'token_warning',
+              value: h.expires_in_days ?? 0,
+              meta: { handle: h.key, status: h.status, day: today, days_left: h.expires_in_days },
+              source: 'auto',
+            }); } catch {}
+          } else if (h.status === 'ok') {
+            try { logEvent({
+              domain: 'system', type: 'token_validated',
+              meta: { handle: h.key, token_type: h.token_type, day: today },
+              source: 'auto',
+            }); } catch {}
+          }
+        }
+      } catch { /* silent — read panel still works */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const tag =
     state.kind === 'loading'  ? 'loading…' :
@@ -121,7 +177,7 @@ export default function IgFeedPanel({ delay = 0 }: { delay?: number }) {
         {state.kind === 'ok' && state.accounts.length > 0 && (
           <ul className="space-y-4">
             <AnimatePresence initial={false}>
-              {state.accounts.map(a => <AccountRow key={a.key} a={a} />)}
+              {state.accounts.map(a => <AccountRow key={a.key} a={a} health={health.get(a.key)} />)}
             </AnimatePresence>
           </ul>
         )}
@@ -134,7 +190,7 @@ export default function IgFeedPanel({ delay = 0 }: { delay?: number }) {
   );
 }
 
-function AccountRow({ a }: { a: Account }) {
+function AccountRow({ a, health }: { a: Account; health?: HealthRow }) {
   return (
     <motion.li
       initial={{ opacity: 0, y: 2 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
@@ -150,6 +206,8 @@ function AccountRow({ a }: { a: Account }) {
           </span>
         )}
       </div>
+
+      {health && <TokenHealth h={health} />}
 
       {a.error && (
         <div className="flex items-start gap-1.5 text-danger/85 text-[10.5px]">
@@ -204,6 +262,35 @@ function MediaTile({ m }: { m: MediaItem }) {
         <span className="ml-auto"><ExternalLink size={8} /></span>
       </div>
     </a>
+  );
+}
+
+function TokenHealth({ h }: { h: HealthRow }) {
+  const colors: Record<HealthRow['status'], { border: string; text: string; bg: string; Icon: any }> = {
+    ok:          { border: 'border-emerald/40', text: 'text-emerald', bg: 'bg-emerald/[0.06]', Icon: ShieldCheck },
+    expiring:    { border: 'border-amber/45',   text: 'text-amber',   bg: 'bg-amber/[0.06]',   Icon: KeyRound },
+    near_expiry: { border: 'border-danger/45',  text: 'text-danger',  bg: 'bg-danger/[0.06]',  Icon: AlertTriangle },
+    broken:      { border: 'border-danger/55',  text: 'text-danger',  bg: 'bg-danger/[0.08]',  Icon: AlertTriangle },
+    unknown:     { border: 'border-steel/30',   text: 'text-steel',   bg: '',                  Icon: KeyRound },
+  };
+  const c = colors[h.status];
+  const Icon = c.Icon;
+  const label =
+    h.status === 'ok' && h.expires_in_days === null ? 'token · non-expiring' :
+    h.status === 'ok'                                ? `token · ${h.expires_in_days}d left` :
+    h.status === 'expiring'                          ? `token · ${h.expires_in_days}d left — refresh soon` :
+    h.status === 'near_expiry'                       ? `token · ${h.expires_in_days}d left — refresh now` :
+    h.status === 'broken'                            ? `token · broken` :
+                                                       `token · ${h.token_type === null ? 'unknown' : h.token_type.toLowerCase()}`;
+  return (
+    <div className={`flex items-center gap-1.5 px-2 py-1 rounded border ${c.border} ${c.bg} font-mono text-[10px] tracking-[0.06em] ${c.text}`}
+         title={h.message}>
+      <Icon size={10} />
+      <span>{label}</span>
+      {h.token_type && (
+        <span className="ml-auto text-steel/70 uppercase tracking-[0.16em] text-[9px]">{h.token_type}</span>
+      )}
+    </div>
   );
 }
 
