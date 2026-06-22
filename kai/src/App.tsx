@@ -25,6 +25,7 @@ import DebtPanel      from './components/panels/DebtPanel';
 import GardenPanel    from './components/panels/GardenPanel';
 import MakadiPanel    from './components/panels/MakadiPanel';
 import PrioritiesPanel from './components/panels/PrioritiesPanel';
+import ExpensesPanel   from './components/panels/ExpensesPanel';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -396,6 +397,7 @@ export default function App() {
               <Suspense fallback={<div className="glass rounded-lg p-5 text-steel font-mono text-xs">loading charts…</div>}>
                 <InstagramPanel delay={0.50} />
               </Suspense>
+              <ExpensesPanel delay={0.55} />
             </div>
           </div>
 

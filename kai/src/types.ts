@@ -84,6 +84,20 @@ export type Goal = {
    older saves into the new full Goal shape. */
 export type GoalState = { id: string; current: number };
 
+/* Receipts / expenses — a single uploaded receipt or manual entry.
+   date is ISO YYYY-MM-DD; total is in `currency`. category is the
+   short fixed-set string (see lib/expenses.ts). */
+export type ExpenseCategory =
+  | 'groceries' | 'dining' | 'fuel' | 'transport' | 'shopping' | 'bills' | 'other';
+export type Expense = {
+  id: string;
+  merchant: string;
+  total: number;
+  currency: string;        // ISO 4217 code, e.g. 'EGP', 'EUR'
+  date: string;            // YYYY-MM-DD
+  category: ExpenseCategory;
+};
+
 export type KaiPersisted = {
   priorities: Priority[];
   settings: KaiSettings;
@@ -99,4 +113,5 @@ export type KaiPersisted = {
   makadi: MakadiState;
   instagram: IgAccount[];
   fxEgpPerEur: number;
+  expenses: Expense[];
 };
