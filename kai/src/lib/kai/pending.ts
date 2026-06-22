@@ -16,6 +16,7 @@
 
 import { read, write, uid, emit } from './store';
 import { logEvent } from './events';
+import { match as delegateMatch, recordFire as delegateRecord } from './delegate';
 
 export type PendingKind = 'email_send' | 'ig_publish' | 'site_commit' | 'site_deploy' | 'sms_send';
 
@@ -50,6 +51,35 @@ export function proposeAction(kind: PendingKind, summary: string, payload: unkno
   write(KEY, all);
   emit();
   logEvent({ domain: 'system', type: 'action_proposed', meta: { kind, summary }, source: 'ai' });
+
+  /* The Delegate — if a standing rule matches this proposal,
+     auto-approve (or auto-reject) right now without Ali's tap.
+     Logs delegate_auto_approved / delegate_auto_rejected so the
+     audit trail stays honest. */
+  try {
+    const rule = delegateMatch(a);
+    if (rule) {
+      delegateRecord(rule.id);
+      if (rule.action === 'auto_approve') {
+        logEvent({
+          domain: 'system', type: 'delegate_auto_approved',
+          meta: { rule_id: rule.id, rule_name: rule.name, action_id: a.id, kind, summary },
+          source: 'auto',
+        });
+        /* Fire-and-forget; if it throws, the action marks failed
+           and surfaces in the gate normally. */
+        approveAction(a.id).catch(() => { /* error already recorded on action */ });
+      } else if (rule.action === 'auto_reject') {
+        logEvent({
+          domain: 'system', type: 'delegate_auto_rejected',
+          meta: { rule_id: rule.id, rule_name: rule.name, action_id: a.id, kind, summary },
+          source: 'auto',
+        });
+        rejectAction(a.id);
+      }
+    }
+  } catch { /* defensive — Delegate failure must not break propose */ }
+
   return a;
 }
 
