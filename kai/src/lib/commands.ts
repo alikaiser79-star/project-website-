@@ -14,6 +14,7 @@ import { getCalendarCached } from './calendar';
 import { monthlyTotal, categoryBreakdown, currentMonthKey } from './expenses';
 import { queueCount } from './content';
 import { mirrorBriefing } from './kai/commitments';
+import { computeRunway, costInDays, paydayCushion, runwayBriefing } from './kai/runway';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -39,6 +40,45 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/\b(debt|credit|card|paydown|payoff)\b/.test(q)) {
     const cleared = debt.original - loadState().debtCurrent;
     return `Credit card paydown: ${fmt(cleared)} EGP cleared of ${fmt(debt.original)}. That is ${debtClearedPct().toFixed(1)}%. Minimum payment ${fmt(debt.minPayment)} EGP.`;
+  }
+
+  /* Tollgate — "can I afford 1200", "spend 1200", "is 800 worth it".
+     Prices a discretionary amount in days of freedom. Checked before
+     the generic money branch so the number gets caught. */
+  {
+    const spendMatch = q.match(/\b(?:afford|spend|buy|drop|blow|worth)\b[^\d]*?([\d][\d,. ]*)\s*(?:k\b|egp|le|pounds?)?/i);
+    if (spendMatch) {
+      const raw = spendMatch[1].replace(/[, ]/g, '');
+      let amt = parseFloat(raw);
+      if (/\dk\b/i.test(q) || /\bk\b/.test(spendMatch[0])) amt *= 1000;
+      if (Number.isFinite(amt) && amt > 0) {
+        const d = costInDays(amt);
+        const r = computeRunway();
+        if (d === null) {
+          return `Can't price that yet — no spending history to measure burn against. Log a few expenses first.`;
+        }
+        const after = r.runwayDays === null ? null : r.runwayDays - d;
+        const tail = after === null ? '' :
+          ` That drops your runway to ${Math.floor(after)} days.`;
+        const verdict = d >= 3 ? ' Steep — sleep on it.' : d >= 1 ? ' Noticeable.' : ' Cheap in freedom terms.';
+        return `${fmt(amt)} EGP is ${d.toFixed(1)} day${d >= 1.05 || d < 0.95 ? 's' : ''} of freedom.${tail}${verdict}`;
+      }
+    }
+  }
+
+  /* Tollgate — "runway", "how long can I survive", "days of freedom". */
+  if (/\b(runway|survive|days of freedom|how long.*(broke|survive|last)|broke)\b/.test(q)) {
+    const r = computeRunway();
+    if (r.runwayDays === null) {
+      return `No burn signal yet — log some expenses and set your liquid cash in the Tollgate panel, then I can tell you the runway.`;
+    }
+    const pc = paydayCushion();
+    const cushion = pc
+      ? pc.cushionDays >= 0
+        ? ` You hit the next payday with ${Math.round(pc.cushionDays)} days to spare.`
+        : ` You're ${Math.abs(Math.round(pc.cushionDays))} days short of the next payday — move something.`
+      : '';
+    return `Runway: ${Math.floor(r.runwayDays)} days of freedom. ${fmt(r.liquidCash)} EGP liquid against ${fmt(r.dailyBurn)} EGP/day burn.${cushion}`;
   }
 
   if (/\b(income|earnings|money|revenue)\b/.test(q)) {
@@ -260,6 +300,11 @@ export function briefing(): string {
     top.forEach((c, i) => lines.push(`${i + 1}. ${c.text}.`));
   }
 
+  /* Tollgate — runway + payday cushion. Quiet when no burn signal. */
+  try {
+    for (const m of runwayBriefing()) lines.push(m);
+  } catch { /* defensive */ }
+
   /* Mirror lines — overdue / countdown / recently broken / score.
      Quiet when there's nothing to say. */
   try {
@@ -267,8 +312,8 @@ export function briefing(): string {
   } catch { /* defensive */ }
 
   lines.push(`What's the first move?`);
-  /* Hard cap at 8 lines now that the Mirror can chime in. */
-  return lines.slice(0, 8).join('\n');
+  /* Hard cap — Tollgate + Mirror both feed in now. */
+  return lines.slice(0, 10).join('\n');
 }
 
 /* A narrative recap of the last 7 days from the data we have locally. */
