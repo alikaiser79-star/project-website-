@@ -210,6 +210,12 @@ export const TOOL_SCHEMAS = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'read_ig_health',
+    description:
+      "Per-account token health for the Instagram connector. Returns status (ok / expiring / near_expiry / broken / unknown), token type (USER / PAGE), expires_in_days (null when non-expiring), and a short message. Use to surface 'your IG token expires in N days' in the briefing or when Ali asks why a post failed. The token itself is NEVER returned.",
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
     name: 'propose_ig_post',
     description:
       "Propose publishing a post to ONE of Ali's Instagram accounts. Does NOT publish. Queues an ig_publish action Ali must approve in the ConfirmationGate. For IMAGE the image_url is publicly fetched by Meta; for REELS the video_url must be public https. Use handle = the account key from KAI_IG_ACCOUNTS ('ali' or 'garden').",
@@ -651,6 +657,16 @@ export async function runTool(call: ToolCall): Promise<string> {
     }
     case 'get_legend': {
       return JSON.stringify(crownSnapshot());
+    }
+    case 'read_ig_health': {
+      try {
+        const r = await fetch('/api/ig/health');
+        const data = await r.json();
+        if (!r.ok) return JSON.stringify({ ok: false, error: data?.error || ('http ' + r.status), message: data?.message });
+        return JSON.stringify({ ok: true, ...data });
+      } catch (e: any) {
+        return JSON.stringify({ ok: false, error: String(e?.message || e || 'fetch failed') });
+      }
     }
     case 'read_ig': {
       try {
