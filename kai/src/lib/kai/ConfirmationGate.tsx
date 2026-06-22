@@ -26,12 +26,14 @@ const KIND_LABEL: Record<PendingKind, string> = {
   ig_publish:  'publish to Instagram',
   site_commit: 'commit to site',
   site_deploy: 'deploy site',
+  sms_send:    'send message',
 };
 const KIND_COLOR: Record<PendingKind, string> = {
   email_send:  '#5FE3FF',
   ig_publish:  '#C792EA',
   site_commit: '#FFB300',
   site_deploy: '#FF6B6B',
+  sms_send:    '#7AE6A8',
 };
 
 export default function ConfirmationGate() {

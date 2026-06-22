@@ -36,6 +36,7 @@ import CrownPanel from './components/panels/CrownPanel';
 import InboxPanel from './components/panels/InboxPanel';
 import SitePanel from './components/panels/SitePanel';
 import IgFeedPanel from './components/panels/IgFeedPanel';
+import PhonePanel from './components/panels/PhonePanel';
 import ConfirmationGate from './lib/kai/ConfirmationGate';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
@@ -433,6 +434,7 @@ export default function App() {
               <InboxPanel delay={0.62} />
               <SitePanel delay={0.68} />
               <IgFeedPanel delay={0.72} />
+              <PhonePanel delay={0.76} />
             </div>
           </div>
 
