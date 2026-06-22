@@ -11,6 +11,7 @@ import { addJournal } from './journal';
 import { addReminder, parseDuration } from './reminders';
 import { trend } from './history';
 import { getCalendarCached } from './calendar';
+import { monthlyTotal, categoryBreakdown, currentMonthKey } from './expenses';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -226,8 +227,19 @@ export function briefing(): string {
     tail = ` Debt up ${Math.round(debtTrend.delta).toLocaleString('en-GB')} EGP over ${debtTrend.samples}d — watch it.`;
   }
 
+  /* Monthly spend — surface when there's anything logged this month. */
+  let spendLine = '';
+  try {
+    const spent = monthlyTotal(currentMonthKey());
+    if (spent > 0) {
+      const top = categoryBreakdown(currentMonthKey())[0];
+      const topPart = top ? ` Top category ${top.category}.` : '';
+      spendLine = ` Spent ${fmt(spent)} EGP this month so far.${topPart}`;
+    }
+  } catch { /* defensive */ }
+
   const lines: string[] = [];
-  lines.push(`${greet}, ${name}. Debt at ${cleared.toFixed(0)}% cleared. ~${fmt(total)} EGP projecting this month.${tail}`);
+  lines.push(`${greet}, ${name}. Debt at ${cleared.toFixed(0)}% cleared. ~${fmt(total)} EGP projecting this month.${tail}${spendLine}`);
   if (top.length === 0) {
     lines.push(`Priority list clear and no garden tasks queued. Take the morning.`);
   } else {

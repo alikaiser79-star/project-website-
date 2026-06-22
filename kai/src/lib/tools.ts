@@ -15,6 +15,7 @@ import { getSnapshots, trend, coverage } from './history';
 import { toggleHabit } from './habits';
 import { updateGoal as updateGoalFn, goalCurrent, goalPct } from './goals';
 import { fetchCalendar } from './calendar';
+import { expensesSnapshot } from './expenses';
 import { toast } from '../hooks/useToasts';
 import {
   debt, monthlyTotalEGP, debtClearedPct, operator,
@@ -189,6 +190,12 @@ export const TOOL_SCHEMAS = [
   {
     name: 'get_calendar',
     description: "Read the user's upcoming Google Calendar events. Returns up to 10 events with title, start, end, all-day flag, and optional location. Use this for any 'what's on my calendar', 'what's next', 'when is X' question, and to enrich the briefing.",
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_expenses',
+    description:
+      "Read the user's expense ledger — total spent this calendar month, breakdown by category, and recent entries. Use this for questions like 'how much did I spend on groceries this month' or to enrich the briefing with spend context.",
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -440,6 +447,9 @@ export async function runTool(call: ToolCall): Promise<string> {
       setFx(rate);
       toast.ok(`FX rate: 1 EUR = ${rate.toFixed(2)} EGP`, 'KAI · TOOL', 3000);
       return JSON.stringify({ ok: true, fx_egp_per_eur: rate });
+    }
+    case 'get_expenses': {
+      return JSON.stringify(expensesSnapshot());
     }
     case 'update_goal': {
       const id = String(call.input?.id || '');
