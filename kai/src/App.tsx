@@ -448,7 +448,7 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 1.2 } }}
             className="flex flex-wrap items-center justify-between gap-3 pt-2 pb-1 font-mono text-[10px] tracking-[0.18em] uppercase text-steel/45"
           >
-            <span>kai · v1.13</span>
+            <span title="Vercel commit SHA, injected at build time">kai · {__BUILD_ID__}</span>
             <span className="hidden md:inline normal-case tracking-normal text-steel/50">
               <kbd>⌘</kbd><kbd>K</kbd>&nbsp;commands&nbsp;·&nbsp;<span id="tour-spotlight"><kbd>⌘</kbd><kbd>/</kbd>&nbsp;search</span>&nbsp;·&nbsp;<kbd>⌘</kbd><kbd>J</kbd>&nbsp;journal
             </span>
