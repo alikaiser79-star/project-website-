@@ -5,6 +5,7 @@ import Background from './components/Background';
 import Boot from './components/Boot';
 import TopBar from './components/TopBar';
 import CommandBar from './components/CommandBar';
+import ContentPanel from './components/ContentPanel';
 import SettingsDrawer from './components/SettingsDrawer';
 import CheatSheet from './components/CheatSheet';
 import JournalDrawer from './components/JournalDrawer';
@@ -45,6 +46,7 @@ export default function App() {
   const initial = loadState();
   const [booted, setBooted]   = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [contentOpen, setContentOpen] = useState(false);
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -334,6 +336,7 @@ export default function App() {
           <TopBar
             onCmdK={() => setCmdOpen(true)}
             onSettings={() => setSetOpen(true)}
+            onContent={() => setContentOpen(true)}
             voiceOn={settings.voiceEnabled}
             setVoiceOn={(b) => onSettings({ ...settings, voiceEnabled: b })}
             soundOn={settings.soundEnabled}
@@ -420,6 +423,7 @@ export default function App() {
       )}
 
       <CommandBar open={cmdOpen} onClose={() => setCmdOpen(false)} settings={settings} />
+      <ContentPanel open={contentOpen} onClose={() => setContentOpen(false)} />
       <SettingsDrawer
         open={setOpen}
         onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}
