@@ -54,7 +54,7 @@ import { loadState, saveState } from './lib/store';
 import { setSoundEnabled, sfx } from './lib/sound';
 import { voice, type VoiceState } from './lib/speech';
 import VoiceBanner from './components/VoiceBanner';
-import { emit } from './hooks/useKaiPulse';
+import { emit, useKaiPulse } from './hooks/useKaiPulse';
 import { runBuiltin } from './lib/commands';
 import { toast } from './hooks/useToasts';
 import { makadi } from './kaiConfig';
@@ -126,6 +126,13 @@ export default function App() {
   /* Subscribe to the Spine bus so nav badges recompute when the
      gate fills or the watchtower fires. */
   useKaiVersion();
+  /* Heartbeat state — drives the kai-listen / kai-speak classes
+     on the orb wrapper so the heart races when KAI is alert. */
+  const heart = useKaiPulse();
+  const heartClass =
+    heart.speaking  ? 'kai-speak'
+  : heart.listening ? 'kai-listen'
+  : '';
   const pendingCount = (() => { try { return getPending().length; } catch { return 0; } })();
   const alertCount   = (() => { try { return getWatchtower().alerts.length; } catch { return 0; } })();
   const navBadges: Partial<Record<ViewKey, number>> = {
@@ -669,7 +676,7 @@ export default function App() {
                 </div>
                 <div className="order-1 lg:order-2 flex flex-col gap-6 items-stretch">
                   <motion.div
-                    className="kai-core-wrap relative grid place-items-center w-full py-2 lg:py-4"
+                    className={'kai-core-wrap relative grid place-items-center w-full py-2 lg:py-4 ' + heartClass}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1, transition: { delay: 0.5, duration: 0.8 } }}
                   >

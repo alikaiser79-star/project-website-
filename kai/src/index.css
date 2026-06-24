@@ -62,6 +62,64 @@ body {
   opacity: 0.72;
   transition: opacity 0.8s ease;
 }
+
+/* ── The Heart ──────────────────────────────────────────────
+   The orb beats like a real heart. Cardiac cycle ~970 ms
+   (62 BPM resting). Two beats per cycle: the big systole at
+   the top of the curve, a smaller diastolic kick at 28%, then
+   long relaxation. Halo expands fractionally ahead of the
+   ventricle so light leads mass — physical, not synthetic.
+
+   When KAI is speaking or listening, the orb (via the
+   useKaiPulse hook) changes its rendering; this animation
+   just lives on the wrapper and is independent. Honours
+   prefers-reduced-motion. */
+@keyframes kai-systole {
+  0%   { transform: scale(1.000); }
+  10%  { transform: scale(1.022); }   /* S1 — ventricular contraction */
+  18%  { transform: scale(1.014); }
+  28%  { transform: scale(1.028); }   /* S2 — aortic / pulmonic kick */
+  40%  { transform: scale(1.012); }
+  100% { transform: scale(1.000); }   /* long diastole */
+}
+@keyframes kai-halo {
+  0%   { transform: scale(0.96); opacity: 0.55; }
+  10%  { transform: scale(1.05); opacity: 0.85; }
+  28%  { transform: scale(1.08); opacity: 0.92; }
+  40%  { transform: scale(1.02); opacity: 0.65; }
+  100% { transform: scale(0.96); opacity: 0.55; }
+}
+.kai-heart {
+  animation: kai-systole 970ms ease-in-out infinite;
+  will-change: transform;
+}
+.kai-heart-halo {
+  animation: kai-halo 970ms ease-in-out infinite;
+  will-change: transform, opacity;
+}
+/* When KAI is listening, the heart accelerates — alert, raised
+   pulse (~92 BPM). When speaking, even faster (~110 BPM, the
+   "talking-with-your-hands" energy). The .kai-listen / .kai-speak
+   classes are set on the wrap by App.tsx from useKaiPulse. */
+.kai-heart.kai-listen,
+.kai-heart.kai-listen .kai-heart-halo {
+  animation-duration: 650ms;
+}
+.kai-heart.kai-speak,
+.kai-heart.kai-speak .kai-heart-halo {
+  animation-duration: 545ms;
+}
+.idle-mode .kai-heart,
+.idle-mode .kai-heart .kai-heart-halo {
+  animation-duration: 1400ms;     /* resting at 43 BPM in standby */
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kai-heart,
+  .kai-heart .kai-heart-halo {
+    animation: none;
+  }
+}
 .idle-mode .glass:hover {
   opacity: 1;
   transition: opacity 0.3s ease;
