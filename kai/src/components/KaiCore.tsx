@@ -463,10 +463,22 @@ export default function KaiCore({ size, accent: _accent = 'amber' as Accent }: {
   }, []);
 
   return (
-    <div className="relative" style={wrap}>
+    <div className="relative kai-heart" style={wrap}>
+      {/* Halo — soft radial behind the orb that breathes WITH the
+          systole/diastole on the wrapper. Gives the heartbeat
+          physical mass without touching the canvas internals. */}
+      <span
+        aria-hidden
+        className="kai-heart-halo absolute inset-[-12%] rounded-full pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(closest-side, rgba(255,179,0,0.18), rgba(127,203,255,0.06) 55%, transparent 75%)',
+          filter: 'blur(8px)',
+        }}
+      />
       <canvas
         ref={canvasRef}
-        className="block w-full h-full"
+        className="block w-full h-full relative"
         aria-hidden
       />
     </div>
