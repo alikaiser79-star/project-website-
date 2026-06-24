@@ -61,7 +61,7 @@ import { makadi } from './kaiConfig';
 import type { KaiSettings } from './types';
 import LockOverlay from './components/LockOverlay';
 import { loadLockConfig, type LockConfig } from './lib/lock';
-import ViewNav, { VIEW_LABEL, VIEWS, type ViewKey } from './components/ViewNav';
+import ViewNav, { VIEW_LABEL, VIEW_ACCENT, VIEWS, type ViewKey } from './components/ViewNav';
 import ViewHeader, { type ViewChip } from './components/ViewHeader';
 import NowStrip from './components/NowStrip';
 import { getPending } from './lib/kai/pending';
@@ -200,6 +200,57 @@ export default function App() {
       }
     } catch { /* defensive */ }
     return [];
+  };
+
+  /* Per-view HERO metric — one signature number that anchors
+     the page. Falls back to undefined when there's no data
+     worth a hero (boot-from-empty safe). */
+  const heroFor = (v: ViewKey): { label: string; value: string; sub?: string } | undefined => {
+    try {
+      if (v === 'command') {
+        const ms = mirrorScore();
+        if (ms.total === 0) return { label: 'commitments kept · 30d', value: '—', sub: 'Make one. KAI holds you to it.' };
+        return {
+          label: 'commitments kept · 30d',
+          value: `${ms.score}%`,
+          sub: `${ms.kept} kept of ${ms.total} resolved.`,
+        };
+      }
+      if (v === 'money') {
+        const r = computeRunway();
+        if (r.runwayDays === null) return { label: 'days of freedom', value: '—', sub: 'Log a few spends + set cash. Tollgate goes live.' };
+        return {
+          label: 'days of freedom',
+          value: `${Math.floor(r.runwayDays)}`,
+          sub: `${Math.round(r.liquidCash).toLocaleString()} EGP liquid ÷ ${Math.round(r.dailyBurn).toLocaleString()} EGP/day burn.`,
+        };
+      }
+      if (v === 'growth') {
+        const beats = liveBeats();
+        const newCount = beats.filter(b => b.status === 'new').length;
+        return {
+          label: 'milestones to tell',
+          value: String(newCount),
+          sub: newCount === 0 ? 'No new chapters yet. Live loud.' : 'Each one is one tap to the queue.',
+        };
+      }
+      if (v === 'ops') {
+        const overdue = listPromises().filter(p => p.status === 'open' && p.deadline < Date.now()).length;
+        return {
+          label: 'people overdue',
+          value: String(overdue),
+          sub: overdue === 0 ? 'Everyone you depend on is on time.' : 'KAI knows who flaked. Check the Ledger.',
+        };
+      }
+      if (v === 'comms') {
+        return {
+          label: 'pending approvals',
+          value: String(pendingCount),
+          sub: pendingCount === 0 ? 'Queue empty. Nothing waiting on your tap.' : 'Tap the pill top-right to review.',
+        };
+      }
+    } catch { /* defensive */ }
+    return undefined;
   };
 
   const setView = useCallback((v: ViewKey) => {
@@ -530,7 +581,7 @@ export default function App() {
 
   return (
     <>
-      <Background />
+      <Background view={view} />
 
       {!booted && <Boot onDone={() => setBooted(true)} />}
 
@@ -601,6 +652,8 @@ export default function App() {
               title={VIEW_LABEL[view].label}
               hint={VIEW_LABEL[view].hint}
               chips={chipsFor(view)}
+              accent={VIEW_ACCENT[view]}
+              hero={heroFor(view)}
             />
 
             {/* COMMAND — the daily cockpit. Orb is the hero. */}
