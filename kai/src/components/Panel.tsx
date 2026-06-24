@@ -82,23 +82,22 @@ export default function Panel({
           Sits inside .glass overflow-hidden so corners stay clean. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[2px]"
         style={{
-          background: `linear-gradient(90deg, transparent, rgba(${a.rgb},0.35), transparent)`,
+          background: `linear-gradient(90deg, transparent, rgba(${a.rgb},0.7), transparent)`,
+        }}
+      />
+      {/* Full-height left accent rail — strong, glowing, undeniable. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-3 bottom-3 w-[3px] rounded-r-sm"
+        style={{
+          background: a.hex,
+          boxShadow:  `0 0 12px rgba(${a.rgb},0.65), 0 0 3px rgba(${a.rgb},0.95)`,
         }}
       />
 
       <header className="flex items-baseline gap-3 mb-5 relative">
-        {/* Vertical accent stripe — short, glowing, anchored to the
-            header so it reads as a marker, not a sidebar. */}
-        <span
-          aria-hidden
-          className="absolute -left-5 sm:-left-6 top-0 bottom-0 my-auto w-[3px] h-5 rounded-r-sm"
-          style={{
-            background: a.hex,
-            boxShadow:  `0 0 10px rgba(${a.rgb},0.55), 0 0 2px rgba(${a.rgb},0.85)`,
-          }}
-        />
 
         {/* Title — extralight, tighter tracking, refined. */}
         <h3

@@ -54,13 +54,15 @@ export default function Background({ view = 'command' }: Props) {
         style={{ background: '#070A10' }}
       />
 
-      {/* Warm radial — origin + hue per view */}
+      {/* Warm radial — origin + hue per view. Stronger now so the
+          colour-temperature shift between views is undeniable on a
+          phone screen. */}
       <div
         aria-hidden
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
           background:
-            `radial-gradient(1400px 800px at ${v.origin}, rgba(${v.warm},0.085), transparent 62%)`,
+            `radial-gradient(1400px 800px at ${v.origin}, rgba(${v.warm},0.18), transparent 62%)`,
           transition,
         }}
       />
@@ -70,7 +72,7 @@ export default function Background({ view = 'command' }: Props) {
         className="fixed inset-0 z-0 pointer-events-none"
         style={{
           background:
-            `radial-gradient(1000px 700px at 82% 88%, rgba(${v.cool},0.045), transparent 60%)`,
+            `radial-gradient(1000px 700px at 82% 88%, rgba(${v.cool},0.10), transparent 60%)`,
           transition,
         }}
       />
