@@ -38,6 +38,17 @@ export const VIEWS: ViewMeta[] = [
 export const VIEW_LABEL: Record<ViewKey, ViewMeta> =
   Object.fromEntries(VIEWS.map(v => [v.key, v])) as Record<ViewKey, ViewMeta>;
 
+/* Per-view accent colour. Each view shifts the ambient backdrop
+   AND its active rail pill, ViewHeader chips, and signature
+   numbers to its own colour temperature. Identity stays amber. */
+export const VIEW_ACCENT: Record<ViewKey, { hex: string; rgb: string; name: string }> = {
+  command: { hex: '#FFB300', rgb: '255,179,0',   name: 'amber'   },
+  money:   { hex: '#7AE6A8', rgb: '122,230,168', name: 'emerald' },
+  growth:  { hex: '#C792EA', rgb: '199,146,234', name: 'violet'  },
+  ops:     { hex: '#FFC94A', rgb: '255,201,74',  name: 'amber2'  },
+  comms:   { hex: '#7FCBFF', rgb: '127,203,255', name: 'cyan'    },
+};
+
 type Props = {
   active: ViewKey;
   onChange: (v: ViewKey) => void;
@@ -56,6 +67,7 @@ export default function ViewNav({ active, onChange, badges }: Props) {
         const isActive = v.key === active;
         const badge = badges?.[v.key] || 0;
         const Icon = v.Icon;
+        const accent = VIEW_ACCENT[v.key];
         return (
           <button
             key={v.key}
@@ -71,17 +83,31 @@ export default function ViewNav({ active, onChange, badges }: Props) {
             {isActive && (
               <motion.span
                 layoutId="viewnav-active"
-                className="absolute inset-0 rounded-md bg-amber/12 border border-amber/40"
-                style={{ boxShadow: '0 0 16px rgba(255,179,0,0.10)' }}
+                className="absolute inset-0 rounded-md"
+                style={{
+                  background: `rgba(${accent.rgb}, 0.12)`,
+                  border:     `1px solid rgba(${accent.rgb}, 0.42)`,
+                  boxShadow:  `0 0 18px rgba(${accent.rgb}, 0.18), inset 0 1px 0 rgba(255,255,255,0.07)`,
+                }}
                 transition={{ type: 'spring', stiffness: 380, damping: 32 }}
               />
             )}
-            <Icon size={14} className={'relative z-10 ' + (isActive ? 'text-amber' : '')} />
-            <span className="relative z-10 font-mono text-[11px] tracking-[0.16em] uppercase hidden sm:inline">
+            <Icon
+              size={14}
+              className="relative z-10"
+              style={isActive ? { color: accent.hex } : undefined}
+            />
+            <span
+              className="relative z-10 font-mono text-[11px] tracking-[0.16em] uppercase hidden sm:inline"
+              style={isActive ? { color: '#E6E1D7' } : undefined}
+            >
               {v.label}
             </span>
             {badge > 0 && (
-              <span className="relative z-10 min-w-[16px] h-4 px-1 grid place-items-center rounded-full bg-amber text-ink font-mono text-[9px] font-bold tabular-nums">
+              <span
+                className="relative z-10 min-w-[16px] h-4 px-1 grid place-items-center rounded-full font-mono text-[9px] font-bold tabular-nums"
+                style={{ background: accent.hex, color: '#0A0E14' }}
+              >
                 {badge > 9 ? '9+' : badge}
               </span>
             )}
