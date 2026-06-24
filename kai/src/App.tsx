@@ -62,6 +62,7 @@ import type { KaiSettings } from './types';
 import LockOverlay from './components/LockOverlay';
 import { loadLockConfig, type LockConfig } from './lib/lock';
 import ViewNav, { VIEW_LABEL, VIEW_ACCENT, VIEWS, type ViewKey } from './components/ViewNav';
+import BuildBanner from './components/BuildBanner';
 import ViewHeader, { type ViewChip } from './components/ViewHeader';
 import NowStrip from './components/NowStrip';
 import { getPending } from './lib/kai/pending';
@@ -800,6 +801,7 @@ export default function App() {
       />
       <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
       <ToastStack />
+      <BuildBanner />
 
       {/* Biometric / PIN lock. Setup is one-time, unlock gates every
           relaunch + post-idle resume when enabled. */}
