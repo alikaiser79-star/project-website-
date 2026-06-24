@@ -44,7 +44,7 @@ import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
 import DelegatePanel from './components/panels/DelegatePanel';
 import { startWatchtower } from './lib/kai/watchtower';
-import ConfirmationGate from './lib/kai/ConfirmationGate';
+import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -578,10 +578,13 @@ export default function App() {
             voiceOn={settings.voiceEnabled}
           />
 
-          {/* Pending external actions — pinned across all views,
-              invisible when none, attention-grabber when KAI has
-              proposed something. */}
-          <ConfirmationGate />
+          {/* Pending external actions — fixed top-right pill that
+              pulses on new and opens a slideover drawer with the
+              full queue. Was an inline banner; that pattern broke
+              once Autopilot started stacking 5-10 proposals at a
+              time. The drawer scales, the dashboard layout doesn't
+              move. */}
+          <ConfirmationFloating />
 
           {/* View navigation — breaks 21 panels into 5 focused views. */}
           <ViewNav active={view} onChange={setView} badges={navBadges} />
