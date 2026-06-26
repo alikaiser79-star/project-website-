@@ -39,6 +39,7 @@ import SitePanel from './components/panels/SitePanel';
 import IgFeedPanel from './components/panels/IgFeedPanel';
 import PhonePanel from './components/panels/PhonePanel';
 import AutopilotPanel from './components/panels/AutopilotPanel';
+import CommandCorePanel from './components/panels/CommandCorePanel';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -77,13 +78,19 @@ import { Inbox as InboxIcon, ShieldCheck, Wallet, Crown as CrownIcon, Eye, Send 
 const VIEW_STORE_KEY = 'kai.view';
 
 /* Which view each panel (by data-panel num) lives on — so deep
-   links / Spotlight jumps switch to the right view first. */
+   links / Spotlight jumps switch to the right view first.
+
+   After the Living Command Core landed, the Command view became
+   the full-bleed organism — no panels render there. The four
+   panels that used to live on Command (Mirror 09, Priorities 06,
+   Autopilot 17, Watchtower 18) moved to other views so the
+   Command Core's ack-organ → ping-panel flow can still find them. */
 const PANEL_VIEW: Record<string, ViewKey> = {
-  '17': 'command', '09': 'command', '06': 'command', '18': 'command',
   '10': 'money',   '01': 'money',   '02': 'money',   '07': 'money',
   '12': 'growth',  '08': 'growth',  '05': 'growth',  '15': 'growth', '19': 'growth',
-  '03': 'ops',     '04': 'ops',     '11': 'ops',
+  '03': 'ops',     '04': 'ops',     '11': 'ops',     '09': 'ops',    '06': 'ops',
   '13': 'comms',   '16': 'comms',   '14': 'comms',   '20': 'comms',  '21': 'comms',
+  '17': 'comms',   '18': 'comms',
 };
 
 function loadView(): ViewKey {
@@ -656,41 +663,21 @@ export default function App() {
             transition={{ duration: 0.32, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="flex flex-col gap-6 sm:gap-8"
           >
-            <ViewHeader
-              title={VIEW_LABEL[view].label}
-              hint={VIEW_LABEL[view].hint}
-              chips={chipsFor(view)}
-              accent={VIEW_ACCENT[view]}
-              hero={heroFor(view)}
-            />
-
-            {/* COMMAND — the daily cockpit. Orb is the hero. */}
-            {view === 'command' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-                <div className="lg:col-span-2 order-2 lg:order-1 flex flex-col gap-6 sm:gap-8 items-start">
-                  <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 items-start">
-                    <AutopilotPanel delay={0.10} />
-                    <MirrorPanel delay={0.15} />
-                    <PrioritiesPanel delay={0.20} />
-                    <WatchtowerPanel delay={0.25} />
-                  </div>
-                </div>
-                <div className="order-1 lg:order-2 flex flex-col gap-6 items-stretch">
-                  <motion.div
-                    className={'kai-core-wrap relative grid place-items-center w-full py-2 lg:py-4 ' + heartClass}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1, transition: { delay: 0.5, duration: 0.8 } }}
-                  >
-                    <Suspense fallback={<div className="text-steel font-mono text-[10px] py-12">spinning up core…</div>}>
-                      <div className="relative w-[min(320px,80vw)] aspect-square">
-                        <KaiCore size={320} accent={settings.accent} />
-                      </div>
-                    </Suspense>
-                  </motion.div>
-                  <NowStrip />
-                </div>
-              </div>
+            {/* COMMAND is now the Living Body — full-bleed canvas
+                organism with 12 organ panels at viewport %. No
+                ViewHeader, no other panels. The other four views
+                keep their chrome. */}
+            {view !== 'command' && (
+              <ViewHeader
+                title={VIEW_LABEL[view].label}
+                hint={VIEW_LABEL[view].hint}
+                chips={chipsFor(view)}
+                accent={VIEW_ACCENT[view]}
+                hero={heroFor(view)}
+              />
             )}
+
+            {view === 'command' && <CommandCorePanel />}
 
             {/* MONEY */}
             {view === 'money' && (
@@ -715,23 +702,31 @@ export default function App() {
               </div>
             )}
 
-            {/* OPERATIONS */}
+            {/* OPERATIONS — gained MirrorPanel and PrioritiesPanel
+                from the old Command view; both fit here as the
+                "what's holding things up" surface. */}
             {view === 'ops' && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
                 <GardenPanel delay={0.10} />
                 <MakadiPanel delay={0.15} />
                 <LedgerPanel delay={0.20} />
+                <MirrorPanel delay={0.25} />
+                <PrioritiesPanel delay={0.30} />
               </div>
             )}
 
-            {/* COMMS */}
+            {/* COMMS — gained AutopilotPanel and WatchtowerPanel
+                from the old Command view; the loop + the interrupt
+                surfaces sit naturally with the outbound stack. */}
             {view === 'comms' && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
-                <InboxPanel delay={0.10} />
-                <PhonePanel delay={0.15} />
-                <SitePanel delay={0.20} />
-                <EnvoyPanel delay={0.25} />
-                <DelegatePanel delay={0.30} />
+                <AutopilotPanel delay={0.10} />
+                <InboxPanel delay={0.15} />
+                <PhonePanel delay={0.20} />
+                <SitePanel delay={0.25} />
+                <WatchtowerPanel delay={0.30} />
+                <EnvoyPanel delay={0.35} />
+                <DelegatePanel delay={0.40} />
               </div>
             )}
           </motion.div>
