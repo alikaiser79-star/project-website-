@@ -165,7 +165,7 @@ function stash(payload: any): string {
   /* Embed the payload as a JSON string the inline script writes
      to sessionStorage, then redirects to /. The app's <App> picks
      it up on mount via the share handler in App.tsx. */
-  const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/ /g, '\\u2028').replace(/ /g, '\\u2029');
+  const json = JSON.stringify(payload).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
   return `<!doctype html><html><head><meta charset="utf-8"><title>KAI · ingesting…</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>html,body{background:#0A0E14;color:#E6E1D7;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;margin:0;display:grid;place-items:center;min-height:100vh}p{opacity:.7;letter-spacing:.04em;font-size:14px}</style>
