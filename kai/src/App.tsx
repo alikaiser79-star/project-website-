@@ -37,7 +37,6 @@ import CrownPanel from './components/panels/CrownPanel';
 import InboxPanel from './components/panels/InboxPanel';
 import SitePanel from './components/panels/SitePanel';
 import IgFeedPanel from './components/panels/IgFeedPanel';
-import PhonePanel from './components/panels/PhonePanel';
 import AutopilotPanel from './components/panels/AutopilotPanel';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
@@ -722,7 +721,6 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
                 <AutopilotPanel delay={0.10} />
                 <InboxPanel delay={0.15} />
-                <PhonePanel delay={0.20} />
                 <SitePanel delay={0.25} />
                 <WatchtowerPanel delay={0.30} />
                 <EnvoyPanel delay={0.35} />
