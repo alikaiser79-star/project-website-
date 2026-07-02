@@ -89,12 +89,19 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['03'] = { formatted: fmtInt(plants), calling: false };
     } catch { out['03'] = { formatted: '—', calling: false }; }
 
-    /* 04 MAKADI — nightly rate. Calls when door lock is flagged. */
+    /* 04 MAKADI — nightly rate. Calls NEEDS-YOU when 0 nights are
+       booked (occupancy 0) — empty calendar is the real signal —
+       or the door lock is still flagged. Reads the latest
+       nights_booked event when present, else occupancy. */
     try {
       const rate = s.makadi?.nightlyRate ?? 0;
+      const lastNights = getEvents({ domain: 'makadi', type: 'nights_booked', since: now - 30 * DAY }).slice(-1)[0];
+      const nightsZero = lastNights
+        ? (lastNights.value ?? 0) === 0
+        : (s.makadi?.occupancy30d ?? 1) === 0;
       out['04'] = {
         formatted: fmtUsd(rate),
-        calling: !!s.makadi?.fixLock,
+        calling: nightsZero || !!s.makadi?.fixLock,
       };
     } catch { out['04'] = { formatted: '—', calling: false }; }
 
