@@ -1,12 +1,17 @@
 /* ============================================================
    The Tollgate — money priced in days of freedom.
 
-     dailyBurn  = trailing 30-day sum of expense events / 30
-     liquidCash = cash on hand (editable) + uncommitted income
-     runwayDays = liquidCash / dailyBurn
+     dailyBurn  = trailing 30-day sum of real expense events / 30
+     cashOnHand = latest system.cash_on_hand Spine event, else the
+                  liquidCash store — REAL cash, never projected income
+     runwayDays = cashOnHand / dailyBurn
 
-   Everything reads the Spine (expense_logged events) and the
-   liquidCash store. Boot-from-empty safe: no events → burn 0 →
+   Runway is what today's cash buys at today's burn. Projected
+   income does NOT extend it — money you haven't been paid can't
+   pay rent. (It used to add "uncommitted income"; that inflated
+   the runway and is gone.) Everything reads the Spine
+   (expense_logged + system.cash_on_hand events) and the liquidCash
+   store as fallback. Boot-from-empty safe: no events → burn 0 →
    runway is "unbounded" (we return null and the panel shows a
    set-up nudge instead of Infinity).
 
@@ -16,8 +21,6 @@
 
 import { getEvents } from './events';
 import { getLiquidCash } from '../store';
-import { monthlyTotalEGP } from '../../kaiConfig';
-import { loadState } from '../store';
 import { getCalendarCached } from '../calendar';
 
 const DAY = 86_400_000;
@@ -40,23 +43,15 @@ export function dailyBurn(now: number = Date.now()): { burn: number; count: numb
   return { burn: total / BURN_WINDOW_DAYS, count: evs.length };
 }
 
-/* Liquid cash = cash on hand + this-month uncommitted income.
-
-   We approximate "uncommitted income" as the portion of the
-   monthly income projection not yet elapsed — i.e. income still
-   expected to land before month end. Conservative: only counts
-   the remaining fraction of the month. If you keep cash at 0 and
-   never set it, this still gives a real (if income-only) figure. */
+/* Cash on hand — the REAL number, not a projection. Prefers the
+   latest system.cash_on_hand event on the Spine (that's Ali's
+   actual declared cash), falling back to the liquidCash store.
+   No projected income is added: runway prices what today's cash
+   survives, not money that hasn't landed. */
 export function liquidCash(now: number = Date.now()): number {
-  const cash = getLiquidCash();
-  const s = loadState();
-  const monthIncome = monthlyTotalEGP(s.income, s.fxEgpPerEur);
-  const d = new Date(now);
-  const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  const dayOfMonth = d.getDate();
-  const remainingFraction = Math.max(0, (daysInMonth - dayOfMonth) / daysInMonth);
-  const uncommitted = Math.round(monthIncome * remainingFraction);
-  return Math.max(0, cash) + uncommitted;
+  const last = getEvents({ domain: 'system', type: 'cash_on_hand', since: now - 90 * DAY }).slice(-1)[0];
+  const cash = last && typeof last.value === 'number' ? last.value : getLiquidCash();
+  return Math.max(0, cash);
 }
 
 export function computeRunway(now: number = Date.now()): Runway {

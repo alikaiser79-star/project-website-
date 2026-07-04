@@ -19,6 +19,11 @@ export interface CommitmentMetric {
   event: string;
   op: '>=' | '<=' | '==';
   target: number;
+  /* Currency the target is denominated in. Defaults to EGP —
+     Ali's home currency — but "get the card to $40k" is a real
+     thing he says, so the parser captures USD when stated. Purely
+     metadata for display/grading; resolution compares raw values. */
+  currency?: 'EGP' | 'USD';
 }
 
 export interface Commitment {
@@ -126,16 +131,13 @@ export function mirrorScore(now: number = Date.now(), windowDays = 30): MirrorSc
   return { kept, broken, total, score: total ? Math.round((kept / total) * 100) : null };
 }
 
-/* Lines for the daily briefing. Blunt on purpose. */
+/* Reflection lines for the daily briefing — the Mirror looking
+   back. Open-commitment countdowns are NOT here: they're surfaced
+   as the briefing's numbered moves (ranked by deadline). This is
+   just the accountability tail: what you broke, and your score. */
 export function mirrorBriefing(now: number = Date.now()): string[] {
   const list = getCommitments();
   const out: string[] = [];
-
-  const open = list.filter((c) => c.status === 'open').sort((a, b) => a.deadline - b.deadline);
-  for (const c of open.slice(0, 3)) {
-    const days = Math.ceil((c.deadline - now) / DAY);
-    out.push(days < 0 ? `Overdue: ${c.text}` : `${days}d left: ${c.text}`);
-  }
 
   const recentlyBroken = list.filter((c) =>
     c.status === 'broken' && now - (c.resolvedAt ?? 0) < 7 * DAY);

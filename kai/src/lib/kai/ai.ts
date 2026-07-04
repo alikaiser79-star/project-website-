@@ -59,12 +59,13 @@ Map the outcome to exactly one of these tracked metrics:
 ${vocabLines}
 
 Return ONLY JSON, no prose, in this shape:
-{"text":"short restatement","domain":"...","event":"...","op":">="|"<="|"==","target":<number>,"deadline":"YYYY-MM-DD"}
+{"text":"short restatement","domain":"...","event":"...","op":">="|"<="|"==","target":<number>,"currency":"EGP"|"USD","deadline":"YYYY-MM-DD"}
 
 Rules:
 - target is an ABSOLUTE value (e.g. "raise rate to 55" -> target 55, op ">=").
 - "pay down the card to 40k" -> domain debt, event balance_updated, op "<=", target 40000.
 - "post 3 reels this week" -> domain content, event reel_posted, op ">=", target 3 (counted as a sum).
+- currency: the currency the target is in. Default "EGP" (Ali's home currency). Use "USD" ONLY when the message says dollars / $ / USD. Non-money metrics (plants, followers, reels, occupancy) -> "EGP" placeholder, it's ignored.
 - If no deadline is stated, infer a reasonable one from context, else 14 days out.
 - If there is no real self-commitment, or it can't map to a metric above, return exactly: null`;
 
@@ -117,6 +118,8 @@ function parseCommitment(raw: string, nowMs: number): CommitmentInput | null {
   const op = ['>=', '<=', '=='].includes(obj.op) ? obj.op : '>=';
   const target = Number(obj.target);
   if (Number.isNaN(target)) return null;
+  const currency: 'EGP' | 'USD' =
+    String(obj.currency || '').toUpperCase() === 'USD' ? 'USD' : 'EGP';
 
   let deadline: number;
   if (typeof obj.deadline === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(obj.deadline)) {
@@ -127,7 +130,7 @@ function parseCommitment(raw: string, nowMs: number): CommitmentInput | null {
 
   return {
     text: String(obj.text || '').trim() || raw.slice(0, 80),
-    metric: { domain: obj.domain, event: obj.event, op, target },
+    metric: { domain: obj.domain, event: obj.event, op, target, currency },
     deadline,
   };
 }

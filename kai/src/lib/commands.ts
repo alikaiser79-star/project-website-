@@ -12,10 +12,10 @@ import { addReminder, parseDuration } from './reminders';
 import { trend } from './history';
 import { getCalendarCached } from './calendar';
 import { monthlyTotal, categoryBreakdown, currentMonthKey } from './expenses';
-import { queueCount } from './content';
-import { mirrorBriefing } from './kai/commitments';
+import { mirrorBriefing, getCommitments } from './kai/commitments';
 import { computeRunway, costInDays, paydayCushion, runwayBriefing } from './kai/runway';
 import { ledgerBriefing } from './kai/ledger';
+import { getCommandSignals } from './kai/commandSignals';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -237,30 +237,42 @@ export function briefing(): string {
     }
   }
 
-  /* Fix-lock is high-priority operational drag. */
-  if (s.makadi?.fixLock) {
-    candidates.push({ weight: 13, text: 'Book the Makadi locksmith — still flagged' });
-  }
-
-  /* Open priorities — earlier ones weighted higher. */
-  (s.priorities ?? []).filter(p => !p.done).forEach((p, i) => {
-    candidates.push({ weight: 11 - Math.min(i, 5), text: p.text });
-  });
-
-  /* Garden tasks for today (a notch below explicit priorities). */
-  (s.garden?.todayTasks ?? []).forEach(t => {
-    candidates.push({ weight: 6, text: t });
-  });
-
-  /* Content queue nudge — surface unshot items as a single action.
-     One slot only so it doesn't crowd out priorities / events. */
+  /* Open commitments, ranked by deadline. These ARE the moves —
+     real promises Ali made, graded against the Spine. Overdue
+     first, then soonest. No demo defaults, no store flags. */
   try {
-    const qc = queueCount();
-    if (qc.idea > 0) {
+    const open = getCommitments()
+      .filter(c => c.status === 'open')
+      .sort((a, b) => a.deadline - b.deadline);
+    open.forEach((c, i) => {
+      const days = Math.ceil((c.deadline - Date.now()) / 86_400_000);
+      const overdue = days < 0;
+      const when = overdue ? 'OVERDUE' : days === 0 ? 'due today' : `${days}d left`;
       candidates.push({
-        weight: 7,
-        text: `Shoot ${qc.idea} planned ${qc.idea === 1 ? 'item' : 'items'} from the content queue`,
+        weight: overdue ? 20 : 13 - Math.min(i, 4),
+        text: `${c.text} — ${when}`,
       });
+    });
+  } catch { /* defensive */ }
+
+  /* Real Spine alarms — an organ only calls on a real, dated
+     signal (see commandSignals). We surface the ones that DON'T
+     already have a dedicated tail line, so moves never echo the
+     runway / mirror / ledger sections below:
+       04 MAKADI  — 0 nights booked (calls on the event, never on a
+                    maintenance flag, so a replaced lock can't resurface)
+       12 INBOX   — something stale in the confirmation gate
+     Debt-overdue (02), runway (11) and ledger (10) are deliberately
+     omitted here: an overdue debt commitment is already an open
+     commitment move above, and 11/10 own the runway/ledger tails. */
+  try {
+    const sig = getCommandSignals();
+    const ALARM: Record<string, { weight: number; text: string }> = {
+      '04': { weight: 16, text: 'Makadi is rentable but 0 nights booked — publish the listing' },
+      '12': { weight: 12, text: 'Something is waiting in the confirmation gate — clear it' },
+    };
+    for (const [id, a] of Object.entries(ALARM)) {
+      if (sig[id]?.calling) candidates.push(a);
     }
   } catch { /* defensive */ }
 
