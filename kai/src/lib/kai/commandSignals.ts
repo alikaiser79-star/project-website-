@@ -71,15 +71,18 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['01'] = { formatted: fmtUsd(income), calling: false };
     } catch { out['01'] = { formatted: '—', calling: false }; }
 
-    /* 02 DEBT — current balance. Calls when balance > 0 AND no
-       payment_logged event in the last 30 days. */
+    /* 02 DEBT — balance. Calls "card past due" ONLY on a real dated
+       signal: an OPEN commitment in the debt domain that's overdue.
+       The old "no payment in 30d" test false-fired on every fresh
+       Spine and pinned the heart — removed. */
     try {
       const bal = s.debtCurrent || 0;
-      const since = now - 30 * DAY;
-      const paid = getEvents({ domain: 'debt', type: 'payment_logged', since }).length;
+      const overdueDebt = getCommitments().some(c =>
+        c.status === 'open' && c.metric?.domain === 'debt' && c.deadline < now
+      );
       out['02'] = {
         formatted: fmtUsd(bal),
-        calling: bal > 0 && paid === 0,
+        calling: bal > 0 && overdueDebt,
       };
     } catch { out['02'] = { formatted: '—', calling: false }; }
 
@@ -89,12 +92,20 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['03'] = { formatted: fmtInt(plants), calling: false };
     } catch { out['03'] = { formatted: '—', calling: false }; }
 
-    /* 04 MAKADI — nightly rate. Calls when door lock is flagged. */
+    /* 04 MAKADI — nightly rate. Calls NEEDS-YOU ONLY on the real
+       signal: 0 nights booked (latest nights_booked event, else
+       occupancy30d === 0). The fixLock default was removed as a
+       trigger — the lock was replaced, and a maintenance flag is
+       not a "needs you now" signal. */
     try {
       const rate = s.makadi?.nightlyRate ?? 0;
+      const lastNights = getEvents({ domain: 'makadi', type: 'nights_booked', since: now - 30 * DAY }).slice(-1)[0];
+      const nightsZero = lastNights
+        ? (lastNights.value ?? 0) === 0
+        : (s.makadi?.occupancy30d ?? 1) === 0;
       out['04'] = {
         formatted: fmtUsd(rate),
-        calling: !!s.makadi?.fixLock,
+        calling: nightsZero,
       };
     } catch { out['04'] = { formatted: '—', calling: false }; }
 
@@ -104,15 +115,15 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['05'] = { formatted: fmtUsd(total), calling: false };
     } catch { out['05'] = { formatted: '—', calling: false }; }
 
-    /* 06 PRIORITIES — open count. Calls if any open priority
-       is older than 7 days. */
+    /* 06 PRIORITIES — open count. Status-only. The old ">5 open"
+       heuristic wasn't one of the real signals and could false-fire;
+       priority urgency surfaces through the Mirror (commitments)
+       instead. */
     try {
       const open = (s.priorities || []).filter(p => !p.done);
-      /* Priorities don't store createdAt currently — proxy via
-         "more than 5 open" instead. */
       out['06'] = {
         formatted: fmtInt(open.length, ' OPEN'),
-        calling: open.length > 5,
+        calling: false,
       };
     } catch { out['06'] = { formatted: '—', calling: false }; }
 
@@ -125,15 +136,14 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['07'] = { formatted: fmtUsd(month), calling: false };
     } catch { out['07'] = { formatted: '—', calling: false }; }
 
-    /* 08 CONTENT — queued items. Calls when > 5 unshot ideas
-       stacking (means the planner ran but nothing's shipping). */
+    /* 08 CONTENT — queued items. Status-only. */
     try {
       const qc = queueCount();
       const queue = listQueue();
       void queue;
       out['08'] = {
         formatted: fmtInt(qc.total, ' QUEUED'),
-        calling: qc.idea > 5,
+        calling: false,
       };
     } catch { out['08'] = { formatted: '—', calling: false }; }
 
@@ -168,12 +178,17 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       };
     } catch { out['10'] = { formatted: '—', calling: false }; }
 
-    /* 11 TOLLGATE — days of runway. Calls when < 14d. */
+    /* 11 TOLLGATE — days of runway. Calls when runway < 14d OR
+       cash_on_hand is critically low (< 5,000 EGP). Reads the
+       latest system.cash_on_hand event, else the liquidCash store. */
     try {
       const r = computeRunway();
+      const lastCash = getEvents({ domain: 'system', type: 'cash_on_hand', since: now - 30 * DAY }).slice(-1)[0];
+      const cash = lastCash ? (lastCash.value ?? 0) : (s.liquidCash ?? 0);
+      const cashCritical = cash > 0 && cash < 5000;
       out['11'] = {
         formatted: r.runwayDays === null ? '—' : Math.floor(r.runwayDays) + 'd',
-        calling: r.runwayDays !== null && r.runwayDays < 14,
+        calling: (r.runwayDays !== null && r.runwayDays < 14) || cashCritical,
       };
     } catch { out['11'] = { formatted: '—', calling: false }; }
 

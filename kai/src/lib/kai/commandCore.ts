@@ -155,7 +155,10 @@ export class CommandCore {
     this.hud = opts.hud;
     this.signalProvider = opts.signalProvider;
     this.onAck = opts.onAck;
-    this.restBpm = opts.restBpm ?? 58;
+    /* Resting rate 48 — the floor. Below ~45 the lub-dub stops
+       reading as a heartbeat. Calm = a big powerful animal at deep
+       rest, not a slow machine. */
+    this.restBpm = opts.restBpm ?? 48;
     this.peakBpm = opts.peakBpm ?? 134;
     this.bloomStrength = opts.bloom ?? 0.9;
 
@@ -545,7 +548,8 @@ export class CommandCore {
     this.thump = Math.max(this.thump * Math.pow(0.015, dt), contraction);
     this.beatPulse *= Math.pow(0.02, dt);
     this.absorbFlare *= Math.pow(0.05, dt);
-    this.ambient += dt * (0.10 + 0.05 * ar);
+    /* Shimmer slower at rest, quickening only with arousal. */
+    this.ambient += dt * (0.05 + 0.09 * ar);
     const ambR = ((this.ambient % 1) * maxR);
 
     const shellW = 66 + 60 * ar;
@@ -646,7 +650,7 @@ export class CommandCore {
 
     ctx.globalCompositeOperation = 'lighter';
     for (const e of this.embers) {
-      e.y += e.vy * dt * (0.6 + ar * 1.9);
+      e.y += e.vy * dt * (0.35 + ar * 2.15);
       e.sw += dt * (0.6 + ar);
       e.x += Math.sin(e.sw) * 0.35;
       if (mhas) {
@@ -819,7 +823,13 @@ export class CommandCore {
     cx += (Math.sin(t * 38) + Math.sin(t * 53.7) * 0.6) * trem;
     cy += (Math.cos(t * 41) + Math.sin(t * 61.3) * 0.6) * trem;
 
-    const R = heartR * (1 - 0.12 * contraction * (0.55 + ar) + 0.06 * this.beatPulse + 0.025 * Math.sin(t * 0.55));
+    /* Deeper squeeze + heavier recoil at REST (ar→0): calm beats
+       are big and powerful; aroused beats are shallower + faster.
+       Squeeze depth (0.95 calm → 0.60 aroused), recoil punch
+       (0.09 calm → 0.06 aroused). */
+    const squeeze = 0.95 - 0.35 * ar;
+    const recoilPunch = 0.06 + 0.03 * (1 - ar);
+    const R = heartR * (1 - 0.14 * contraction * squeeze + recoilPunch * this.beatPulse + 0.025 * Math.sin(t * 0.55));
 
     const N = 140; const wob = 0.05 + 0.055 * ar; const pts: [number, number][] = [];
     for (let i = 0; i <= N; i++) {
