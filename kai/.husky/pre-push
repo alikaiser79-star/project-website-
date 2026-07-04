@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# KAI build tripwire. Enable: git config core.hooksPath .husky
+cd "$(git rev-parse --show-toplevel)/kai" 2>/dev/null || cd kai 2>/dev/null || true
+node scripts/preflight.mjs
