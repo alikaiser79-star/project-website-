@@ -71,15 +71,20 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['01'] = { formatted: fmtUsd(income), calling: false };
     } catch { out['01'] = { formatted: '—', calling: false }; }
 
-    /* 02 DEBT — current balance. Calls when balance > 0 AND no
-       payment_logged event in the last 30 days. */
+    /* 02 DEBT — current balance. Calls "card past due" ONLY on a
+       real, dated signal: an open commitment in the debt domain
+       that's overdue. The old "no payment_logged in 30d" test
+       false-fired on every fresh Spine (0 payments) and pinned the
+       heart hot on defaults — removed. No overdue debt commitment
+       → the card is quiet. */
     try {
       const bal = s.debtCurrent || 0;
-      const since = now - 30 * DAY;
-      const paid = getEvents({ domain: 'debt', type: 'payment_logged', since }).length;
+      const overdueDebt = getCommitments().some(c =>
+        c.status === 'open' && c.metric?.domain === 'debt' && c.deadline < now
+      );
       out['02'] = {
         formatted: fmtUsd(bal),
-        calling: bal > 0 && paid === 0,
+        calling: bal > 0 && overdueDebt,
       };
     } catch { out['02'] = { formatted: '—', calling: false }; }
 
@@ -89,10 +94,12 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['03'] = { formatted: fmtInt(plants), calling: false };
     } catch { out['03'] = { formatted: '—', calling: false }; }
 
-    /* 04 MAKADI — nightly rate. Calls NEEDS-YOU when 0 nights are
-       booked (occupancy 0) — empty calendar is the real signal —
-       or the door lock is still flagged. Reads the latest
-       nights_booked event when present, else occupancy. */
+    /* 04 MAKADI — nightly rate. Calls NEEDS-YOU ONLY on the real
+       signal: 0 nights booked (empty calendar). Reads the latest
+       nights_booked event when present, else occupancy30d === 0.
+       The fixLock default (true) was removed as a call trigger —
+       it's a maintenance flag, not a "needs you now" signal, and
+       it kept the heart hot on the demo default. */
     try {
       const rate = s.makadi?.nightlyRate ?? 0;
       const lastNights = getEvents({ domain: 'makadi', type: 'nights_booked', since: now - 30 * DAY }).slice(-1)[0];
@@ -101,7 +108,7 @@ export function getCommandSignals(): Record<string, OrganSignal> {
         : (s.makadi?.occupancy30d ?? 1) === 0;
       out['04'] = {
         formatted: fmtUsd(rate),
-        calling: nightsZero || !!s.makadi?.fixLock,
+        calling: nightsZero,
       };
     } catch { out['04'] = { formatted: '—', calling: false }; }
 
