@@ -3,7 +3,7 @@
    factual values read from the live store via accessors. */
 
 import {
-  debt, monthlyTotalEGP, debtClearedPct, currency, operator,
+  debt, monthlyTotalEGP, debtUtilizationPct, currency, operator,
 } from '../kaiConfig';
 import { loadState } from './store';
 import { focusTimer } from './focusTimer';
@@ -31,7 +31,7 @@ export function runBuiltin(cmd: string): CmdResult | null {
     return [
       `Systems nominal, ${s.settings.operatorName}.`,
       `Monthly throughput projecting ${fmt(monthlyTotalEGP(s.income, s.fxEgpPerEur))} ${currency.primary}.`,
-      `Credit card at ${debtClearedPct().toFixed(0)}% cleared.`,
+      `Credit card ${fmt(s.debtCurrent)} of ${fmt(debt.limit)} EGP (${debtUtilizationPct(s.debtCurrent).toFixed(0)}% utilised).`,
       `Hidden Garden plant count ${s.garden.plantCount}.`,
       `Makadi occupancy ${(s.makadi.occupancy30d*100).toFixed(0)}% — ${s.makadi.fixLock ? 'door lock still flagged.' : 'lock OK.'}`,
       `${open} open priorities for today.`,
@@ -39,8 +39,9 @@ export function runBuiltin(cmd: string): CmdResult | null {
   }
 
   if (/\b(debt|credit|card|paydown|payoff)\b/.test(q)) {
-    const cleared = debt.original - loadState().debtCurrent;
-    return `Credit card paydown: ${fmt(cleared)} EGP cleared of ${fmt(debt.original)}. That is ${debtClearedPct().toFixed(1)}%. Minimum payment ${fmt(debt.minPayment)} EGP.`;
+    const bal = loadState().debtCurrent;
+    const available = Math.max(0, debt.limit - bal);
+    return `Credit card: ${fmt(bal)} EGP of a ${fmt(debt.limit)} EGP limit — ${debtUtilizationPct(bal).toFixed(0)}% utilised, ${fmt(available)} EGP available. APR ${debt.apr}%.`;
   }
 
   /* Tollgate — "can I afford 1200", "spend 1200", "is 800 worth it".
@@ -201,7 +202,7 @@ export function briefing(): string {
   const greet = h < 5 ? "You're up late" : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   const name = s.settings?.operatorName || 'commander';
   const total = monthlyTotalEGP(s.income, s.fxEgpPerEur);
-  const cleared = debtClearedPct();
+  const util = debtUtilizationPct(s.debtCurrent);
 
   /* Candidate actions, weighted. Higher weight = more important. */
   type Cand = { weight: number; text: string };
@@ -294,7 +295,7 @@ export function briefing(): string {
   } catch { /* defensive */ }
 
   const lines: string[] = [];
-  lines.push(`${greet}, ${name}. Debt at ${cleared.toFixed(0)}% cleared. ~${fmt(total)} EGP projecting this month.${tail}${spendLine}`);
+  lines.push(`${greet}, ${name}. Card ${util.toFixed(0)}% utilised (${fmt(s.debtCurrent)} of ${fmt(debt.limit)} EGP). ~${fmt(total)} EGP projecting this month.${tail}${spendLine}`);
   if (top.length === 0) {
     lines.push(`Priority list clear and no garden tasks queued. Take the morning.`);
   } else {
@@ -345,7 +346,7 @@ export function weeklyReview(): string {
     : `Zero priorities closed; ${openCount} open.`);
   if (habitLines.length) out.push(`Habit hits — ${habitLines.join('; ')}.`);
   else out.push(`No habits ticked this week.`);
-  out.push(`Credit card sits at ${fmt(s.debtCurrent)} EGP, ${debtClearedPct().toFixed(0)} percent cleared.`);
+  out.push(`Credit card sits at ${fmt(s.debtCurrent)} EGP, ${debtUtilizationPct(s.debtCurrent).toFixed(0)} percent utilised of ${fmt(debt.limit)}.`);
   if (s.makadi.fixLock) out.push(`Makadi lock still flagged — that's been carried for a while.`);
   out.push(`What's the focus for next week?`);
   return out.join(' ');

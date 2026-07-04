@@ -81,7 +81,7 @@ export function detectBeats(now: number = Date.now()): Beat[] {
 
   /* Debt paydown — percent cleared against the original balance. */
   const debtEvs = all.filter(e => e.domain === 'debt' && e.type === 'balance_updated');
-  const original = debt.original > 0 ? debt.original : 1;
+  const original = debt.limit > 0 ? debt.limit : 1;
   crossing(
     debtEvs,
     e => { const bal = num(e.value); return bal == null ? null : ((original - bal) / original) * 100; },

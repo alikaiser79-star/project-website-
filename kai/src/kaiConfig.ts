@@ -39,18 +39,19 @@ export const income: IncomeStream[] = [
   { id: 'makadi',  label: 'Makadi Airbnb',       amount: 1800,   ccy: 'EGP', cadence: 'nightly', trend: -1.2, note: '~22 nights / month avg' },
 ];
 
-/* ── DEBT ─────────────────────────────────────────────── */
+/* ── DEBT (credit card) ───────────────────────────────── */
+/* Real July state: 59,000 EGP balance of an 89,000 EGP limit
+   (~66% utilised). No demo paydown baseline, no fake minimum. */
 export const debt = {
   label: 'Credit Card',
-  original: 75000,    // EGP — starting balance KAI tracks against
-  current:  41500,    // EGP — current outstanding
+  limit:   89000,    // EGP — credit limit
+  current: 59000,    // EGP — current balance (store seeds from this)
   apr: 38,
-  minPayment: 4200,
 };
 
 /* ── HIDDEN GARDEN ────────────────────────────────────── */
 export const garden = {
-  plantCount: 112,
+  plantCount: 85,
   speciesCount: 24,
   todayTasks: [
     'Water bird-of-paradise row',
@@ -64,11 +65,14 @@ export const garden = {
 };
 
 /* ── MAKADI AIRBNB ────────────────────────────────────── */
+/* Real July state: lock replaced, couch in, arrears mostly paid,
+   rentable now — but 0 nights booked (listing pending Katie's
+   photos). occupancy 0 → the Makadi organ legitimately calls. */
 export const makadi = {
-  nightlyRate: 1800,   // EGP
-  occupancy30d: 0.72,
+  nightlyRate: 45,     // EGP-equivalent nightly
+  occupancy30d: 0,     // 0 nights booked
   nextBooking: addDays(3),
-  fixLock: true,      // true = door lock needs attention
+  fixLock: false,      // lock was replaced (russia_family, 8000)
   rating: 4.91,
 };
 
@@ -124,15 +128,16 @@ export const claudeConfig = {
     `• Hidden Garden — his premium garden and event space in Maadi. ` +
     `Plant sales, sunset listening events, photo shoots. This is his ` +
     `signature project and the brand he is building.\n` +
-    `• Makadi Airbnb — short-term rental on the Red Sea coast. ~22 ` +
-    `nights/month at 1,800 EGP. Door lock has been flagged.\n` +
+    `• Makadi Airbnb — short-term rental on the Red Sea coast. Lock ` +
+    `replaced, couch installed, arrears mostly cleared — rentable now ` +
+    `but 0 nights booked (listing pending Katie's photos).\n` +
     `• Enpal — day job, German solar lease income (~620 EUR/month). ` +
     `Stable but not the dream.\n` +
     `• Honda Civic rental — long-term lease income.\n` +
     `• Instagram — @alikaiser1 (personal) and @hiddengarden.eg ` +
     `(growing the brand toward 25k followers).\n` +
-    `• Credit card paydown — clearing 41,500 EGP of 75,000 EGP at 38% ` +
-    `APR. This is the financial priority.\n\n` +
+    `• Credit card — 59,000 EGP balance of an 89,000 EGP limit at 38% ` +
+    `APR (~66% utilised). Paying it down is the financial priority.\n\n` +
 
     `HOW TO TALK TO HIM\n` +
     `Direct. Honest. No bullshit. No padding, no over-explaining, no ` +
@@ -142,8 +147,8 @@ export const claudeConfig = {
     `is welcome when it lands; never forced. If he is wrong about a ` +
     `number, say so and give the right one. If he asks for an ` +
     `opinion, give one with a reason. Proactive — if you notice ` +
-    `something obvious from the data (overdue priority, low ` +
-    `occupancy, lock still flagged), name it.\n\n` +
+    `something obvious from the data (overdue priority, Makadi ` +
+    `sitting empty, card past due), name it.\n\n` +
 
     `HOW TO ANSWER\n` +
     `Never invent numbers. For anything fact-based — finances, ` +
@@ -216,7 +221,11 @@ export function monthlyTotalEGP(
     return sum + (s.cadence === 'nightly' ? base * 22 : base);
   }, 0);
 }
-export function debtClearedPct(): number {
-  const cleared = Math.max(0, debt.original - debt.current);
-  return Math.min(100, (cleared / debt.original) * 100);
+/* Credit-card utilisation — balance as a % of the limit. Reads
+   the LIVE balance from the store so it moves as payments land.
+   (Credit-card utilisation model — replaced the old paydown ring.) */
+export function debtUtilizationPct(currentBalance?: number): number {
+  const bal = typeof currentBalance === 'number' ? currentBalance : debt.current;
+  if (!debt.limit || debt.limit <= 0) return 0;
+  return Math.min(100, Math.max(0, (bal / debt.limit) * 100));
 }

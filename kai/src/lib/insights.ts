@@ -3,7 +3,7 @@
    synthesised data — trend observations are gated on real coverage. */
 
 import { loadState } from './store';
-import { debt, debtClearedPct, monthlyTotalEGP } from '../kaiConfig';
+import { debt, debtUtilizationPct, monthlyTotalEGP } from '../kaiConfig';
 import { streak } from './habits';
 import { trend, coverage } from './history';
 
@@ -14,13 +14,12 @@ export function computeInsights(): Insight[] {
   const out: Insight[] = [];
 
   const total = monthlyTotalEGP(s.income, s.fxEgpPerEur);
-  const cleared = debtClearedPct();
-  const remaining = Math.max(0, s.debtCurrent);
-  const monthsToZero = remaining / Math.max(debt.minPayment, 1);
+  const util = debtUtilizationPct(s.debtCurrent);
+  const available = Math.max(0, debt.limit - s.debtCurrent);
 
-  if (cleared >= 75) out.push({ id: 'd75', tone: 'ok',   text: `Credit card ${cleared.toFixed(0)}% cleared — final stretch.` });
-  else if (cleared >= 50) out.push({ id: 'd50', tone: 'ok',   text: `Past the halfway mark on debt — keep the pace.` });
-  else out.push({ id: 'd-est', tone: 'note', text: `At minimum payment, debt clears in ~${monthsToZero.toFixed(1)} months.` });
+  if (util >= 80)      out.push({ id: 'd-hi',  tone: 'warn', text: `Card at ${util.toFixed(0)}% utilised — high; pay it down.` });
+  else if (util >= 50) out.push({ id: 'd-mid', tone: 'note', text: `Card at ${util.toFixed(0)}% utilised — ${available.toLocaleString('en-GB')} EGP available.` });
+  else                 out.push({ id: 'd-lo',  tone: 'ok',   text: `Card at ${util.toFixed(0)}% utilised — comfortable headroom.` });
 
   const open = s.priorities.filter(p => !p.done).length;
   if (open === 0) out.push({ id: 'p0', tone: 'ok', text: `Priority list clear — rare territory.` });

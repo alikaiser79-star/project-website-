@@ -44,6 +44,7 @@ import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
 import DelegatePanel from './components/panels/DelegatePanel';
 import { startWatchtower } from './lib/kai/watchtower';
+import { seedSpine, installSeedDevHooks } from './lib/kai/seed';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
@@ -286,6 +287,12 @@ export default function App() {
      mount, every 6h, and on tab visibility change. Idempotent
      and safe to call any time. */
   useEffect(() => startMirror(), []);
+
+  /* Spine seed — run once (guarded). Writes Ali's real July state
+     (debt 59k/89k, makadi 45/0 nights/lock replaced, garden 85,
+     cash 15k) + logs the 15 canonical events. window.__kaiSeed()
+     forces a re-seed for dev. */
+  useEffect(() => { installSeedDevHooks(); seedSpine(); }, []);
 
   /* The Watchtower — ambient triggers. Ticks on boot, every 5 min
      while visible, on visibility regain. Fires toasts and (if

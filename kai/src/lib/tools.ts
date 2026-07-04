@@ -29,7 +29,7 @@ import { crownSnapshot } from './kai/crown';
 import { proposeAction, pendingSnapshot } from './kai/pending';
 import { toast } from '../hooks/useToasts';
 import {
-  debt, monthlyTotalEGP, debtClearedPct, operator,
+  debt, monthlyTotalEGP, debtUtilizationPct, operator,
 } from '../kaiConfig';
 
 export type ToolCall = { id: string; name: string; input: any };
@@ -494,7 +494,7 @@ export async function runTool(call: ToolCall): Promise<string> {
         fx_egp_per_eur: s.fxEgpPerEur,
         income: s.income.map(i => ({ label: i.label, amount: i.amount, ccy: i.ccy, cadence: i.cadence })),
         income_total_monthly_egp: Math.round(monthlyTotalEGP(s.income, s.fxEgpPerEur)),
-        debt: { original: debt.original, current: s.debtCurrent, percent_cleared: Math.round(debtClearedPct()) },
+        debt: { limit: debt.limit, current: s.debtCurrent, percent_utilised: Math.round(debtUtilizationPct(s.debtCurrent)) },
         garden: {
           plant_count: s.garden.plantCount,
           species: s.garden.speciesCount,
