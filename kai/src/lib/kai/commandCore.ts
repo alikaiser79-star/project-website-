@@ -61,6 +61,11 @@ interface Front  { r: number; type: 'feed' | 'absorb'; v: number; life?: number;
 interface Shock  { r: number; v: number; life: number; x: number; y: number; }
 interface Ripple { x: number; y: number; r: number; life: number; }
 interface Arc    { pts: VeinPt[]; t0: number; dur: number; color: string; dir: 'in' | 'out'; }
+/* Synaptic spark — a bright particle riding a cached artery polyline
+   head-to-tail. `p` runs 0→1; `dir` maps it to travel outward
+   (heart→panel) or inward (panel→heart). No new geometry — the pts
+   reference is the existing artery's, shared by reference. */
+interface Spark  { pts: VeinPt[]; p: number; spd: number; dir: 'in' | 'out'; crimson: boolean; }
 
 interface OrganState {
   status: 'idle' | 'calling';
@@ -114,9 +119,17 @@ export class CommandCore {
   private capPath = new Path2D();
   private artPath = new Path2D();
   private glowPath = new Path2D();
+  private microPath = new Path2D();       /* micro-capillary web near anchors */
   private filaments: Filament[] = [];
   private embers: Ember[] = [];
   private molten: Molten[] = [];
+
+  /* Neural layer — synaptic sparks riding artery polylines. Caps are
+     halved automatically if a frame's spark work exceeds the budget. */
+  private sparks: Spark[] = [];
+  private sparkCap = 24;                   /* max live sparks */
+  private sparkTimer = 0;                  /* next ambient spark time */
+  private sparkAcc: Record<string, number> = {};  /* per-organ stream accumulator */
 
   /* bloom downsample buffer */
   private bloomC: HTMLCanvasElement;
@@ -358,13 +371,49 @@ export class CommandCore {
 
     this.veins = veins;
     const capPath = new Path2D(), artPath = new Path2D(), glowPath = new Path2D();
+    let totalSegs = 0;
     for (const v of veins) {
       const tp = v.artery ? artPath : capPath;
       const p = v.pts;
       tp.moveTo(p[0].x, p[0].y); glowPath.moveTo(p[0].x, p[0].y);
       for (let i = 1; i < p.length; i++) { tp.lineTo(p[i].x, p[i].y); glowPath.lineTo(p[i].x, p[i].y); }
+      totalSegs += p.length - 1;
     }
     this.capPath = capPath; this.artPath = artPath; this.glowPath = glowPath;
+
+    /* Micro-capillaries — a sparse, very dim fine web hugging each
+       panel anchor. Strictly local: every segment stays within
+       MICRO_NEAR px of its anchor, so nothing is added mid-field and
+       the overall vein density is essentially unchanged. Hard-capped
+       at +15% of the existing segment count. */
+    const micro = new Path2D();
+    const MICRO_NEAR = 120;
+    const maxMicro = Math.floor(totalSegs * 0.15);
+    let microSegs = 0;
+    const growMicro = (ax: number, ay: number, x: number, y: number, ang: number, len: number, depth: number) => {
+      if (microSegs >= maxMicro) return;
+      let a = ang, px = x, py = y;
+      const steps = 4;
+      for (let i = 0; i < steps; i++) {
+        if (microSegs >= maxMicro) return;
+        a += (Math.random() - 0.5) * 0.9;
+        const nx = px + Math.cos(a) * (len / steps);
+        const ny = py + Math.sin(a) * (len / steps);
+        if (Math.hypot(nx - ax, ny - ay) > MICRO_NEAR) break;
+        micro.moveTo(px, py); micro.lineTo(nx, ny);
+        microSegs++; px = nx; py = ny;
+      }
+      if (depth > 0) {
+        const nb = Math.random() < 0.6 ? 2 : 1;
+        for (let k = 0; k < nb; k++) growMicro(ax, ay, px, py, a + (Math.random() - 0.5) * 1.6, len * 0.6, depth - 1);
+      }
+    };
+    for (const id in this.panelAnchors) {
+      if (microSegs >= maxMicro) break;
+      const anc = this.panelAnchors[id];
+      for (let s = 0; s < 2; s++) growMicro(anc.x, anc.y, anc.x, anc.y, Math.random() * 6.2832, 42 + Math.random() * 28, 2);
+    }
+    this.microPath = micro;
 
     /* Filaments — fewer and softer than before. Every point is held
        inside the shell [0.25, 0.9] so the region around the nucleus
@@ -475,6 +524,22 @@ export class CommandCore {
     this.arcs.push({ pts: art.pts, t0: performance.now() / 1000, dur: 0.55, color, dir });
   }
 
+  /* Push a synaptic spark onto an artery, respecting the live cap. */
+  private _spawnSpark(pts: VeinPt[], dir: 'in' | 'out', crimson: boolean, spd: number) {
+    if (this.sparks.length >= this.sparkCap) return;
+    this.sparks.push({ pts, p: 0, spd, dir, crimson });
+  }
+
+  /* Interpolate a point at fraction f (0..1) along a cached polyline. */
+  private _samplePoly(pts: VeinPt[], f: number): { x: number; y: number } {
+    const L = pts.length - 1;
+    const ff = (f < 0 ? 0 : f > 1 ? 1 : f) * L;
+    const i = Math.min(L - 1, Math.floor(ff));
+    const t = ff - i;
+    const a = pts[i], b = pts[i + 1];
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  }
+
   private _ripple(x: number, y: number) {
     this.ripples.push({ x, y, r: 4, life: 1 });
     this._tap();
@@ -574,6 +639,39 @@ export class CommandCore {
     }
     this.fronts = this.fronts.filter(f => f.type === 'feed' ? f.r < maxR : f.r > heartR * 0.28);
 
+    /* ===== synaptic sparks ===== */
+    /* Only the spark-specific spawn + draw cost is timed (accumulated
+       into sparkBudgetMs), so the cap responds to spark work alone,
+       not the rest of the frame. */
+    let sparkBudgetMs = 0;
+    const spawnT0 = performance.now();
+    /* Ambient: one rare gold spark on a random artery every 3-4 s,
+       riding outward heart→panel. */
+    if (now >= this.sparkTimer) {
+      const ids = Object.keys(this.arteryByPanel);
+      if (ids.length) {
+        const art = this.arteryByPanel[ids[(Math.random() * ids.length) | 0]];
+        if (art) this._spawnSpark(art.pts, 'out', false, 0.5 + Math.random() * 0.12);
+      }
+      this.sparkTimer = now + 3 + Math.random();   /* 3-4 s */
+    }
+    /* A CALLING organ's artery streams crimson sparks inward
+       (panel→heart) at ~3-4/s; idle organs reset their accumulator. */
+    for (const id in this.organs) {
+      if (this.organs[id].status === 'calling') {
+        const acc = (this.sparkAcc[id] || 0) + dt * 3.5;
+        let n = acc | 0;
+        this.sparkAcc[id] = acc - n;
+        const art = this.arteryByPanel[id];
+        while (n-- > 0 && art) this._spawnSpark(art.pts, 'in', true, 0.6 + Math.random() * 0.18);
+      } else if (this.sparkAcc[id]) {
+        this.sparkAcc[id] = 0;
+      }
+    }
+    for (const s of this.sparks) s.p += s.spd * dt;
+    this.sparks = this.sparks.filter(s => s.p < 1);
+    sparkBudgetMs += performance.now() - spawnT0;
+
     /* ===== draw ===== */
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = '#030303'; ctx.fillRect(0, 0, W, H);
@@ -595,6 +693,9 @@ export class CommandCore {
     const capCol = this._mix([158, 84, 46], [205, 74, 50], ar);
     ctx.strokeStyle = `rgba(${capCol[0] | 0},${capCol[1] | 0},${capCol[2] | 0},${0.17 + 0.08 * ar})`;
     ctx.lineWidth = 0.9 + 0.35 * ar; ctx.stroke(this.capPath);
+    /* Micro-capillary web — one very dim hairline stroke near anchors. */
+    ctx.strokeStyle = `rgba(${capCol[0] | 0},${capCol[1] | 0},${capCol[2] | 0},${0.06 + 0.03 * ar})`;
+    ctx.lineWidth = 0.55; ctx.stroke(this.microPath);
     const artCol = this._mix([192, 106, 60], [232, 90, 62], ar);
     ctx.strokeStyle = `rgba(${artCol[0] | 0},${artCol[1] | 0},${artCol[2] | 0},${0.27 + 0.1 * ar})`;
     ctx.lineWidth = 1.9 + 0.8 * ar; ctx.stroke(this.artPath);
@@ -628,7 +729,32 @@ export class CommandCore {
         ctx.beginPath(); ctx.moveTo(p[i - 1].x, p[i - 1].y); ctx.lineTo(p[i].x, p[i].y); ctx.stroke();
       }
     }
+
+    /* Synaptic sparks ride on top of the vasculature, additively. Each
+       is a small bright dot with a soft 2px halo — gold ambient, or
+       crimson when streaming from a calling organ. */
+    const drawT0 = performance.now();
+    for (const s of this.sparks) {
+      const f = s.dir === 'out' ? s.p : 1 - s.p;
+      const pos = this._samplePoly(s.pts, f);
+      const fade = Math.sin(s.p * Math.PI);         /* fade in/out at the ends */
+      if (fade < 0.02) continue;
+      const col = s.crimson ? '255,74,54' : '255,208,132';
+      const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 6);
+      g.addColorStop(0, `rgba(${col},${0.85 * fade})`);
+      g.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = `rgba(255,244,214,${0.9 * fade})`;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, 1.75, 0, 6.2832); ctx.fill();
+    }
     ctx.globalCompositeOperation = 'source-over';
+
+    /* Frame budget guard: if spark spawn+draw work crept over ~1ms,
+       halve the live cap (floor 6) so mobile never drops a frame;
+       recover one slot at a time when there's headroom. */
+    sparkBudgetMs += performance.now() - drawT0;
+    if (sparkBudgetMs > 1 && this.sparkCap > 6) this.sparkCap = Math.max(6, this.sparkCap >> 1);
+    else if (sparkBudgetMs < 0.4 && this.sparkCap < 24) this.sparkCap++;
 
     if (mhas) {
       ctx.globalCompositeOperation = 'lighter';
