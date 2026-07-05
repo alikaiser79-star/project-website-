@@ -18,6 +18,14 @@
    their real domain says so; values only update from real data.
    ============================================================ */
 
+/* Build-provenance stamp for THIS engine file. Drawn on the canvas
+   every frame (bottom-right) and logged once on first frame. If the
+   Command view doesn't show this exact string, the refined engine
+   isn't the code executing — a cache/build problem, not a logic one.
+   Bump the version whenever the heart's look materially changes so we
+   never merge blind on this file again. */
+export const CORE_VERSION = 'CORE-V4';
+
 export interface OrganSignal {
   formatted: string;            // display value, e.g. "$12,480"
   calling: boolean;             // domain says "needs you"
@@ -120,6 +128,7 @@ export class CommandCore {
   private artPath = new Path2D();
   private glowPath = new Path2D();
   private microPath = new Path2D();       /* micro-capillary web near anchors */
+  private _bootLogged = false;            /* one-time CORE_VERSION frame log */
   private filaments: Filament[] = [];
   private embers: Ember[] = [];
   private molten: Molten[] = [];
@@ -653,7 +662,7 @@ export class CommandCore {
         const art = this.arteryByPanel[ids[(Math.random() * ids.length) | 0]];
         if (art) this._spawnSpark(art.pts, 'out', false, 0.5 + Math.random() * 0.12);
       }
-      this.sparkTimer = now + 3 + Math.random();   /* 3-4 s */
+      this.sparkTimer = now + 1.5 + Math.random();   /* 1.5-2.5 s */
     }
     /* A CALLING organ's artery streams crimson sparks inward
        (panel→heart) at ~3-4/s; idle organs reset their accumulator. */
@@ -693,9 +702,11 @@ export class CommandCore {
     const capCol = this._mix([158, 84, 46], [205, 74, 50], ar);
     ctx.strokeStyle = `rgba(${capCol[0] | 0},${capCol[1] | 0},${capCol[2] | 0},${0.17 + 0.08 * ar})`;
     ctx.lineWidth = 0.9 + 0.35 * ar; ctx.stroke(this.capPath);
-    /* Micro-capillary web — one very dim hairline stroke near anchors. */
-    ctx.strokeStyle = `rgba(${capCol[0] | 0},${capCol[1] | 0},${capCol[2] | 0},${0.06 + 0.03 * ar})`;
-    ctx.lineWidth = 0.55; ctx.stroke(this.microPath);
+    /* Micro-capillary web — a dim hairline mesh near anchors. Kept
+       subtle but now actually perceptible (was 0.06 → invisible on
+       most screens); the neural layer should read, not hide. */
+    ctx.strokeStyle = `rgba(${capCol[0] | 0},${capCol[1] | 0},${capCol[2] | 0},${0.14 + 0.06 * ar})`;
+    ctx.lineWidth = 0.7; ctx.stroke(this.microPath);
     const artCol = this._mix([192, 106, 60], [232, 90, 62], ar);
     ctx.strokeStyle = `rgba(${artCol[0] | 0},${artCol[1] | 0},${artCol[2] | 0},${0.27 + 0.1 * ar})`;
     ctx.lineWidth = 1.9 + 0.8 * ar; ctx.stroke(this.artPath);
@@ -870,6 +881,25 @@ export class CommandCore {
     } else if (this.storm > 0.5) { sub = 'ELEVATED'; scol = 'rgba(255,150,100,0.55)'; }
     else { sub = 'ALL SYSTEMS QUIET'; scol = 'rgba(232,210,190,0.3)'; }
     if (sub !== this._lsub) { this.hud.sub.textContent = sub; this.hud.sub.style.color = scol; this._lsub = sub; }
+
+    /* ── Build-provenance smoke stamp ──────────────────────────
+       Drawn directly by the frame loop, so seeing it on the
+       Command view proves BOTH that commandCore.ts is the live
+       module AND that _frame is running. Small, dim, bottom-right. */
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.font = '10px "JetBrains Mono", ui-monospace, monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(255,150,80,0.4)';
+    ctx.fillText(CORE_VERSION, W - 14, H - 12);
+    ctx.restore();
+
+    if (!this._bootLogged) {
+      this._bootLogged = true;
+      /* eslint-disable-next-line no-console */
+      console.info(`[${CORE_VERSION}] Command Core frame loop live — refined engine executing.`);
+    }
   }
 
   private _bloom(ctx: CanvasRenderingContext2D, ar: number) {
