@@ -270,11 +270,14 @@ export class CommandCore {
   /* ── Geometry builders (verbatim port) ───────────────── */
 
   private _buildMolten() {
+    /* Interior churn — only 3 slow currents. Wide, unhurried blobs
+       that drift rather than boil; kept off the nucleus (rad ≥ 0.22)
+       so the r<0.25 core stays clean. */
     this.molten = [];
-    for (let i = 0; i < 13; i++) {
+    for (let i = 0; i < 3; i++) {
       this.molten.push({
-        ang: Math.random() * 6.2832, rad: 0.08 + Math.random() * 0.6,
-        size: 0.16 + Math.random() * 0.34, spd: (0.12 + Math.random() * 0.4) * (Math.random() < 0.5 ? 1 : -1),
+        ang: Math.random() * 6.2832, rad: 0.22 + Math.random() * 0.42,
+        size: 0.28 + Math.random() * 0.3, spd: (0.05 + Math.random() * 0.08) * (Math.random() < 0.5 ? 1 : -1),
         ph: Math.random() * 6.2832, hue: Math.random(),
       });
     }
@@ -363,7 +366,11 @@ export class CommandCore {
     }
     this.capPath = capPath; this.artPath = artPath; this.glowPath = glowPath;
 
+    /* Filaments — fewer and softer than before. Every point is held
+       inside the shell [0.25, 0.9] so the region around the nucleus
+       (r<0.25) reads clean; strands only ever web the outer flesh. */
     this.filaments = [];
+    const R_IN = 0.25, R_OUT = 0.9;
     const growFil = (x: number, y: number, ang: number, len: number, depth: number, wmul: number) => {
       const pts: { x: number; y: number }[] = [{ x, y }];
       const steps = 7; let a = ang, px = x, py = y;
@@ -371,20 +378,21 @@ export class CommandCore {
         a += (Math.random() - 0.5) * 0.95;
         px += Math.cos(a) * (len / steps);
         py += Math.sin(a) * (len / steps);
-        const rr = Math.hypot(px, py);
-        if (rr > 0.9) { px *= 0.9 / rr; py *= 0.9 / rr; }
+        let rr = Math.hypot(px, py) || 1e-4;
+        if (rr > R_OUT) { px *= R_OUT / rr; py *= R_OUT / rr; rr = R_OUT; }
+        if (rr < R_IN) { px *= R_IN / rr; py *= R_IN / rr; }
         pts.push({ x: px, y: py });
       }
-      this.filaments.push({ pts, w: 0.006 * wmul });
+      this.filaments.push({ pts, w: 0.0045 * wmul });
       if (depth > 0) {
-        const nb = Math.random() < 0.7 ? 2 : 1;
+        const nb = Math.random() < 0.55 ? 2 : 1;
         for (let k = 0; k < nb; k++) growFil(px, py, a + (Math.random() - 0.5) * 1.5, len * 0.62, depth - 1, wmul * 0.7);
       }
     };
-    for (let i = 0; i < 11; i++) {
-      const a0 = (i / 11) * Math.PI * 2 + Math.random() * 0.4;
-      const r0 = 0.42 + Math.random() * 0.32;
-      growFil(Math.cos(a0) * r0, Math.sin(a0) * r0, a0 + Math.PI * (0.45 + Math.random() * 0.5), 0.45 + Math.random() * 0.3, 3, 1.5);
+    for (let i = 0; i < 6; i++) {
+      const a0 = (i / 6) * Math.PI * 2 + Math.random() * 0.4;
+      const r0 = 0.48 + Math.random() * 0.3;
+      growFil(Math.cos(a0) * r0, Math.sin(a0) * r0, a0 + Math.PI * (0.45 + Math.random() * 0.5), 0.4 + Math.random() * 0.28, 2, 1.3);
     }
   }
 
@@ -406,10 +414,13 @@ export class CommandCore {
   }
 
   private _cardiac(p: number): number {
-    const lub = Math.exp(-Math.pow((p - 0.045) / 0.043, 2));
-    const dub = 0.5 * Math.exp(-Math.pow((p - 0.205) / 0.05, 2));
-    const recoil = -0.12 * Math.exp(-Math.pow((p - 0.35) / 0.06, 2));
-    return Math.max(0, lub + dub + recoil);
+    /* Softened envelope: one wide, gentle lub centred near p=0.10,
+       a light 0.35-amplitude echo at p=0.30, then a long flat rest
+       for the remaining ~65% of the cycle. No negative recoil dip —
+       the beat swells and settles rather than snapping back. */
+    const lub  = Math.exp(-Math.pow((p - 0.10) / 0.075, 2));
+    const echo = 0.35 * Math.exp(-Math.pow((p - 0.30) / 0.062, 2));
+    return Math.max(0, lub + echo);
   }
 
   /* ── Organ events (real-signal driven) ────────────────── */
@@ -505,7 +516,10 @@ export class CommandCore {
     let tgt = this.storm ? 0.7 : 0;
     tgt += Math.min(this.storm ? 0.3 : 0.85, callingN * (this.storm ? 0.1 : 0.3));
     this.targetArousal = Math.min(1, tgt);
-    this.arousal += (this.targetArousal - this.arousal) * (1 - Math.pow(0.00012, dt));
+    /* Slow ~3s glide between calm and alert. base^3 ≈ 0.05 → about
+       three seconds to close 95% of the gap, so state changes read as
+       a smooth swell rather than a jump. */
+    this.arousal += (this.targetArousal - this.arousal) * (1 - Math.pow(0.37, dt));
     const ar = this.arousal;
 
     /* audio levels */
@@ -819,9 +833,8 @@ export class CommandCore {
   private _drawHeart(ctx: CanvasRenderingContext2D, t: number, contraction: number, ar: number) {
     let { cx, cy } = this; const { heartR } = this;
     cx += this.lean.x; cy += this.lean.y;
-    const trem = ar * heartR * 0.055;
-    cx += (Math.sin(t * 38) + Math.sin(t * 53.7) * 0.6) * trem;
-    cy += (Math.cos(t * 41) + Math.sin(t * 61.3) * 0.6) * trem;
+    /* No tremble at any arousal level — the heart never shakes. Alert
+       is expressed purely through deeper colour and a faster beat. */
 
     /* Deeper squeeze + heavier recoil at REST (ar→0): calm beats
        are big and powerful; aroused beats are shallower + faster.
@@ -831,15 +844,15 @@ export class CommandCore {
     const recoilPunch = 0.06 + 0.03 * (1 - ar);
     const R = heartR * (1 - 0.14 * contraction * squeeze + recoilPunch * this.beatPulse + 0.025 * Math.sin(t * 0.55));
 
-    const N = 140; const wob = 0.05 + 0.055 * ar; const pts: [number, number][] = [];
+    /* Silhouette wobble — low-frequency only (2θ + 3θ), slow drift.
+       Amplitude does NOT grow with arousal, so an alert heart keeps
+       the same calm outline and never reads as jitter. */
+    const N = 140; const wob = 0.05; const pts: [number, number][] = [];
     for (let i = 0; i <= N; i++) {
       const th = (i / N) * Math.PI * 2;
       const rr = R * (1
-        + wob * Math.sin(3 * th + t * 0.7)
-        + wob * 0.7 * Math.sin(5 * th - t * 1.05)
-        + wob * 0.5 * Math.sin(2 * th + t * 0.45)
-        + (0.025 + ar * 0.03) * Math.sin(7 * th + t * 2.0)
-        + (ar * 0.02) * Math.sin(11 * th - t * 3.0));
+        + wob * Math.sin(2 * th + t * 0.35)
+        + wob * 0.6 * Math.sin(3 * th - t * 0.5));
       pts.push([cx + Math.cos(th) * rr, cy + Math.sin(th) * rr]);
     }
     const blob = new Path2D();
@@ -847,36 +860,28 @@ export class CommandCore {
     for (let i = 1; i < pts.length; i++) blob.lineTo(pts[i][0], pts[i][1]);
     blob.closePath();
 
+    /* Three-shell blurred glow — three soft concentric halos, each
+       wider and fainter than the last, replacing the old crisp
+       rotating rings. Deeper, redder colour at arousal; the bloom
+       pass smears them into one continuous soft aura. */
     ctx.globalCompositeOperation = 'lighter';
     const glowCol = this._mix([255, 122, 62], [255, 72, 50], ar);
     const gc = `${glowCol[0] | 0},${glowCol[1] | 0},${glowCol[2] | 0}`;
     const ogA = 0.13 + 0.2 * ar + 0.16 * contraction + this.absorbFlare * 0.12;
-    let og = ctx.createRadialGradient(cx, cy, R * 0.5, cx, cy, R * 3.0);
-    og.addColorStop(0, `rgba(${gc},${ogA * 1.05})`);
-    og.addColorStop(0.32, `rgba(150,32,22,${ogA * 0.3 + 0.03})`);
-    og.addColorStop(0.6, `rgba(${gc},${ogA * 0.26})`);
-    og.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = og; ctx.fillRect(cx - R * 3.1, cy - R * 3.1, R * 6.2, R * 6.2);
-    og = ctx.createRadialGradient(cx, cy, R * 0.4, cx, cy, R * 1.35);
-    og.addColorStop(0, `rgba(255,140,80,${0.12 + 0.14 * contraction + 0.1 * ar})`);
-    og.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = og; ctx.fillRect(cx - R * 1.5, cy - R * 1.5, R * 3, R * 3);
-
-    ctx.save();
-    ctx.translate(cx, cy); ctx.rotate(t * 0.18);
-    for (let a = 0; a < 3; a++) {
-      const rr = R * (1.5 + a * 0.42);
-      ctx.beginPath();
-      for (let i = 0; i <= 60; i++) {
-        const th = (i / 60) * Math.PI * 2;
-        const w = 1 + 0.12 * Math.sin(th * (3 + a) + t * (1 + a));
-        const x = Math.cos(th) * rr * w, y = Math.sin(th) * rr * w;
-        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-      }
-      ctx.strokeStyle = `rgba(255,${150 - a * 20},${90 - a * 30},${(0.05 + 0.06 * ar) * (1 - a * 0.25)})`;
-      ctx.lineWidth = 1; ctx.stroke();
+    const shells: ReadonlyArray<readonly [number, number, number]> = [
+      /* [inner radius ×R, outer radius ×R, alpha scale] */
+      [0.45, 1.5, 1.0],
+      [0.8, 2.5, 0.5],
+      [1.2, 3.4, 0.28],
+    ];
+    for (const [ri, ro, af] of shells) {
+      const g = ctx.createRadialGradient(cx, cy, R * ri, cx, cy, R * ro);
+      g.addColorStop(0, `rgba(${gc},${ogA * af})`);
+      g.addColorStop(0.5, `rgba(${gc},${ogA * af * 0.4})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - R * ro, cy - R * ro, R * ro * 2, R * ro * 2);
     }
-    ctx.restore();
     ctx.globalCompositeOperation = 'source-over';
 
     ctx.save();
@@ -916,7 +921,9 @@ export class CommandCore {
     ctx.globalCompositeOperation = 'source-over';
 
     ctx.globalCompositeOperation = 'multiply';
-    ctx.strokeStyle = `rgba(26,5,5,${0.32 + 0.14 * ar})`;
+    /* Softer strands — lower opacity than before so the filaments read
+       as faint veining, not a hard net. */
+    ctx.strokeStyle = `rgba(26,5,5,${0.2 + 0.1 * ar})`;
     const sway = Math.sin(t * 0.5) * 0.05 + Math.sin(t * 0.27) * 0.03;
     for (const f of this.filaments) {
       ctx.lineWidth = Math.max(0.5, f.w * R);
@@ -943,6 +950,9 @@ export class CommandCore {
     ng.addColorStop(1, 'rgba(255,150,70,0)');
     ctx.fillStyle = ng; ctx.beginPath(); ctx.arc(gx, gy, nucR, 0, 6.2832); ctx.fill();
 
+    /* Twin speculars — a soft broad wet-sheen highlight upper-left,
+       plus a small tight glint just right of centre. Together they
+       give the membrane a rounded, glassy read. */
     ctx.save();
     ctx.translate(cx - R * 0.3, cy - R * 0.36); ctx.rotate(-0.5); ctx.scale(1, 0.5);
     let sp = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.28);
@@ -955,10 +965,12 @@ export class CommandCore {
     sp.addColorStop(1, 'rgba(255,250,235,0)');
     ctx.fillStyle = sp; ctx.beginPath(); ctx.arc(cx + R * 0.12, cy - R * 0.04, R * 0.08, 0, 6.2832); ctx.fill();
 
+    /* Upper-membrane rim light — a thin warm crescent hugging the top
+       edge of the blob, brightening a touch with arousal. */
     const rim = ctx.createRadialGradient(cx, cy - R * 0.55, R * 0.5, cx, cy - R * 0.2, R * 1.06);
     rim.addColorStop(0, 'rgba(255,240,210,0)');
-    rim.addColorStop(0.82, 'rgba(255,210,150,0)');
-    rim.addColorStop(0.96, `rgba(255,226,172,${0.18 + 0.12 * ar})`);
+    rim.addColorStop(0.8, 'rgba(255,210,150,0)');
+    rim.addColorStop(0.95, `rgba(255,228,176,${0.22 + 0.14 * ar})`);
     rim.addColorStop(1, 'rgba(255,200,150,0)');
     ctx.fillStyle = rim; ctx.fillRect(cx - R * 1.3, cy - R * 1.3, R * 2.6, R * 2.6);
     ctx.globalCompositeOperation = 'source-over';
