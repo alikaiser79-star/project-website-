@@ -39,6 +39,8 @@ import SitePanel from './components/panels/SitePanel';
 import IgFeedPanel from './components/panels/IgFeedPanel';
 import AutopilotPanel from './components/panels/AutopilotPanel';
 import CommandCorePanel from './components/panels/CommandCorePanel';
+import MobileCommand from './components/MobileCommand';
+import { useIsMobile } from './hooks/useIsMobile';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -130,6 +132,10 @@ export default function App() {
   const [lockCfg, setLockCfg] = useState<LockConfig>(() => loadLockConfig());
   const [unlocked, setUnlocked] = useState<boolean>(() => !loadLockConfig().enabled);
   const [showSetup, setShowSetup] = useState<boolean>(false);
+
+  /* Phone viewport → the Command view swaps to the mobile "sun and
+     the river" layout (desktop keeps the 12-anchor radial). */
+  const isMobile = useIsMobile();
 
   /* Subscribe to the Spine bus so nav badges recompute when the
      gate fills or the watchtower fires. */
@@ -683,7 +689,7 @@ export default function App() {
               />
             )}
 
-            {view === 'command' && <CommandCorePanel />}
+            {view === 'command' && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
 
             {/* MONEY */}
             {view === 'money' && (
@@ -736,11 +742,15 @@ export default function App() {
             )}
           </motion.div>
 
-          {/* Live intel strip + HN ticker */}
-          <div className="intel-strip-anchor flex flex-col gap-4 sm:gap-5">
-            <IntelStrip delay={1.1} />
-            <NewsRow />
-          </div>
+          {/* Live intel strip + HN ticker. On mobile the Command view
+              owns these inside its river (see MobileCommand), so skip
+              them here to avoid a duplicate stack + overlap. */}
+          {!(isMobile && view === 'command') && (
+            <div className="intel-strip-anchor flex flex-col gap-4 sm:gap-5">
+              <IntelStrip delay={1.1} />
+              <NewsRow />
+            </div>
+          )}
 
           {/* Quiet footer — no frame, just text */}
           <motion.footer
