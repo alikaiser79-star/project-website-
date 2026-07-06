@@ -39,6 +39,8 @@ import SitePanel from './components/panels/SitePanel';
 import IgFeedPanel from './components/panels/IgFeedPanel';
 import AutopilotPanel from './components/panels/AutopilotPanel';
 import CommandCorePanel from './components/panels/CommandCorePanel';
+import MobileCommand from './components/MobileCommand';
+import { useIsMobile } from './hooks/useIsMobile';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -130,6 +132,10 @@ export default function App() {
   const [lockCfg, setLockCfg] = useState<LockConfig>(() => loadLockConfig());
   const [unlocked, setUnlocked] = useState<boolean>(() => !loadLockConfig().enabled);
   const [showSetup, setShowSetup] = useState<boolean>(false);
+
+  /* Phone viewport → the Command view swaps to the mobile "sun and
+     the river" layout (desktop keeps the 12-anchor radial). */
+  const isMobile = useIsMobile();
 
   /* Subscribe to the Spine bus so nav badges recompute when the
      gate fills or the watchtower fires. */
@@ -557,15 +563,20 @@ export default function App() {
       setTimeout(() => setOnbOpen(true), 900);
     }
 
-    setTimeout(() => {
-      toast.ok(`Welcome back, ${settings.operatorName}. All systems nominal.`, 'KAI');
-    }, 800);
+    /* Boot toasts are desktop-only: on the phone the Command hero +
+       NEXT bar already carry this, and a fixed toast would overlay the
+       river (the mobile layout's zero-overlap law). */
+    if (!isMobile) {
+      setTimeout(() => {
+        toast.ok(`Welcome back, ${settings.operatorName}. All systems nominal.`, 'KAI');
+      }, 800);
 
-    const open = loadState().priorities.filter(p => !p.done).length;
-    if (open > 0) {
-      setTimeout(() => toast.ok(`${open} open priorit${open === 1 ? 'y' : 'ies'} for today.`, 'TODAY'), 2200);
+      const open = loadState().priorities.filter(p => !p.done).length;
+      if (open > 0) {
+        setTimeout(() => toast.ok(`${open} open priorit${open === 1 ? 'y' : 'ies'} for today.`, 'TODAY'), 2200);
+      }
     }
-    if (loadState().makadi?.fixLock) {
+    if (!isMobile && loadState().makadi?.fixLock) {
       /* Surface at most once per calendar day. The toast is already
          click-to-dismiss; this gate stops it firing every reload. */
       const today = new Date().toISOString().slice(0, 10);
@@ -584,7 +595,7 @@ export default function App() {
     if (last !== today) {
       setTimeout(() => {
         const text = briefing();
-        toast.ok('Daily briefing ready — say or type "briefing" to hear it.', 'BRIEFING', 6500);
+        if (!isMobile) toast.ok('Daily briefing ready — say or type "briefing" to hear it.', 'BRIEFING', 6500);
         if (settings.voiceEnabled) {
           emit('speak-start');
           voice.speak(
@@ -683,7 +694,7 @@ export default function App() {
               />
             )}
 
-            {view === 'command' && <CommandCorePanel />}
+            {view === 'command' && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
 
             {/* MONEY */}
             {view === 'money' && (
@@ -736,11 +747,15 @@ export default function App() {
             )}
           </motion.div>
 
-          {/* Live intel strip + HN ticker */}
-          <div className="intel-strip-anchor flex flex-col gap-4 sm:gap-5">
-            <IntelStrip delay={1.1} />
-            <NewsRow />
-          </div>
+          {/* Live intel strip + HN ticker. On mobile the Command view
+              owns these inside its river (see MobileCommand), so skip
+              them here to avoid a duplicate stack + overlap. */}
+          {!(isMobile && view === 'command') && (
+            <div className="intel-strip-anchor flex flex-col gap-4 sm:gap-5">
+              <IntelStrip delay={1.1} />
+              <NewsRow />
+            </div>
+          )}
 
           {/* Quiet footer — no frame, just text */}
           <motion.footer

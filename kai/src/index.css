@@ -183,3 +183,267 @@ kbd {
   50%      { opacity: 0.5; }
 }
 .animate-pulse-soft { animation: pulse-soft 3.6s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+/* ============================================================
+   KAI Mobile Command — "the sun and the river" (<768px only).
+   Mounted in place of the desktop CommandCorePanel. Blood-gold
+   card language, JetBrains Mono, one type scale (11/13/16/22),
+   zero overlap: a fixed hero + a scrolling river of cards.
+   ============================================================ */
+.kai-mc {
+  /* Full-bleed: escape the centered content column's padding without
+     a transform (which would break the sticky hero). */
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  color: #efe1cf;
+}
+
+/* ── HERO ─────────────────────────────────────────────────── */
+.kai-mc-hero {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 42vh;
+  min-height: 300px;
+  background: #030303;
+  overflow: hidden;
+}
+.kai-mc-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.kai-mc-brand {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  left: calc(env(safe-area-inset-left, 0px) + 18px);
+  z-index: 3;
+  font-size: 16px;
+  letter-spacing: 6px;
+  color: #ffcaa0;
+  text-shadow: 0 0 14px rgba(255, 140, 70, 0.45);
+  pointer-events: none;
+}
+.kai-mc-vitals {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
+  z-index: 3;
+  text-align: right;
+  pointer-events: none;
+}
+.kai-mc-bpm {
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: #ffcaa0;
+  text-shadow: 0 0 14px rgba(255, 140, 70, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+.kai-mc-state {
+  margin-top: 5px;
+  font-size: 11px;
+  letter-spacing: 5px;
+  color: rgba(255, 160, 90, 0.55);
+}
+.kai-mc-sub {
+  margin-top: 4px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: rgba(232, 210, 190, 0.3);
+}
+.kai-mc-ver {
+  position: absolute;
+  right: calc(env(safe-area-inset-right, 0px) + 10px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+  z-index: 3;
+  padding: 2px 5px;
+  background: #030303;                 /* occlude engine's canvas tag */
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: rgba(255, 168, 96, 0.62);
+  pointer-events: none;
+}
+
+/* ── BRIEF BAR ────────────────────────────────────────────── */
+.kai-mc-brief {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(9, 5, 4, 0.72);
+  border-top: 1px solid rgba(255, 170, 90, 0.16);
+  border-bottom: 1px solid rgba(255, 170, 90, 0.12);
+}
+.kai-mc-brief-tag {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: rgba(255, 185, 120, 0.6);
+}
+.kai-mc-brief-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #f3ddbd;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kai-mc-brief-x {
+  flex: none;
+  background: transparent;
+  border: none;
+  color: rgba(255, 180, 120, 0.5);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+/* ── THE RIVER ────────────────────────────────────────────── */
+.kai-mc-river {
+  position: relative;
+  z-index: 1;
+  padding: 16px 14px calc(env(safe-area-inset-bottom, 0px) + 40px);
+  padding-left: calc(env(safe-area-inset-left, 0px) + 26px);   /* clear the vein */
+  padding-right: calc(env(safe-area-inset-right, 0px) + 14px);
+  background: #050303;
+}
+
+/* Vein thread — one gold hairline down the left edge with sparks. */
+.kai-mc-vein {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(env(safe-area-inset-left, 0px) + 13px);
+  width: 1.5px;
+  background: linear-gradient(180deg,
+    rgba(255, 170, 90, 0.42) 0%,
+    rgba(255, 150, 80, 0.18) 55%,
+    rgba(255, 140, 70, 0.06) 100%);
+  pointer-events: none;
+}
+.kai-mc-spark {
+  position: absolute;
+  left: -1.75px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 208, 132, 0.95);
+  box-shadow: 0 0 8px 2px rgba(255, 190, 110, 0.6);
+  animation: kai-mc-spark-fall 5.2s linear infinite;
+}
+.kai-mc-spark--crimson {
+  background: rgba(255, 96, 70, 0.95);
+  box-shadow: 0 0 8px 2px rgba(255, 74, 54, 0.6);
+}
+@keyframes kai-mc-spark-fall {
+  0%   { top: -2%;  opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  100% { top: 102%; opacity: 0; }
+}
+
+/* Organ cards — 2-column blood-gold grid, generous gaps, no overlap. */
+.kai-mc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.kai-mc-card {
+  display: block;
+  text-align: left;
+  width: 100%;
+  padding: 12px 13px 11px;
+  background:
+    linear-gradient(180deg, rgba(255, 170, 90, 0.03), transparent 42%),
+    rgba(9, 5, 4, 0.55);
+  border: 1px solid rgba(255, 170, 90, 0.16);
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(255, 140, 60, 0.05), inset 0 0 16px rgba(255, 110, 50, 0.03);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.kai-mc-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.kai-mc-card-id {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: rgba(255, 185, 120, 0.5);
+}
+.kai-mc-card-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 170, 90, 0.45);
+  box-shadow: 0 0 6px rgba(255, 160, 80, 0.5);
+}
+.kai-mc-card-label {
+  margin-top: 9px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: #efe1cf;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kai-mc-card-val {
+  margin-top: 6px;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  color: #f3ddbd;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px rgba(255, 160, 90, 0.25);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kai-mc-card-flag {
+  margin-top: 7px;
+  min-height: 10px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: rgba(255, 120, 80, 0);
+}
+.kai-mc-card.is-calling {
+  border-color: rgba(255, 92, 60, 0.6);
+  box-shadow: 0 0 18px rgba(255, 80, 45, 0.28), inset 0 0 20px rgba(255, 70, 40, 0.08);
+  animation: kai-mc-callpulse 2.4s ease-in-out infinite;
+}
+.kai-mc-card.is-calling .kai-mc-card-dot {
+  background: #ff6a44;
+  box-shadow: 0 0 8px rgba(255, 92, 60, 0.9);
+}
+.kai-mc-card.is-calling .kai-mc-card-flag {
+  color: rgba(255, 120, 90, 0.85);
+}
+@keyframes kai-mc-callpulse {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 80, 45, 0.22), inset 0 0 20px rgba(255, 70, 40, 0.06); }
+  50%      { box-shadow: 0 0 22px rgba(255, 80, 45, 0.34), inset 0 0 22px rgba(255, 70, 40, 0.10); }
+}
+
+/* Utility widgets restyled into the river's blood-gold language.
+   Scoped so desktop .glass is untouched. */
+.kai-mc-section {
+  margin: 22px 0 10px;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: rgba(255, 185, 120, 0.5);
+}
+.kai-mc-utils .glass {
+  background:
+    linear-gradient(180deg, rgba(255, 170, 90, 0.03), transparent 42%),
+    rgba(9, 5, 4, 0.55) !important;
+  border: 1px solid rgba(255, 170, 90, 0.16) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 0 12px rgba(255, 140, 60, 0.05), inset 0 0 16px rgba(255, 110, 50, 0.03) !important;
+}

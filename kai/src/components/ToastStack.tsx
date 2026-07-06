@@ -11,7 +11,7 @@ const palette: Record<Toast['level'], { border: string; text: string; glow: stri
 export default function ToastStack() {
   const arr = useToasts();
   return (
-    <div className="fixed top-[80px] right-4 z-[400] flex flex-col gap-2 max-w-[320px] pointer-events-none">
+    <div className="fixed z-[400] flex flex-col gap-2 pointer-events-none left-4 right-4 bottom-[calc(16px+env(safe-area-inset-bottom))] max-w-none md:left-auto md:right-4 md:bottom-auto md:top-[80px] md:max-w-[320px]">
       <AnimatePresence initial={false}>
         {arr.map(t => {
           const p = palette[t.level];
