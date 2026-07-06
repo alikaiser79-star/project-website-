@@ -41,6 +41,9 @@ import AutopilotPanel from './components/panels/AutopilotPanel';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import MobileCommand from './components/MobileCommand';
 import { useIsMobile } from './hooks/useIsMobile';
+import Witness from './components/Witness';
+import TestimonyScroll from './components/TestimonyScroll';
+import { ensureTodayTestimony, shouldShowWitness, markWitnessShown } from './lib/kai/witness';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -136,6 +139,12 @@ export default function App() {
   /* Phone viewport → the Command view swaps to the mobile "sun and
      the river" layout (desktop keeps the 12-anchor radial). */
   const isMobile = useIsMobile();
+
+  /* THE WITNESS — one testimony line before the day, once per unlock
+     per day. witnessLine set → the overlay shows; showScroll → the
+     month's testimony scroll (revealed by swiping down on the hero). */
+  const [witnessLine, setWitnessLine] = useState<string | null>(null);
+  const [showScroll, setShowScroll] = useState(false);
 
   /* Subscribe to the Spine bus so nav badges recompute when the
      gate fills or the watchtower fires. */
@@ -510,6 +519,21 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [settings]);
 
+  /* THE WITNESS — fire once, on the first unlock of the day, before
+     the Command view is usable. Waits for boot + a passed lock, then
+     resolves today's testimony (cached; generated if missing) and
+     raises the overlay. markWitnessShown() guards to once per day. */
+  useEffect(() => {
+    if (!booted) return;
+    if (lockCfg.enabled && !unlocked) return;
+    if (!shouldShowWitness()) return;
+    let alive = true;
+    ensureTodayTestimony().then(line => {
+      if (alive && line) { setWitnessLine(line); markWitnessShown(); }
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [booted, unlocked, lockCfg.enabled]);
+
   // Choreograph entrance + proactive boot notifications
   useEffect(() => {
     if (!booted) return;
@@ -689,7 +713,9 @@ export default function App() {
               />
             )}
 
-            {view === 'command' && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
+            {view === 'command' && (isMobile
+              ? <MobileCommand onRevealScroll={() => setShowScroll(true)} />
+              : <CommandCorePanel />)}
 
             {/* MONEY */}
             {view === 'money' && (
@@ -836,6 +862,16 @@ export default function App() {
           }}
         />
       )}
+
+      {/* THE WITNESS — daily testimony overlay + the month's scroll. */}
+      {witnessLine && (
+        <Witness
+          line={witnessLine}
+          soundOn={settings.soundEnabled}
+          onDone={() => setWitnessLine(null)}
+        />
+      )}
+      {showScroll && <TestimonyScroll onClose={() => setShowScroll(false)} />}
     </>
   );
 }

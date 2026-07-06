@@ -71,8 +71,14 @@ function makeHiddenOrgans(host: HTMLElement): { organs: Record<string, OrganDom>
   return { organs, cleanup: () => wrap.remove() };
 }
 
-export default function MobileCommand() {
+interface MobileCommandProps {
+  /* Swipe down on the hero → open the testimony scroll. */
+  onRevealScroll?: () => void;
+}
+
+export default function MobileCommand({ onRevealScroll }: MobileCommandProps) {
   const heroRef   = useRef<HTMLDivElement>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const bpmRef    = useRef<HTMLDivElement>(null);
   const stateRef  = useRef<HTMLDivElement>(null);
@@ -130,10 +136,30 @@ export default function MobileCommand() {
     return cb - ca;
   });
 
+  /* Downward swipe on the hero reveals the testimony scroll. */
+  function onHeroTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  }
+  function onHeroTouchEnd(e: React.TouchEvent) {
+    const s = touchStart.current;
+    touchStart.current = null;
+    if (!s) return;
+    const t = e.changedTouches[0];
+    const dy = t.clientY - s.y;
+    const dx = Math.abs(t.clientX - s.x);
+    if (dy > 55 && dy > dx) onRevealScroll?.();
+  }
+
   return (
     <div className="kai-mc">
       {/* ── HERO ─────────────────────────────────────────── */}
-      <div ref={heroRef} className="kai-mc-hero">
+      <div
+        ref={heroRef}
+        className="kai-mc-hero"
+        onTouchStart={onHeroTouchStart}
+        onTouchEnd={onHeroTouchEnd}
+      >
         <canvas ref={canvasRef} className="kai-mc-canvas" aria-hidden />
         <div className="kai-mc-brand">KAI</div>
         <div className="kai-mc-vitals">
