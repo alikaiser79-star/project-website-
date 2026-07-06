@@ -23,7 +23,7 @@ export function startSW() {
     setTimeout(() => location.reload(), 50);
   });
 
-  registerSW({
+  const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
       /* skipWaiting handles activation; controllerchange handles the
@@ -34,4 +34,19 @@ export function startSW() {
       toast.ok('KAI is now available offline.', 'PWA', 5000);
     },
   });
+
+  /* Foreground update check. The browser only auto-checks for a new
+     SW on navigation and ~daily, so a long-lived standalone PWA
+     (iOS especially) can sit on a stale bundle for hours. Every time
+     the app is brought back to the foreground, ask the SW to check
+     for an update; if one exists it installs, skipWaiting fires, and
+     the controllerchange handler above reloads into the fresh build.
+     This is what stops "deployed but the pixels didn't change". */
+  const checkForUpdate = () => {
+    if (document.visibilityState === 'visible') {
+      try { updateSW(false); } catch { /* ignore */ }
+    }
+  };
+  document.addEventListener('visibilitychange', checkForUpdate);
+  window.addEventListener('focus', checkForUpdate);
 }

@@ -891,7 +891,7 @@ export class CommandCore {
     ctx.font = '10px "JetBrains Mono", ui-monospace, monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillStyle = 'rgba(255,150,80,0.4)';
+    ctx.fillStyle = 'rgba(255,168,96,0.62)';
     ctx.fillText(CORE_VERSION, W - 14, H - 12);
     ctx.restore();
 
