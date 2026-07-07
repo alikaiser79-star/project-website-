@@ -43,6 +43,8 @@ import MobileCommand from './components/MobileCommand';
 import { useIsMobile } from './hooks/useIsMobile';
 import { useSovereignNav } from './hooks/useSovereignNav';
 import SystemPulse from './components/SystemPulse';
+import AskKaiDrawer from './components/AskKaiDrawer';
+import LektionPanel from './components/panels/LektionPanel';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -115,6 +117,7 @@ export default function App() {
   const [brainPrefill, setBrainPrefill] = useState<string | undefined>(undefined);
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
   const [focusJournalEntry, setFocusJournalEntry] = useState<string | null>(null);
   const [focusSettingsSection, setFocusSettingsSection] = useState<string | null>(null);
@@ -494,6 +497,7 @@ export default function App() {
         sfx.whoosh();
         return;
       }
+      if (e.key === 'Escape') setAskOpen(false);   /* idempotent — closes Ask KAI if open */
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const k = e.key.toLowerCase();
       /* View shortcuts — 1..5 jump straight to the matching view. */
@@ -507,6 +511,7 @@ export default function App() {
       else if (k === 's') { setSetOpen(o => !o); sfx.click(); }
       else if (k === 'j') { setJournalOpen(o => !o); sfx.click(); }
       else if (k === '?') { setCheatOpen(o => !o); sfx.click(); }
+      else if (k === 'a') { setAskOpen(o => !o); sfx.click(); }
     }
     function saveSettings(next: KaiSettings) {
       setSettings(next);
@@ -715,6 +720,7 @@ export default function App() {
             {/* GROWTH */}
             {view === 'growth' && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+                <LektionPanel delay={0.08} />
                 <CrownPanel delay={0.10} />
                 <ContentQueuePanel delay={0.15} />
                 <Suspense fallback={<div className="glass rounded-lg p-5 text-steel font-mono text-xs">loading charts…</div>}>
@@ -827,6 +833,9 @@ export default function App() {
       {/* Sovereign telemetry — bottom-left; hidden on the Command view
           where the core owns the canvas. */}
       <SystemPulse hidden={view === 'command'} />
+
+      {/* Ask KAI — conversational core (A toggles, Esc closes). */}
+      <AskKaiDrawer open={askOpen} onClose={() => setAskOpen(false)} />
 
       {/* Biometric / PIN lock. Setup is one-time, unlock gates every
           relaunch + post-idle resume when enabled. */}
