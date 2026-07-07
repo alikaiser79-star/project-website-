@@ -41,6 +41,8 @@ import AutopilotPanel from './components/panels/AutopilotPanel';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import MobileCommand from './components/MobileCommand';
 import { useIsMobile } from './hooks/useIsMobile';
+import { useSovereignNav } from './hooks/useSovereignNav';
+import SystemPulse from './components/SystemPulse';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -280,6 +282,10 @@ export default function App() {
     /* Jump to top when switching views — each view is its own page. */
     try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* ignore */ }
   }, []);
+
+  /* Sovereign navigation — swipe / arrow keys walk the five views.
+     Disabled behind the lock so gestures don't leak past auth. */
+  useSovereignNav({ view, setView, enabled: !(lockCfg.enabled && !unlocked) });
 
   const onSettings = useCallback((s: KaiSettings) => {
     setSettings(s);
@@ -817,6 +823,10 @@ export default function App() {
       <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
       <ToastStack />
       <BuildBanner />
+
+      {/* Sovereign telemetry — bottom-left; hidden on the Command view
+          where the core owns the canvas. */}
+      <SystemPulse hidden={view === 'command'} />
 
       {/* Biometric / PIN lock. Setup is one-time, unlock gates every
           relaunch + post-idle resume when enabled. */}

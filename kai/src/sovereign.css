@@ -1,0 +1,79 @@
+/* ============================================================
+   SOVEREIGN SHELL — one global polish layer, imported after
+   index.css. Upgrades every .glass panel at once without touching
+   any component. Blood-gold identity throughout.
+   ============================================================ */
+
+/* Gold top-edge hairline on every glass panel — light from above,
+   machined. Non-interactive. */
+.glass { position: relative; }
+.glass::after {
+  content: '';
+  position: absolute;
+  left: 10px; right: 10px; top: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    rgba(255, 190, 110, 0) 0%,
+    rgba(255, 190, 110, 0.45) 50%,
+    rgba(255, 190, 110, 0) 100%);
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+/* Hover lift — only where a real pointer can hover and motion is
+   allowed; the idle cinema is exempt so standby stays still. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .glass { transition: transform 0.18s ease, box-shadow 0.3s ease, border-color 0.4s ease, background-color 0.4s ease; }
+  .glass:hover { transform: translateY(-1px); }
+  .idle-mode .glass:hover { transform: none; }
+}
+
+/* Machined thin gold scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 176, 96, 0.35) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 176, 96, 0.3);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(255, 176, 96, 0.5); background-clip: content-box; }
+
+/* Gold focus ring — keyboard users only. */
+:focus-visible {
+  outline: 2px solid rgba(255, 186, 100, 0.7);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Identity: tabular numerals everywhere, amber selection. */
+body { font-variant-numeric: tabular-nums; }
+::selection { background: rgba(255, 176, 96, 0.28); color: #fff4e0; }
+
+/* ── SystemPulse telemetry (bottom-left) ─────────────────── */
+.system-pulse {
+  position: fixed;
+  left: calc(env(safe-area-inset-left, 0px) + 14px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  z-index: 300;
+  pointer-events: none;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: rgba(255, 190, 120, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-shadow: 0 0 8px rgba(255, 140, 70, 0.25);
+  user-select: none;
+}
+.system-pulse .sp-sep { color: rgba(255, 176, 96, 0.25); }
+.system-pulse .sp-sha { color: rgba(255, 200, 140, 0.7); }
+.system-pulse .ok { color: rgba(150, 220, 150, 0.7); }
+.system-pulse .mid { color: rgba(255, 200, 110, 0.75); }
+.system-pulse .low { color: rgba(255, 120, 90, 0.8); }
+.idle-mode .system-pulse { opacity: 0.4; }
