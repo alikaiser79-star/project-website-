@@ -17,7 +17,7 @@
    ============================================================ */
 
 import { useEffect, useRef } from 'react';
-import { CommandCore, type OrganDom } from '../../lib/kai/commandCore';
+import { CommandCore, type OrganDom } from '../../lib/kai/commandCoreV6';
 import { getCommandSignals, ACK_ROUTE } from '../../lib/kai/commandSignals';
 import { emitAction } from '../../lib/actions';
 import { sfx } from '../../lib/sound';

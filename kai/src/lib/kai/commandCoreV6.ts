@@ -1,0 +1,1492 @@
+/* ============================================================
+   KAI Command Core — Living Body engine.
+
+   Ported verbatim from KAI Command Core.dc.html — the heart,
+   vasculature, feed/absorb fronts, shockwaves, embers, bloom,
+   cardiac envelope, lightning arcs, panel glow. The x-dc /
+   DCLogic wrapper and the support.js preview harness are NOT
+   ported — only the rendering logic.
+
+   Framework-agnostic class. Takes a canvas + organ DOM refs +
+   HUD refs + a signalProvider that maps organ id → real value
+   and calling state. All per-frame DOM mutation happens on
+   direct refs (never via framework state) per the brief's
+   performance rule.
+
+   Per the brief, the demo's random-walk + random-call-scheduling
+   is REPLACED with a real signalProvider. Organs only call when
+   their real domain says so; values only update from real data.
+   ============================================================ */
+
+/* Build-provenance stamp for THIS engine file. Drawn on the canvas
+   every frame (bottom-right) and logged once on first frame. If the
+   Command view doesn't show this exact string, the refined engine
+   isn't the code executing — a cache/build problem, not a logic one.
+   Bump the version whenever the heart's look materially changes so we
+   never merge blind on this file again. */
+export const CORE_VERSION = 'CORE-V6';
+
+/* Deterministic PRNG — mulberry32. A fixed seed makes the engineered
+   lattice (arteries, halo rings, spokes, constellation) byte-identical
+   on every boot, so the machine reads as designed, not grown. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export interface OrganSignal {
+  formatted: string;            // display value, e.g. "$12,480"
+  calling: boolean;             // domain says "needs you"
+}
+
+export type SignalProvider = () => Record<string, OrganSignal>;
+
+export interface OrganDom {
+  el: HTMLElement;
+  dot: HTMLElement;
+  bar: HTMLElement;
+  val: HTMLElement;
+  flag: HTMLElement;
+  label: string;
+}
+
+export interface HudDom {
+  bpm:   HTMLElement;
+  state: HTMLElement;
+  sub:   HTMLElement;
+}
+
+export interface CommandCoreOptions {
+  canvas: HTMLCanvasElement;
+  root:   HTMLElement;
+  organs: Record<string, OrganDom>;
+  hud:    HudDom;
+  signalProvider: SignalProvider;
+  onAck?: (id: string) => void;
+  restBpm?: number;
+  peakBpm?: number;
+  bloom?: number;
+}
+
+interface VeinPt { x: number; y: number; r: number; }
+interface Vein   { pts: VeinPt[]; w: number; artery?: boolean; }
+interface Filament { pts: { x: number; y: number }[]; w: number; }
+interface Ember  { x: number; y: number; s: number; vy: number; sw: number; sa: number; }
+interface Molten { ang: number; rad: number; size: number; spd: number; ph: number; hue: number; }
+interface Front  { r: number; type: 'feed' | 'absorb'; v: number; life?: number; flared?: boolean; }
+interface Shock  { r: number; v: number; life: number; x: number; y: number; }
+interface Ripple { x: number; y: number; r: number; life: number; }
+interface Arc    { pts: VeinPt[]; t0: number; dur: number; color: string; dir: 'in' | 'out'; }
+/* Synaptic spark — a bright particle riding a cached artery polyline
+   head-to-tail. `p` runs 0→1; `dir` maps it to travel outward
+   (heart→panel) or inward (panel→heart). No new geometry — the pts
+   reference is the existing artery's, shared by reference. */
+interface Spark  { pts: VeinPt[]; p: number; spd: number; dir: 'in' | 'out'; crimson: boolean; }
+
+interface OrganState {
+  status: 'idle' | 'calling';
+  ackFlash: number;
+  callStart: number;
+  _lvs?: string;
+  _lvc?: string;
+  _lfc?: boolean;
+  label: string;
+}
+
+const PANEL_DEFS: ReadonlyArray<[string, number, number]> = [
+  ['01', 0.11, 0.18], ['02', 0.11, 0.39], ['03', 0.11, 0.61], ['04', 0.11, 0.82],
+  ['05', 0.89, 0.18], ['06', 0.89, 0.39], ['07', 0.89, 0.61], ['08', 0.89, 0.82],
+  ['09', 0.37, 0.085], ['10', 0.63, 0.085], ['11', 0.30, 0.915], ['12', 0.70, 0.915],
+];
+
+export class CommandCore {
+  /* runtime state — refs, not framework state */
+  private canvas: HTMLCanvasElement;
+  private ctx!: CanvasRenderingContext2D;
+  private root: HTMLElement;
+  private organsDom: Record<string, OrganDom>;
+  private hud: HudDom;
+  private signalProvider: SignalProvider;
+  private onAck?: (id: string) => void;
+
+  private restBpm: number;
+  private peakBpm: number;
+  private bloomStrength: number;
+
+  private W = 1; private H = 1; private cx = 0; private cy = 0;
+  private heartR = 1; private maxR = 1;
+  private rect: DOMRect | null = null;
+
+  private phase = 0; private last = 0;
+  private fronts: Front[] = []; private shock: Shock[] = [];
+  private ripples: Ripple[] = []; private arcs: Arc[] = [];
+  private charge: Record<string, number> = {};
+  private hover:  Record<string, number> = {};
+  private absorbFlare = 0; private beatPulse = 0; private thump = 0; private ambient = 0;
+  private lean = { x: 0, y: 0 };
+  private mouse = { x: 0, y: 0, has: false };
+  private arousal = 0; private targetArousal = 0;
+  private storm = 0;
+
+  private organs: Record<string, OrganState> = {};
+  private panelAnchors: Record<string, VeinPt> = {};
+  private arteryByPanel: Record<string, Vein> = {};
+  private veins: Vein[] = [];
+  private capPath = new Path2D();
+  private artPath = new Path2D();
+  private glowPath = new Path2D();
+  private microPath = new Path2D();       /* micro-capillary web near anchors */
+  private _bootLogged = false;            /* one-time CORE_VERSION frame log */
+  private filaments: Filament[] = [];
+  private embers: Ember[] = [];
+  private molten: Molten[] = [];
+
+  /* ── V6 engineered lattice + life layers ─────────────── */
+  private haloRings: number[] = [];                         /* concentric ring radii */
+  private spokes: Array<{ ang: number; drift: number; len: number }> = [];
+  private constNodes: Array<{ x: number; y: number }> = []; /* constellation web */
+  private constEdges: Array<[number, number]> = [];
+  private relayByPanel: Record<string, VeinPt[]> = {};      /* 3 synapse relays / artery */
+  private relayFlares: Array<{ x: number; y: number; born: number }> = [];
+  private dust: Array<{ x: number; y: number; z: number; s: number }> = [];  /* depth field */
+  private dashPhase = 0;                                    /* marching data-flow offset */
+  private glyphSeed: number[] = [];                         /* 28 nucleus glyph dash lengths */
+
+  /* Adaptive quality governor — EMA frame time; drops the DPR cap once
+     on sustained slowness so 60fps survives on weak devices. */
+  private frameEMA = 16;
+  private dprCap = 1.25;
+  private _governed = false;
+  private _bootAt = 0;
+
+  /* Device-tilt parallax (opt-in via enableTilt). */
+  private _tiltOn = false;
+  private _tilt = { x: 0, y: 0 };
+  private _onTilt: ((e: DeviceOrientationEvent) => void) | null = null;
+
+  /* Neural layer — synaptic sparks riding artery polylines. Caps are
+     halved automatically if a frame's spark work exceeds the budget. */
+  private sparks: Spark[] = [];
+  private sparkCap = 24;                   /* max live sparks */
+  private sparkTimer = 0;                  /* next ambient spark time */
+  private sparkAcc: Record<string, number> = {};  /* per-organ stream accumulator */
+
+  /* bloom downsample buffer */
+  private bloomC: HTMLCanvasElement;
+  private bctx!: CanvasRenderingContext2D | null;
+  private bw = 2; private bh = 2;
+
+  /* HUD diff cache */
+  private _lbpm: string | null = null;
+  private _lhot: boolean | null = null;
+  private _lsub: string | null = null;
+
+  private raf = 0;
+  private callTimer = 0;
+  private valTimer = 0;
+  private _onResize: () => void;
+  private _onPointerMove: (e: PointerEvent) => void;
+  private _onPointerLeave: () => void;
+  private _onPointerDown: (e: PointerEvent) => void;
+  private _organClickHandlers: Array<{ el: HTMLElement; fn: (e: Event) => void }> = [];
+  private _organEnterHandlers: Array<{ el: HTMLElement; fn: () => void; id: string }> = [];
+  private _organLeaveHandlers: Array<{ el: HTMLElement; fn: () => void; id: string }> = [];
+
+  /* audio */
+  private audioOn = false;
+  private actx: AudioContext | null = null;
+  private master: GainNode | null = null;
+  private drone: OscillatorNode | null = null;
+  private droneG: GainNode | null = null;
+  private tideG: GainNode | null = null;
+  private noiseBuf: AudioBuffer | null = null;
+
+  constructor(opts: CommandCoreOptions) {
+    this.canvas = opts.canvas;
+    this.root = opts.root;
+    this.organsDom = opts.organs;
+    this.hud = opts.hud;
+    this.signalProvider = opts.signalProvider;
+    this.onAck = opts.onAck;
+    /* Resting rate 48 — the floor. Below ~45 the lub-dub stops
+       reading as a heartbeat. Calm = a big powerful animal at deep
+       rest, not a slow machine. */
+    this.restBpm = opts.restBpm ?? 48;
+    this.peakBpm = opts.peakBpm ?? 134;
+    this.bloomStrength = opts.bloom ?? 0.9;
+
+    this.bloomC = document.createElement('canvas');
+
+    /* seed organ states */
+    for (const [id] of PANEL_DEFS) {
+      this.organs[id] = {
+        status: 'idle', ackFlash: 0, callStart: 0,
+        label: this.organsDom[id]?.label ?? id,
+      };
+    }
+
+    this._onResize = () => this._resize();
+    this._onPointerMove = (e) => {
+      const r = this.rect || this.canvas.getBoundingClientRect();
+      this.mouse.x = e.clientX - r.left; this.mouse.y = e.clientY - r.top; this.mouse.has = true;
+    };
+    this._onPointerLeave = () => { this.mouse.has = false; };
+    this._onPointerDown = (e) => {
+      if (e.target !== this.canvas) return;
+      const r = this.rect || this.canvas.getBoundingClientRect();
+      this._ripple(e.clientX - r.left, e.clientY - r.top);
+    };
+  }
+
+  start() {
+    window.addEventListener('resize', this._onResize);
+    this.root.addEventListener('pointermove', this._onPointerMove);
+    this.root.addEventListener('pointerleave', this._onPointerLeave);
+    this.root.addEventListener('pointerdown', this._onPointerDown);
+
+    for (const [id] of PANEL_DEFS) {
+      const o = this.organsDom[id];
+      if (!o) continue;
+      const click = (e: Event) => { e.stopPropagation(); this._ack(id); };
+      const enter = () => { this.hover[id] = 1; };
+      const leave = () => { this.hover[id] = 0; };
+      o.el.addEventListener('click', click);
+      o.el.addEventListener('mouseenter', enter);
+      o.el.addEventListener('mouseleave', leave);
+      this._organClickHandlers.push({ el: o.el, fn: click });
+      this._organEnterHandlers.push({ el: o.el, fn: enter, id });
+      this._organLeaveHandlers.push({ el: o.el, fn: leave, id });
+    }
+
+    this._resize();
+    this._pullValues(true);   /* prime values from real signals immediately */
+    this.last = performance.now() / 1000;
+    this._bootAt = this.last;
+    this.valTimer = this.last + 1.1;
+    this.callTimer = this.last + 0.4;
+    const loop = () => {
+      try { this._frame(); }
+      catch (e) { console.error('[KAI command core]', e); }
+      this.raf = requestAnimationFrame(loop);
+    };
+    this.raf = requestAnimationFrame(loop);
+  }
+
+  stop() {
+    if (this.raf) cancelAnimationFrame(this.raf);
+    window.removeEventListener('resize', this._onResize);
+    this.root.removeEventListener('pointermove', this._onPointerMove);
+    this.root.removeEventListener('pointerleave', this._onPointerLeave);
+    this.root.removeEventListener('pointerdown', this._onPointerDown);
+    for (const h of this._organClickHandlers) h.el.removeEventListener('click', h.fn);
+    for (const h of this._organEnterHandlers) h.el.removeEventListener('mouseenter', h.fn);
+    for (const h of this._organLeaveHandlers) h.el.removeEventListener('mouseleave', h.fn);
+    if (this.actx) { try { this.actx.close(); } catch { /* ignore */ } }
+  }
+
+  ackAll() {
+    for (const id in this.organs) {
+      const o = this.organs[id];
+      if (o.status === 'calling') {
+        o.status = 'idle';
+        o.ackFlash = 0.8;
+        this.charge[id] = Math.max(this.charge[id] || 0, 1.1);
+        this._spawnArc(id, 'out', '#ffcf86');
+      }
+    }
+  }
+
+  /* ── Layout / geometry ───────────────────────────────── */
+
+  private _resize() {
+    const c = this.canvas;
+    this.rect = c.getBoundingClientRect();
+    const W = c.clientWidth || window.innerWidth;
+    const H = c.clientHeight || window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, this.dprCap);
+    c.width = Math.round(W * dpr); c.height = Math.round(H * dpr);
+    this.ctx = c.getContext('2d')!;
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.W = W; this.H = H;
+    this.cx = W / 2; this.cy = H / 2;
+    if (!this.mouse.has) { this.mouse.x = this.cx; this.mouse.y = this.cy; }
+    this.heartR = Math.min(W, H) * 0.15;
+    this.maxR = Math.hypot(W, H) * 0.6;
+    this.bw = Math.max(2, Math.round(W * 0.24));
+    this.bh = Math.max(2, Math.round(H * 0.24));
+    this.bloomC.width = this.bw; this.bloomC.height = this.bh;
+    this.bctx = this.bloomC.getContext('2d');
+    this._buildVeins();
+    this._buildEmbers();
+    this._buildMolten();
+  }
+
+  /* ── Geometry builders (verbatim port) ───────────────── */
+
+  private _buildMolten() {
+    /* Interior plasma — 5 slow currents (V6: tenfold depth). Wide,
+       unhurried blobs that drift rather than boil; kept off the nucleus
+       (rad ≥ 0.22) so the r<0.25 core stays clean. Seeded for identity. */
+    const rnd = mulberry32(0x9E3779B1);
+    this.molten = [];
+    for (let i = 0; i < 5; i++) {
+      this.molten.push({
+        ang: rnd() * 6.2832, rad: 0.22 + rnd() * 0.42,
+        size: 0.26 + rnd() * 0.3, spd: (0.05 + rnd() * 0.08) * (rnd() < 0.5 ? 1 : -1),
+        ph: rnd() * 6.2832, hue: rnd(),
+      });
+    }
+    /* 28 glyph dash lengths for the counter-rotating nucleus ring. */
+    this.glyphSeed = Array.from({ length: 28 }, () => 0.5 + rnd() * 0.5);
+  }
+
+  private _buildVeins() {
+    const { cx, cy, W, H, heartR, maxR } = this;
+    const rnd = mulberry32(0xC0FFEE);           /* fixed seed → identical geometry */
+    const veins: Vein[] = [];
+    const startR = heartR * 1.08;               /* arteries leave from the armature rim */
+    const pt = (x: number, y: number): VeinPt => ({ x, y, r: Math.hypot(x - cx, y - cy) });
+
+    this.panelAnchors = {};
+    this.arteryByPanel = {};
+    this.relayByPanel = {};
+
+    /* Per panel: a smooth cubic-Bezier S-curve artery sampled to a
+       34-pt (N=34) polyline so sparks/arcs/dashes ride it unchanged.
+       Two control points are pushed off the straight line on opposite
+       sides (the S), by a seeded amount. Then 3 synapse relay nodes at
+       fixed u, and one elbow stub branching off the middle. */
+    const bez = (p0: number, p1: number, p2: number, p3: number, u: number) => {
+      const mu = 1 - u;
+      return mu * mu * mu * p0 + 3 * mu * mu * u * p1 + 3 * mu * u * u * p2 + u * u * u * p3;
+    };
+    for (const [id, fx, fy] of PANEL_DEFS) {
+      const tx = fx * W, ty = fy * H;
+      this.panelAnchors[id] = pt(tx, ty);
+      const dx = tx - cx, dy = ty - cy, dist = Math.hypot(dx, dy) || 1;
+      const ux = dx / dist, uy = dy / dist, nx = -uy, ny = ux;
+      const sx = cx + ux * startR, sy = cy + uy * startR;
+      const amp = dist * (0.16 + rnd() * 0.06);
+      const c1x = sx + (tx - sx) * 0.33 + nx * amp;
+      const c1y = sy + (ty - sy) * 0.33 + ny * amp;
+      const c2x = sx + (tx - sx) * 0.66 - nx * amp;
+      const c2y = sy + (ty - sy) * 0.66 - ny * amp;
+      const N = 34, pts: VeinPt[] = [];
+      for (let i = 0; i <= N; i++) {
+        const u = i / N;
+        pts.push(pt(bez(sx, c1x, c2x, tx, u), bez(sy, c1y, c2y, ty, u)));
+      }
+      const artery: Vein = { pts, w: 3.0, artery: true };
+      veins.push(artery);
+      this.arteryByPanel[id] = artery;
+      this.relayByPanel[id] = [0.28, 0.52, 0.78].map(u => pts[Math.round(u * N)]);
+      /* one elbow stub off the mid-point */
+      const mid = pts[Math.round(0.55 * N)];
+      const ea = Math.atan2(mid.y - cy, mid.x - cx) + (rnd() < 0.5 ? 1 : -1) * (0.7 + rnd() * 0.5);
+      const elen = dist * 0.14;
+      const stub: VeinPt[] = [mid];
+      let ex = mid.x, ey = mid.y, ea2 = ea;
+      for (let s = 0; s < 5; s++) { ea2 += (rnd() - 0.5) * 0.25; ex += Math.cos(ea2) * (elen / 5); ey += Math.sin(ea2) * (elen / 5); stub.push(pt(ex, ey)); }
+      veins.push({ pts: stub, w: 1.1 });
+    }
+
+    /* Concentric halo rings from 1.85R, ×1.52 steps, out to the field. */
+    this.haloRings = [];
+    for (let r = heartR * 1.85; r < maxR * 1.02; r *= 1.52) this.haloRings.push(r);
+
+    /* 34 radial spokes with a gentle seeded spiral drift. */
+    this.spokes = [];
+    for (let i = 0; i < 34; i++) {
+      this.spokes.push({ ang: (i / 34) * Math.PI * 2, drift: (rnd() - 0.5) * 0.5, len: maxR * (0.55 + rnd() * 0.4) });
+    }
+
+    /* 88-node golden-angle constellation web, each node wired to its
+       2 nearest neighbours. Deterministic from the seed. */
+    const GOLD = Math.PI * (3 - Math.sqrt(5));
+    this.constNodes = [];
+    for (let i = 0; i < 88; i++) {
+      const t = i / 88;
+      const rr = heartR * 1.25 + t * (maxR * 0.9 - heartR * 1.25);
+      const a = i * GOLD + rnd() * 0.12;
+      this.constNodes.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * 0.9 });
+    }
+    this.constEdges = [];
+    for (let i = 0; i < this.constNodes.length; i++) {
+      const a = this.constNodes[i];
+      const d = this.constNodes.map((b, j) => [j, (a.x - b.x) ** 2 + (a.y - b.y) ** 2] as [number, number])
+        .filter(([j]) => j !== i).sort((p, q) => p[1] - q[1]);
+      if (d[0]) this.constEdges.push([i, d[0][0]]);
+      if (d[1]) this.constEdges.push([i, d[1][0]]);
+    }
+
+    /* Draw paths — arteries in artPath, stubs + spokes baked into
+       capPath, everything into glowPath for the wide underglow. */
+    this.veins = veins;
+    const capPath = new Path2D(), artPath = new Path2D(), glowPath = new Path2D();
+    for (const v of veins) {
+      const tp = v.artery ? artPath : capPath;
+      const p = v.pts;
+      tp.moveTo(p[0].x, p[0].y); glowPath.moveTo(p[0].x, p[0].y);
+      for (let i = 1; i < p.length; i++) { tp.lineTo(p[i].x, p[i].y); glowPath.lineTo(p[i].x, p[i].y); }
+    }
+    this.capPath = capPath; this.artPath = artPath; this.glowPath = glowPath;
+
+    /* Micro arcs hugging each panel anchor — a dim local mesh. */
+    const micro = new Path2D();
+    for (const idk in this.panelAnchors) {
+      const anc = this.panelAnchors[idk];
+      for (let s = 0; s < 3; s++) {
+        const a0 = rnd() * 6.2832, rr = 10 + rnd() * 26;
+        micro.moveTo(anc.x + Math.cos(a0) * rr, anc.y + Math.sin(a0) * rr);
+        micro.arc(anc.x, anc.y, rr, a0, a0 + 1.1 + rnd() * 1.4);
+      }
+    }
+    this.microPath = micro;
+
+    /* Interior filaments — seeded, held inside the shell [0.25, 0.9]. */
+    this.filaments = [];
+    const R_IN = 0.25, R_OUT = 0.9;
+    const growFil = (x: number, y: number, ang: number, len: number, depth: number, wmul: number) => {
+      const p: { x: number; y: number }[] = [{ x, y }];
+      const steps = 7; let a = ang, px = x, py = y;
+      for (let i = 0; i < steps; i++) {
+        a += (rnd() - 0.5) * 0.95;
+        px += Math.cos(a) * (len / steps); py += Math.sin(a) * (len / steps);
+        let rr = Math.hypot(px, py) || 1e-4;
+        if (rr > R_OUT) { px *= R_OUT / rr; py *= R_OUT / rr; rr = R_OUT; }
+        if (rr < R_IN) { px *= R_IN / rr; py *= R_IN / rr; }
+        p.push({ x: px, y: py });
+      }
+      this.filaments.push({ pts: p, w: 0.0045 * wmul });
+      if (depth > 0) { const nb = rnd() < 0.55 ? 2 : 1; for (let k = 0; k < nb; k++) growFil(px, py, a + (rnd() - 0.5) * 1.5, len * 0.62, depth - 1, wmul * 0.7); }
+    };
+    for (let i = 0; i < 6; i++) {
+      const a0 = (i / 6) * Math.PI * 2 + rnd() * 0.4;
+      const r0 = 0.48 + rnd() * 0.3;
+      growFil(Math.cos(a0) * r0, Math.sin(a0) * r0, a0 + Math.PI * (0.45 + rnd() * 0.5), 0.4 + rnd() * 0.28, 2, 1.3);
+    }
+
+    /* 90-particle depth-dust field (parallax from lean). Seeded. */
+    this.dust = [];
+    for (let i = 0; i < 90; i++) {
+      this.dust.push({ x: rnd() * W, y: rnd() * H, z: 0.2 + rnd() * 1.0, s: 0.4 + rnd() * 1.3 });
+    }
+  }
+
+  private _buildEmbers() {
+    const { W, H } = this;
+    this.embers = [];
+    const n = 38;
+    for (let i = 0; i < n; i++) {
+      this.embers.push({
+        x: Math.random() * W, y: Math.random() * H,
+        s: 0.5 + Math.random() * 1.7, vy: -(3 + Math.random() * 11),
+        sw: Math.random() * 6.28, sa: 0.18 + Math.random() * 0.5,
+      });
+    }
+  }
+
+  private _mix(a: number[], b: number[], t: number): number[] {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  }
+
+  /* ── V6 ability: device-tilt parallax ────────────────── */
+  enableTilt(): void {
+    if (this._tiltOn) return;
+    const attach = () => {
+      this._onTilt = (e: DeviceOrientationEvent) => {
+        const g = (e.gamma ?? 0), b = (e.beta ?? 0);
+        this._tilt.x = Math.max(-1, Math.min(1, g / 45)) * this.heartR * 0.14;
+        this._tilt.y = Math.max(-1, Math.min(1, (b - 45) / 45)) * this.heartR * 0.14;
+      };
+      window.addEventListener('deviceorientation', this._onTilt);
+      this._tiltOn = true;
+    };
+    const AnyDOE = (window as any).DeviceOrientationEvent;
+    if (AnyDOE && typeof AnyDOE.requestPermission === 'function') {
+      AnyDOE.requestPermission().then((s: string) => { if (s === 'granted') attach(); }).catch(() => {});
+    } else if (AnyDOE) {
+      attach();
+    }
+  }
+
+  /* ── V6 draw: depth-dust field with lean parallax ─────── */
+  private _drawDust(ctx: CanvasRenderingContext2D, ar: number) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const d of this.dust) {
+      const px = d.x + this.lean.x * d.z * 3.2;
+      const py = d.y + this.lean.y * d.z * 3.2;
+      const a = (0.05 + 0.09 * ar) * d.z;
+      ctx.fillStyle = `rgba(255,${175 + (ar * 20) | 0},${110 - (ar * 30) | 0},${a})`;
+      ctx.beginPath(); ctx.arc(px, py, d.s, 0, 6.2832); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* ── V6 draw: halo rings + radial spokes + constellation ─ */
+  private _drawRings(ctx: CanvasRenderingContext2D, now: number, ar: number) {
+    const { cx, cy } = this;
+    ctx.save();
+    /* concentric machined halo rings */
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < this.haloRings.length; i++) {
+      const r = this.haloRings[i];
+      ctx.strokeStyle = `rgba(255,${168 - i * 8},${86 - i * 6},${0.05 + 0.03 * ar})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.2832); ctx.stroke();
+    }
+    /* radial spokes with slow spiral drift */
+    for (const s of this.spokes) {
+      const a = s.ang + now * 0.02 * s.drift;
+      const r0 = this.heartR * 1.85, r1 = r0 + s.len;
+      const g = ctx.createLinearGradient(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0, cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+      g.addColorStop(0, `rgba(255,150,72,${0.06 + 0.03 * ar})`);
+      g.addColorStop(1, 'rgba(255,120,60,0)');
+      ctx.strokeStyle = g; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.stroke();
+    }
+    /* golden-angle constellation web + nodes */
+    ctx.strokeStyle = `rgba(255,178,96,${0.05 + 0.03 * ar})`; ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    for (const [a, b] of this.constEdges) {
+      const na = this.constNodes[a], nb = this.constNodes[b];
+      ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y);
+    }
+    ctx.stroke();
+    const tw = 0.5 + 0.5 * Math.sin(now * 1.3);
+    for (let i = 0; i < this.constNodes.length; i++) {
+      const n = this.constNodes[i];
+      ctx.fillStyle = `rgba(255,200,120,${0.12 + 0.1 * ((i % 5) / 5) * tw})`;
+      ctx.beginPath(); ctx.arc(n.x, n.y, 1.1, 0, 6.2832); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /* ── V6 draw: marching data-dashes, crimson call-beams,
+        relay-node halos on every artery ─────────────────── */
+  private _drawArteryLife(ctx: CanvasRenderingContext2D, now: number, dt: number, ar: number) {
+    this.dashPhase -= dt * (34 + 80 * ar);       /* march inward toward the core */
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    /* marching gold dashes on every artery */
+    ctx.setLineDash([5, 16]);
+    ctx.lineDashOffset = this.dashPhase;
+    ctx.strokeStyle = `rgba(255,206,132,${0.4 + 0.25 * ar})`;
+    ctx.lineWidth = 1.4;
+    ctx.stroke(this.artPath);
+    ctx.setLineDash([]);
+
+    /* calling organs throb their whole artery as a crimson beam */
+    for (const id in this.organs) {
+      if (this.organs[id].status !== 'calling') continue;
+      const art = this.arteryByPanel[id]; if (!art) continue;
+      const beat = 0.5 + 0.5 * Math.sin(now * 4);
+      const p = art.pts;
+      ctx.strokeStyle = `rgba(255,${60 + 30 * beat | 0},48,${0.35 + 0.4 * beat})`;
+      ctx.lineWidth = 2.4 + 2 * beat;
+      ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
+      for (let i = 1; i < p.length; i++) ctx.lineTo(p[i].x, p[i].y);
+      ctx.stroke();
+    }
+
+    /* relay-node flares: a node lights when a beat front crosses it */
+    for (const id in this.relayByPanel) {
+      for (const nd of this.relayByPanel[id]) {
+        for (const f of this.fronts) {
+          if (f.type === 'feed' && Math.abs(nd.r - f.r) < 10) {
+            this.relayFlares.push({ x: nd.x, y: nd.y, born: now }); break;
+          }
+        }
+      }
+    }
+    if (this.relayFlares.length > 60) this.relayFlares.splice(0, this.relayFlares.length - 60);
+    this.relayFlares = this.relayFlares.filter(fl => {
+      const age = now - fl.born; if (age > 0.6) return false;
+      const k = age / 0.6, rr = 3 + k * 16, al = (1 - k) * 0.6;
+      const g = ctx.createRadialGradient(fl.x, fl.y, 0, fl.x, fl.y, rr);
+      g.addColorStop(0, `rgba(255,214,150,${al})`);
+      g.addColorStop(1, 'rgba(255,150,80,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fl.x, fl.y, rr, 0, 6.2832); ctx.fill();
+      return true;
+    });
+
+    /* relay-node dots (always visible, dim) */
+    ctx.fillStyle = `rgba(255,196,120,${0.4 + 0.2 * ar})`;
+    for (const id in this.relayByPanel) {
+      for (const nd of this.relayByPanel[id]) { ctx.beginPath(); ctx.arc(nd.x, nd.y, 1.6, 0, 6.2832); ctx.fill(); }
+    }
+    ctx.restore();
+  }
+
+  /* ── V6 draw: the machined gold armature around the core ─
+        event-horizon rim, 72-tick dial + scan heads, corona
+        flares, three gyroscopic orbitals with relay beads. ── */
+  private _drawArmature(ctx: CanvasRenderingContext2D, t: number, contraction: number, ar: number) {
+    const cx = this.cx + this.lean.x, cy = this.cy + this.lean.y;
+    const R = this.heartR;
+    const gold = this._mix([255, 196, 120], [255, 150, 70], ar);
+    const gc = `${gold[0] | 0},${gold[1] | 0},${gold[2] | 0}`;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    /* event-horizon rim — machined ring at ~1.05R, white flash on beat */
+    const flash = this.beatPulse;
+    ctx.lineWidth = 2 + 2.5 * contraction;
+    ctx.strokeStyle = `rgba(255,${(210 + 45 * flash) | 0},${(150 + 90 * flash) | 0},${0.5 + 0.4 * flash})`;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 1.05, 0, 6.2832); ctx.stroke();
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = `rgba(${gc},0.32)`;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 1.12, 0, 6.2832); ctx.stroke();
+
+    /* 72-tick dial at 1.32R */
+    const dialR = R * 1.32;
+    for (let i = 0; i < 72; i++) {
+      const a = (i / 72) * Math.PI * 2;
+      const major = i % 6 === 0;
+      const t0 = dialR - (major ? 7 : 3), t1 = dialR + (major ? 4 : 1.5);
+      ctx.strokeStyle = `rgba(${gc},${major ? 0.5 : 0.22})`;
+      ctx.lineWidth = major ? 1.4 : 0.8;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * t0, cy + Math.sin(a) * t0); ctx.lineTo(cx + Math.cos(a) * t1, cy + Math.sin(a) * t1); ctx.stroke();
+    }
+    /* scan head sweeping the dial (speed rises with arousal) + comet
+       trail behind it; a dimmer counter-sweep head opposite. */
+    const scanA = t * (0.5 + 1.6 * ar);
+    for (let k = 0; k < 16; k++) {
+      const a = scanA - k * 0.05;
+      const al = (1 - k / 16) * (0.7);
+      ctx.strokeStyle = `rgba(255,${230 - k * 4},${170 - k * 5},${al})`;
+      ctx.lineWidth = 2.4 - k * 0.12;
+      ctx.beginPath(); ctx.arc(cx, cy, dialR, a - 0.02, a + 0.02); ctx.stroke();
+    }
+    const headx = cx + Math.cos(scanA) * dialR, heady = cy + Math.sin(scanA) * dialR;
+    let hg = ctx.createRadialGradient(headx, heady, 0, headx, heady, 8);
+    hg.addColorStop(0, 'rgba(255,244,214,0.95)'); hg.addColorStop(1, 'rgba(255,180,90,0)');
+    ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(headx, heady, 8, 0, 6.2832); ctx.fill();
+    /* counter-sweep (dimmer, opposite direction) */
+    const csA = -scanA * 0.7 + Math.PI;
+    ctx.strokeStyle = 'rgba(255,120,70,0.5)'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.arc(cx, cy, dialR, csA - 0.015, csA + 0.015); ctx.stroke();
+
+    /* 6 corona flare lines erupting off the rim on the beat */
+    if (this.beatPulse > 0.04) {
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + t * 0.05;
+        const r0 = R * 1.14, r1 = R * (1.14 + 0.5 * this.beatPulse);
+        const g = ctx.createLinearGradient(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0, cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+        g.addColorStop(0, `rgba(255,220,150,${0.5 * this.beatPulse})`);
+        g.addColorStop(1, 'rgba(255,120,60,0)');
+        ctx.strokeStyle = g; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.stroke();
+      }
+    }
+
+    /* three counter-rotating elliptical gyroscopic orbitals, each
+       carrying 3 glowing relay beads. */
+    const orbs: ReadonlyArray<readonly [number, number, number, number]> = [
+      /* [radius×R, tilt, speed, dir] */
+      [1.55, 0.34, 0.5, 1], [1.55, 0.34, 0.62, -1], [1.85, 0.62, 0.4, 1],
+    ];
+    for (let oi = 0; oi < orbs.length; oi++) {
+      const [rad, tilt, spd, dir] = orbs[oi];
+      const rr = R * rad, rot = tilt + oi * 1.05;
+      const ca = Math.cos(rot), sa = Math.sin(rot);
+      ctx.strokeStyle = `rgba(${gc},0.22)`; ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= 64; i++) {
+        const a = (i / 64) * Math.PI * 2;
+        const ex = Math.cos(a) * rr, ey = Math.sin(a) * rr * 0.42;
+        const x = cx + ex * ca - ey * sa, y = cy + ex * sa + ey * ca;
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+      for (let b = 0; b < 3; b++) {
+        const a = t * spd * dir + (b / 3) * Math.PI * 2;
+        const ex = Math.cos(a) * rr, ey = Math.sin(a) * rr * 0.42;
+        const x = cx + ex * ca - ey * sa, y = cy + ex * sa + ey * ca;
+        const bg = ctx.createRadialGradient(x, y, 0, x, y, 5);
+        bg.addColorStop(0, 'rgba(255,236,190,0.95)'); bg.addColorStop(1, 'rgba(255,170,80,0)');
+        ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(x, y, 5, 0, 6.2832); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  private _cardiac(p: number): number {
+    /* Softened envelope: one wide, gentle lub centred near p=0.10,
+       a light 0.35-amplitude echo at p=0.30, then a long flat rest
+       for the remaining ~65% of the cycle. No negative recoil dip —
+       the beat swells and settles rather than snapping back. */
+    const lub  = Math.exp(-Math.pow((p - 0.10) / 0.075, 2));
+    const echo = 0.35 * Math.exp(-Math.pow((p - 0.30) / 0.062, 2));
+    return Math.max(0, lub + echo);
+  }
+
+  /* ── Organ events (real-signal driven) ────────────────── */
+
+  private _callingCount(): number {
+    let n = 0; for (const k in this.organs) if (this.organs[k].status === 'calling') n++; return n;
+  }
+
+  /* Pull real signal state. Anything signaling `calling: true`
+     and currently idle starts a call. Anything no longer calling
+     (signal gone) self-resolves to idle. */
+  private _evaluateSignals() {
+    const signals = this.signalProvider();
+    for (const id in this.organs) {
+      const s = signals[id];
+      const o = this.organs[id];
+      const wantsCall = !!s?.calling;
+      if (wantsCall && o.status === 'idle') {
+        o.status = 'calling';
+        o.callStart = this.last;
+        this._spawnArc(id, 'in', '#d6402e');
+        this._alertSound();
+      } else if (!wantsCall && o.status === 'calling') {
+        /* signal resolved itself externally */
+        o.status = 'idle';
+        o.ackFlash = 0.4;
+        this._spawnArc(id, 'out', '#ffcf86');
+      }
+    }
+  }
+
+  private _ack(id: string) {
+    const o = this.organs[id]; if (!o) return;
+    const a = this.panelAnchors[id];
+    if (o.status === 'calling') {
+      o.status = 'idle'; o.ackFlash = 1.0;
+      this.charge[id] = Math.max(this.charge[id] || 0, 1.5);
+      this._spawnArc(id, 'out', '#ffd089');
+      if (a) this.shock.push({ r: a.r * 0.4, v: this.maxR / 0.6, life: 0.8, x: a.x, y: a.y });
+      this._ackSound();
+    } else {
+      o.ackFlash = 0.55;
+      this.charge[id] = Math.max(this.charge[id] || 0, 0.7);
+      this._spawnArc(id, 'out', '#ffc070');
+      this._tap();
+    }
+    this.onAck?.(id);
+  }
+
+  private _spawnArc(id: string, dir: 'in' | 'out', color: string) {
+    const art = this.arteryByPanel[id]; if (!art) return;
+    this.arcs.push({ pts: art.pts, t0: performance.now() / 1000, dur: 0.55, color, dir });
+  }
+
+  /* Push a synaptic spark onto an artery, respecting the live cap. */
+  private _spawnSpark(pts: VeinPt[], dir: 'in' | 'out', crimson: boolean, spd: number) {
+    if (this.sparks.length >= this.sparkCap) return;
+    this.sparks.push({ pts, p: 0, spd, dir, crimson });
+  }
+
+  /* Interpolate a point at fraction f (0..1) along a cached polyline. */
+  private _samplePoly(pts: VeinPt[], f: number): { x: number; y: number } {
+    const L = pts.length - 1;
+    const ff = (f < 0 ? 0 : f > 1 ? 1 : f) * L;
+    const i = Math.min(L - 1, Math.floor(ff));
+    const t = ff - i;
+    const a = pts[i], b = pts[i + 1];
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  }
+
+  private _ripple(x: number, y: number) {
+    this.ripples.push({ x, y, r: 4, life: 1 });
+    this._tap();
+  }
+
+  /* Pull real values from signalProvider; mutate DOM directly. */
+  private _pullValues(force: boolean) {
+    const signals = this.signalProvider();
+    for (const id in this.organs) {
+      const o = this.organs[id];
+      const s = signals[id];
+      const dom = this.organsDom[id];
+      if (!s || !dom) continue;
+      if (force || s.formatted !== o._lvs) {
+        dom.val.textContent = s.formatted;
+        o._lvs = s.formatted;
+      }
+    }
+  }
+
+  /* ── Frame ──────────────────────────────────────────── */
+
+  private _frame() {
+    const ctx = this.ctx; if (!ctx) return;
+    const now = performance.now() / 1000;
+    let dt = now - this.last; this.last = now;
+    if (dt > 0.05) dt = 0.05;
+    const { W, H, cx, cy, maxR, heartR } = this;
+
+    /* organ events — re-evaluate real signals on a slow cadence */
+    if (now >= this.callTimer) {
+      this._evaluateSignals();
+      this.callTimer = now + 1.0;     /* signals re-checked every ~1 s */
+    }
+    const callingN = this._callingCount();
+
+    /* arousal driven entirely by REAL calls (no random storm). */
+    this.storm = callingN >= 3 ? 1 : 0;
+    let tgt = this.storm ? 0.7 : 0;
+    tgt += Math.min(this.storm ? 0.3 : 0.85, callingN * (this.storm ? 0.1 : 0.3));
+    this.targetArousal = Math.min(1, tgt);
+    /* Slow ~3s glide between calm and alert. base^3 ≈ 0.05 → about
+       three seconds to close 95% of the gap, so state changes read as
+       a smooth swell rather than a jump. */
+    this.arousal += (this.targetArousal - this.arousal) * (1 - Math.pow(0.37, dt));
+    const ar = this.arousal;
+
+    /* audio levels */
+    if (this.audioOn && this.droneG && this.actx) {
+      this.droneG.gain.setTargetAtTime(0.04 + 0.13 * ar, this.actx.currentTime, 0.3);
+      if (this.tideG) this.tideG.gain.setTargetAtTime(0.012 + 0.05 * ar, this.actx.currentTime, 0.5);
+    }
+
+    /* pull real values from signals */
+    if (now >= this.valTimer) { this._pullValues(false); this.valTimer = now + 1.1; }
+
+    /* lean — pointer on desktop, device tilt on mobile (enableTilt). */
+    const lx = this._tiltOn ? this._tilt.x : (this.mouse.has ? (this.mouse.x - cx) * 0.05 : 0);
+    const ly = this._tiltOn ? this._tilt.y : (this.mouse.has ? (this.mouse.y - cy) * 0.05 : 0);
+    this.lean.x += (lx - this.lean.x) * (1 - Math.pow(0.02, dt));
+    this.lean.y += (ly - this.lean.y) * (1 - Math.pow(0.02, dt));
+
+    const bpm = this.restBpm + (this.peakBpm - this.restBpm) * ar;
+    this.phase += dt * (bpm / 60);
+    let beat = false;
+    if (this.phase >= 1) { this.phase -= 1; beat = true; }
+    const contraction = this._cardiac(this.phase);
+    if (beat) {
+      this.beatPulse = 1;
+      const travel = 0.78 - 0.46 * ar;
+      const speed = maxR / travel;
+      this.fronts.push({ r: heartR * 0.5, type: 'feed', v: speed, life: 1 });
+      this.fronts.push({ r: maxR, type: 'absorb', v: speed * 0.92, flared: false });
+      this.shock.push({ r: heartR * 0.85, v: maxR / 0.5, life: 1, x: cx, y: cy });
+      let cc = 0;
+      for (const k in this.organs) {
+        if (this.organs[k].status === 'calling' && cc < 3) {
+          this.fronts.push({ r: this.panelAnchors[k].r, type: 'absorb', v: speed * 0.95, flared: false });
+          cc++;
+        }
+      }
+      if (this.fronts.length > 16) this.fronts.splice(0, this.fronts.length - 16);
+      this._beatSound(ar);
+    }
+    this.thump = Math.max(this.thump * Math.pow(0.015, dt), contraction);
+    this.beatPulse *= Math.pow(0.02, dt);
+    this.absorbFlare *= Math.pow(0.05, dt);
+    /* Shimmer slower at rest, quickening only with arousal. */
+    this.ambient += dt * (0.05 + 0.09 * ar);
+    const ambR = ((this.ambient % 1) * maxR);
+
+    const shellW = 66 + 60 * ar;
+    const inv2 = 1 / (shellW * shellW);
+    for (const f of this.fronts) {
+      if (f.type === 'feed') { f.r += f.v * dt; f.life = Math.max(0, 1 - f.r / maxR); }
+      else { f.r -= f.v * dt; if (!f.flared && f.r < heartR * 0.7) { f.flared = true; this.absorbFlare = Math.min(1.6, this.absorbFlare + 0.95); } }
+    }
+    this.fronts = this.fronts.filter(f => f.type === 'feed' ? f.r < maxR : f.r > heartR * 0.28);
+
+    /* ===== synaptic sparks ===== */
+    /* Only the spark-specific spawn + draw cost is timed (accumulated
+       into sparkBudgetMs), so the cap responds to spark work alone,
+       not the rest of the frame. */
+    let sparkBudgetMs = 0;
+    const spawnT0 = performance.now();
+    /* Ambient: one rare gold spark on a random artery every 3-4 s,
+       riding outward heart→panel. */
+    if (now >= this.sparkTimer) {
+      const ids = Object.keys(this.arteryByPanel);
+      if (ids.length) {
+        const art = this.arteryByPanel[ids[(Math.random() * ids.length) | 0]];
+        if (art) this._spawnSpark(art.pts, 'out', false, 0.5 + Math.random() * 0.12);
+      }
+      this.sparkTimer = now + 1.5 + Math.random();   /* 1.5-2.5 s */
+    }
+    /* A CALLING organ's artery streams crimson sparks inward
+       (panel→heart) at ~3-4/s; idle organs reset their accumulator. */
+    for (const id in this.organs) {
+      if (this.organs[id].status === 'calling') {
+        const acc = (this.sparkAcc[id] || 0) + dt * 3.5;
+        let n = acc | 0;
+        this.sparkAcc[id] = acc - n;
+        const art = this.arteryByPanel[id];
+        while (n-- > 0 && art) this._spawnSpark(art.pts, 'in', true, 0.6 + Math.random() * 0.18);
+      } else if (this.sparkAcc[id]) {
+        this.sparkAcc[id] = 0;
+      }
+    }
+    for (const s of this.sparks) s.p += s.spd * dt;
+    this.sparks = this.sparks.filter(s => s.p < 1);
+    sparkBudgetMs += performance.now() - spawnT0;
+
+    /* ===== draw ===== */
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#030303'; ctx.fillRect(0, 0, W, H);
+
+    const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.95);
+    const bgHot = 0.06 + 0.2 * ar + 0.13 * this.beatPulse;
+    bg.addColorStop(0, `rgba(${Math.round(60 + 46 * ar)},${Math.round(18 + 5 * ar)},12,${bgHot})`);
+    bg.addColorStop(0.35, `rgba(${Math.round(42 + 30 * ar)},12,8,${bgHot * 0.5})`);
+    bg.addColorStop(0.7, `rgba(22,7,5,${bgHot * 0.25})`);
+    bg.addColorStop(1, 'rgba(3,3,3,0)');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    this._drawDust(ctx, ar);
+    this._drawRings(ctx, now, ar);
+
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.globalCompositeOperation = 'lighter';
+    const vGlow = this._mix([120, 46, 26], [182, 52, 34], ar);
+    ctx.strokeStyle = `rgba(${vGlow[0] | 0},${vGlow[1] | 0},${vGlow[2] | 0},${0.05 + 0.045 * ar})`;
+    ctx.lineWidth = 5 + 2 * ar; ctx.stroke(this.glowPath);
+    ctx.globalCompositeOperation = 'source-over';
+    const capCol = this._mix([158, 84, 46], [205, 74, 50], ar);
+    ctx.strokeStyle = `rgba(${capCol[0] | 0},${capCol[1] | 0},${capCol[2] | 0},${0.17 + 0.08 * ar})`;
+    ctx.lineWidth = 0.9 + 0.35 * ar; ctx.stroke(this.capPath);
+    /* Micro-capillary web — a dim hairline mesh near anchors. Kept
+       subtle but now actually perceptible (was 0.06 → invisible on
+       most screens); the neural layer should read, not hide. */
+    ctx.strokeStyle = `rgba(${capCol[0] | 0},${capCol[1] | 0},${capCol[2] | 0},${0.14 + 0.06 * ar})`;
+    ctx.lineWidth = 0.7; ctx.stroke(this.microPath);
+    const artCol = this._mix([192, 106, 60], [232, 90, 62], ar);
+    ctx.strokeStyle = `rgba(${artCol[0] | 0},${artCol[1] | 0},${artCol[2] | 0},${0.27 + 0.1 * ar})`;
+    ctx.lineWidth = 1.9 + 0.8 * ar; ctx.stroke(this.artPath);
+
+    this._drawArteryLife(ctx, now, dt, ar);
+
+    ctx.globalCompositeOperation = 'lighter';
+    const gold = this._mix([255, 172, 92], [255, 122, 72], ar);
+    const crim = [196, 62, 42];
+    const mx = this.mouse.x, my = this.mouse.y, mhas = this.mouse.has;
+    const cSigPx = maxR * 0.17, csig = 1 / (cSigPx * cSigPx), cBox = cSigPx * 3;
+    const near = 3 * shellW, ambNear = shellW * 2.6;
+    for (const v of this.veins) {
+      const p = v.pts; const wMul = v.artery ? 1.2 : 0.62;
+      for (let i = 1; i < p.length; i++) {
+        const r = (p[i].r + p[i - 1].r) * 0.5;
+        const midx = (p[i].x + p[i - 1].x) * 0.5, midy = (p[i].y + p[i - 1].y) * 0.5;
+        const inCursor = mhas && Math.abs(midx - mx) < cBox && Math.abs(midy - my) < cBox;
+        let activeNear = Math.abs(r - ambR) < ambNear;
+        if (!activeNear) { for (const f of this.fronts) { if (Math.abs(r - f.r) < near) { activeNear = true; break; } } }
+        if (!activeNear && !inCursor) continue;
+        let bf = 0, ba = 0;
+        for (const f of this.fronts) { const d = r - f.r; if (d < -near || d > near) continue; const g = Math.exp(-(d * d) * inv2); if (f.type === 'feed') bf += g * (f.life || 0); else ba += g; }
+        const da = r - ambR; if (da > -ambNear && da < ambNear) bf += Math.exp(-(da * da) / (shellW * shellW * 2.2)) * 0.16;
+        if (inCursor) { const ddx = midx - mx, ddy = midy - my; bf += Math.exp(-(ddx * ddx + ddy * ddy) * csig) * 0.5; }
+        const inten = bf + ba;
+        if (inten < 0.05) continue;
+        const t = ba / (bf + ba + 1e-6);
+        const c = this._mix(gold, crim, t);
+        const a = Math.min(0.95, inten * (0.62 + 0.4 * ar));
+        ctx.strokeStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+        ctx.lineWidth = (v.w * wMul) * (1.0 + inten * 1.5);
+        ctx.beginPath(); ctx.moveTo(p[i - 1].x, p[i - 1].y); ctx.lineTo(p[i].x, p[i].y); ctx.stroke();
+      }
+    }
+
+    /* Synaptic sparks ride on top of the vasculature, additively. Each
+       is a small bright dot with a soft 2px halo — gold ambient, or
+       crimson when streaming from a calling organ. */
+    const drawT0 = performance.now();
+    for (const s of this.sparks) {
+      const f = s.dir === 'out' ? s.p : 1 - s.p;
+      const pos = this._samplePoly(s.pts, f);
+      const fade = Math.sin(s.p * Math.PI);         /* fade in/out at the ends */
+      if (fade < 0.02) continue;
+      const col = s.crimson ? '255,74,54' : '255,208,132';
+      /* 3-echo comet tail trailing the direction of travel */
+      const dir = s.dir === 'out' ? -1 : 1;   /* echoes lag behind motion */
+      for (let e = 3; e >= 1; e--) {
+        const ef = f + dir * e * 0.018;
+        if (ef < 0 || ef > 1) continue;
+        const ep = this._samplePoly(s.pts, ef);
+        const ea = 0.22 * fade * (1 - e / 4);
+        ctx.fillStyle = `rgba(${col},${ea})`;
+        ctx.beginPath(); ctx.arc(ep.x, ep.y, 2.4 - e * 0.4, 0, 6.2832); ctx.fill();
+      }
+      const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, 6);
+      g.addColorStop(0, `rgba(${col},${0.85 * fade})`);
+      g.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(pos.x, pos.y, 6, 0, 6.2832); ctx.fill();
+      ctx.fillStyle = `rgba(255,244,214,${0.9 * fade})`;
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, 1.75, 0, 6.2832); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    /* Frame budget guard: if spark spawn+draw work crept over ~1ms,
+       halve the live cap (floor 6) so mobile never drops a frame;
+       recover one slot at a time when there's headroom. */
+    sparkBudgetMs += performance.now() - drawT0;
+    if (sparkBudgetMs > 1 && this.sparkCap > 6) this.sparkCap = Math.max(6, this.sparkCap >> 1);
+    else if (sparkBudgetMs < 0.4 && this.sparkCap < 24) this.sparkCap++;
+
+    if (mhas) {
+      ctx.globalCompositeOperation = 'lighter';
+      const cr = heartR * 0.7;
+      const g = ctx.createRadialGradient(mx, my, 0, mx, my, cr);
+      g.addColorStop(0, `rgba(255,180,110,${0.05 + 0.05 * ar})`);
+      g.addColorStop(1, 'rgba(255,150,80,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, cr, 0, 6.2832); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    for (const [id] of PANEL_DEFS) {
+      const anchor = this.panelAnchors[id]; if (!anchor) continue;
+      const pr = anchor.r;
+      let hit = this.charge[id] || 0;
+      for (const f of this.fronts) if (f.type === 'feed' && Math.abs(pr - f.r) < shellW * 0.85) hit = Math.max(hit, (f.life || 0) * 0.95 + 0.05);
+      this.charge[id] = hit * Math.pow(0.1, dt);
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    for (const [id] of PANEL_DEFS) {
+      const c = this.charge[id] || 0;
+      if (c > 0.03) {
+        const a = this.panelAnchors[id]; const br = 90 * Math.min(1.4, c);
+        const g = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, br);
+        g.addColorStop(0, `rgba(255,182,104,${0.2 * Math.min(1.2, c)})`);
+        g.addColorStop(1, 'rgba(255,150,80,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(a.x, a.y, br, 0, 6.2832); ctx.fill();
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    this._drawArcs(ctx, now);
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (const e of this.embers) {
+      e.y += e.vy * dt * (0.35 + ar * 2.15);
+      e.sw += dt * (0.6 + ar);
+      e.x += Math.sin(e.sw) * 0.35;
+      if (mhas) {
+        const dx = mx - e.x, dy = my - e.y, dd = Math.hypot(dx, dy) + 1e-3;
+        const infl = Math.exp(-dd / (Math.min(W, H) * 0.2));
+        e.x += (-dy / dd) * infl * 26 * dt + (dx / dd) * infl * 6 * dt;
+        e.y += (dx / dd) * infl * 26 * dt + (dy / dd) * infl * 6 * dt;
+      }
+      if (e.y < -12) { e.y = H + 12; e.x = Math.random() * W; }
+      const flick = 0.55 + 0.45 * Math.sin(e.sw * 3);
+      const col = ar > 0.5 ? '255,118,68' : '255,182,114';
+      const rr = e.s * 4;
+      const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, rr);
+      g.addColorStop(0, `rgba(${col},${e.sa * flick * (0.45 + 0.55 * ar)})`);
+      g.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y, rr, 0, 6.2832); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (const rp of this.ripples) {
+      rp.r += (maxR / 0.75) * dt; rp.life -= dt / 0.75;
+      if (rp.life <= 0) continue;
+      const band = 16 + 22 * ar;
+      const inner = Math.max(0, rp.r - band), outer = rp.r + band;
+      const g = ctx.createRadialGradient(rp.x, rp.y, inner, rp.x, rp.y, outer);
+      g.addColorStop(0, 'rgba(255,190,120,0)');
+      g.addColorStop(0.5, `rgba(255,196,128,${0.32 * rp.life * rp.life})`);
+      g.addColorStop(1, 'rgba(255,160,90,0)');
+      ctx.fillStyle = g; ctx.fillRect(rp.x - outer, rp.y - outer, outer * 2, outer * 2);
+    }
+    this.ripples = this.ripples.filter(r => r.life > 0);
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (const s of this.shock) {
+      s.r += s.v * dt; s.life -= dt / 0.5;
+      const band = 24 + 34 * ar;
+      const inner = Math.max(0, s.r - band), outer = s.r + band;
+      const col = ar > 0.5 ? '255,124,82' : '255,184,116';
+      const ox = s.x, oy = s.y;
+      const g = ctx.createRadialGradient(ox, oy, inner, ox, oy, outer);
+      g.addColorStop(0, `rgba(${col},0)`);
+      g.addColorStop(0.5, `rgba(${col},${0.24 * Math.max(0, s.life) * Math.max(0, s.life)})`);
+      g.addColorStop(1, `rgba(${col},0)`);
+      ctx.fillStyle = g; ctx.fillRect(ox - outer, oy - outer, outer * 2, outer * 2);
+    }
+    this.shock = this.shock.filter(s => s.life > 0 && s.r < maxR * 1.2);
+    ctx.globalCompositeOperation = 'source-over';
+
+    this._drawHeart(ctx, now, contraction, ar);
+    this._drawArmature(ctx, now, contraction, ar);
+    this._bloom(ctx, ar);
+
+    /* Adaptive quality governor — EMA of frame time; if it stays > 26ms
+       for the first 5s after boot, drop the DPR cap once and rebuild. */
+    this.frameEMA += (dt * 1000 - this.frameEMA) * 0.08;
+    if (!this._governed && now - this._bootAt > 5 && this.frameEMA > 26) {
+      this._governed = true; this.dprCap = 0.9; this._resize();
+    }
+
+    const vg = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.26, cx, cy, Math.max(W, H) * 0.72);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, `rgba(0,0,0,${0.58 - 0.14 * ar})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+    this._paintPanels(ar, now, dt);
+
+    /* HUD */
+    const hot = ar > 0.5;
+    const bpmStr = Math.round(bpm) + ' BPM';
+    if (bpmStr !== this._lbpm) { this.hud.bpm.textContent = bpmStr; this._lbpm = bpmStr; }
+    if (hot !== this._lhot) {
+      this.hud.bpm.style.color = hot ? '#ff8a64' : '#ffcaa0';
+      this.hud.state.textContent = hot ? 'NEEDS YOU' : 'CALM';
+      this.hud.state.style.color = hot ? 'rgba(255,92,60,0.9)' : 'rgba(255,160,90,0.55)';
+      this._lhot = hot;
+    }
+    let sub: string, scol: string;
+    const names: string[] = [];
+    for (const [id] of PANEL_DEFS) if (this.organs[id].status === 'calling') names.push(this.organs[id].label);
+    if (names.length) {
+      sub = names.slice(0, 2).join(' · ') + (names.length > 2 ? ' +' + (names.length - 2) : '') + ' NEEDS YOU';
+      scol = 'rgba(255,120,90,0.7)';
+    } else if (this.storm > 0.5) { sub = 'ELEVATED'; scol = 'rgba(255,150,100,0.55)'; }
+    else { sub = 'ALL SYSTEMS QUIET'; scol = 'rgba(232,210,190,0.3)'; }
+    if (sub !== this._lsub) { this.hud.sub.textContent = sub; this.hud.sub.style.color = scol; this._lsub = sub; }
+
+    /* ── Build-provenance smoke stamp ──────────────────────────
+       Drawn directly by the frame loop, so seeing it on the
+       Command view proves BOTH that commandCore.ts is the live
+       module AND that _frame is running. Small, dim, bottom-right. */
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.font = '10px "JetBrains Mono", ui-monospace, monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(255,168,96,0.62)';
+    ctx.fillText(CORE_VERSION, W - 14, H - 12);
+    ctx.restore();
+
+    if (!this._bootLogged) {
+      this._bootLogged = true;
+      /* eslint-disable-next-line no-console */
+      console.info(`[${CORE_VERSION}] Sovereign Intelligence core live — engineered lattice executing.`);
+    }
+  }
+
+  private _bloom(ctx: CanvasRenderingContext2D, ar: number) {
+    const strength = this.bloomStrength * (0.5 + 0.28 * ar + 0.45 * this.beatPulse);
+    if (strength <= 0.01 || !this.bctx) return;
+    const b = this.bctx;
+    b.setTransform(1, 0, 0, 1, 0, 0);
+    b.clearRect(0, 0, this.bw, this.bh);
+    b.imageSmoothingEnabled = true;
+    b.drawImage(this.canvas, 0, 0, this.canvas.width, this.canvas.height, 0, 0, this.bw, this.bh);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.min(1.1, strength);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this.bloomC, 0, 0, this.bw, this.bh, 0, 0, this.W, this.H);
+    ctx.restore();
+  }
+
+  private _drawArcs(ctx: CanvasRenderingContext2D, now: number) {
+    ctx.globalCompositeOperation = 'lighter';
+    for (const arc of this.arcs) {
+      const p = (now - arc.t0) / arc.dur;
+      if (p >= 1 || p < 0) continue;
+      const pts = arc.pts; const L = pts.length - 1;
+      const pos = arc.dir === 'out' ? p : 1 - p;
+      const headF = pos * L;
+      const head = Math.floor(headF);
+      const tail = 7;
+      let cr = 0, cg = 0, cb = 0;
+      if (arc.color === '#d6402e') { cr = 214; cg = 64; cb = 46; }
+      else if (arc.color === '#ffd089') { cr = 255; cg = 208; cb = 137; }
+      else if (arc.color === '#ffcf86') { cr = 255; cg = 207; cb = 134; }
+      else { cr = 255; cg = 192; cb = 112; }
+      const fade = Math.sin(Math.min(1, p) * Math.PI);
+      ctx.lineCap = 'round';
+      for (let k = 0; k < tail; k++) {
+        const idx = head - k; if (idx < 0 || idx >= L) continue;
+        const a = (1 - k / tail) * fade;
+        ctx.strokeStyle = `rgba(${cr},${cg},${cb},${0.85 * a})`;
+        ctx.lineWidth = (3.6 - k * 0.4) * (0.6 + a);
+        ctx.beginPath(); ctx.moveTo(pts[idx].x, pts[idx].y); ctx.lineTo(pts[idx + 1].x, pts[idx + 1].y); ctx.stroke();
+      }
+      const hp = pts[Math.max(0, Math.min(L, head))];
+      const hr = 12 * fade;
+      const g = ctx.createRadialGradient(hp.x, hp.y, 0, hp.x, hp.y, hr);
+      g.addColorStop(0, `rgba(255,240,210,${0.9 * fade})`);
+      g.addColorStop(0.4, `rgba(${cr},${cg},${cb},${0.6 * fade})`);
+      g.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(hp.x, hp.y, hr, 0, 6.2832); ctx.fill();
+    }
+    this.arcs = this.arcs.filter(a => (now - a.t0) / a.dur < 1);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  private _paintPanels(ar: number, now: number, dt: number) {
+    for (const id in this.organsDom) {
+      const dom = this.organsDom[id];
+      const o = this.organs[id];
+      const el = dom.el;
+      const c = this.charge[id] || 0;
+      o.ackFlash *= Math.pow(0.05, dt);
+      const calling = o.status === 'calling';
+      const callPulse = calling ? 0.5 + 0.5 * Math.sin(now * 7) : 0;
+      const hv = (this.hover[id] || 0) * 0.22;
+      const redMix = Math.max(ar, callPulse * 0.9);
+      const e = Math.min(1.2, c + callPulse * 0.85 + o.ackFlash + hv);
+      const bc = this._mix([255, 170, 90], [255, 84, 54], redMix);
+      const cs = `${bc[0] | 0},${bc[1] | 0},${bc[2] | 0}`;
+      el.style.borderColor = `rgba(${cs},${Math.min(0.97, 0.16 + e * 0.7 + ar * 0.1)})`;
+      el.style.boxShadow = `0 0 ${9 + e * 34 + ar * 10}px rgba(${cs},${0.05 + e * 0.5 + ar * 0.08}),inset 0 0 ${14 + e * 24}px rgba(255,110,50,${0.03 + e * 0.2})`;
+      el.style.transform = `translate(-50%,-50%) scale(${1 + 0.05 * o.ackFlash + 0.012 * callPulse})`;
+      dom.dot.style.background = `rgba(${cs},${0.45 + e * 0.5})`;
+      dom.dot.style.boxShadow = `0 0 ${6 + e * 14}px rgba(${cs},${0.5 + e * 0.4})`;
+      dom.bar.style.opacity = String(0.2 + Math.min(1, e) * 0.78);
+      dom.bar.style.boxShadow = e > 0.05 ? `0 0 ${5 + e * 9}px rgba(${cs},${Math.min(1, e) * 0.7})` : 'none';
+      const vc = calling ? '#ff8a66' : (ar > 0.5 ? '#ffd0ad' : '#f3ddbd');
+      if (vc !== o._lvc) { dom.val.style.color = vc; o._lvc = vc; }
+      if (calling !== o._lfc) {
+        dom.flag.textContent = calling ? '▲ NEEDS YOU' : '● LIVE';
+        if (!calling) dom.flag.style.color = 'rgba(255,180,120,0.4)';
+        o._lfc = calling;
+      }
+      if (calling) dom.flag.style.color = `rgba(255,96,66,${(0.55 + 0.4 * callPulse).toFixed(2)})`;
+    }
+  }
+
+  private _drawHeart(ctx: CanvasRenderingContext2D, t: number, contraction: number, ar: number) {
+    let { cx, cy } = this; const { heartR } = this;
+    cx += this.lean.x; cy += this.lean.y;
+    /* No tremble at any arousal level — the heart never shakes. Alert
+       is expressed purely through deeper colour and a faster beat. */
+
+    /* Deeper squeeze + heavier recoil at REST (ar→0): calm beats
+       are big and powerful; aroused beats are shallower + faster.
+       Squeeze depth (0.95 calm → 0.60 aroused), recoil punch
+       (0.09 calm → 0.06 aroused). */
+    const squeeze = 0.95 - 0.35 * ar;
+    const recoilPunch = 0.06 + 0.03 * (1 - ar);
+    const R = heartR * (1 - 0.14 * contraction * squeeze + recoilPunch * this.beatPulse + 0.025 * Math.sin(t * 0.55));
+
+    /* Silhouette wobble — low-frequency only (2θ + 3θ), slow drift.
+       Amplitude does NOT grow with arousal, so an alert heart keeps
+       the same calm outline and never reads as jitter. */
+    const N = 140; const wob = 0.05; const pts: [number, number][] = [];
+    for (let i = 0; i <= N; i++) {
+      const th = (i / N) * Math.PI * 2;
+      const rr = R * (1
+        + wob * Math.sin(2 * th + t * 0.35)
+        + wob * 0.6 * Math.sin(3 * th - t * 0.5));
+      pts.push([cx + Math.cos(th) * rr, cy + Math.sin(th) * rr]);
+    }
+    const blob = new Path2D();
+    blob.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) blob.lineTo(pts[i][0], pts[i][1]);
+    blob.closePath();
+
+    /* Three-shell blurred glow — three soft concentric halos, each
+       wider and fainter than the last, replacing the old crisp
+       rotating rings. Deeper, redder colour at arousal; the bloom
+       pass smears them into one continuous soft aura. */
+    ctx.globalCompositeOperation = 'lighter';
+    const glowCol = this._mix([255, 122, 62], [255, 72, 50], ar);
+    const gc = `${glowCol[0] | 0},${glowCol[1] | 0},${glowCol[2] | 0}`;
+    const ogA = 0.13 + 0.2 * ar + 0.16 * contraction + this.absorbFlare * 0.12;
+    const shells: ReadonlyArray<readonly [number, number, number]> = [
+      /* [inner radius ×R, outer radius ×R, alpha scale] */
+      [0.45, 1.5, 1.0],
+      [0.8, 2.5, 0.5],
+      [1.2, 3.4, 0.28],
+    ];
+    for (const [ri, ro, af] of shells) {
+      const g = ctx.createRadialGradient(cx, cy, R * ri, cx, cy, R * ro);
+      g.addColorStop(0, `rgba(${gc},${ogA * af})`);
+      g.addColorStop(0.5, `rgba(${gc},${ogA * af * 0.4})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - R * ro, cy - R * ro, R * ro * 2, R * ro * 2);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.save();
+    ctx.clip(blob);
+    const hot = ar;
+    const gx = cx - R * 0.16, gy = cy - R * 0.2;
+    const grad = ctx.createRadialGradient(gx, gy, R * 0.02, cx, cy, R * 1.08);
+    const core = this._mix([255, 253, 240], [255, 255, 255], hot);
+    const s1 = this._mix([255, 231, 176], [255, 208, 120], hot);
+    const s2 = this._mix([255, 138, 74], [255, 92, 48], hot);
+    const s3 = this._mix([184, 48, 48], [214, 48, 46], hot);
+    const s4 = this._mix([98, 24, 24], [124, 22, 20], hot);
+    const clv = 1 + contraction * 0.55;
+    grad.addColorStop(0.0, `rgb(${Math.min(255, core[0] * clv) | 0},${Math.min(255, core[1] * Math.min(1.05, clv)) | 0},${core[2] | 0})`);
+    grad.addColorStop(0.11, `rgb(${s1[0] | 0},${s1[1] | 0},${s1[2] | 0})`);
+    grad.addColorStop(0.30, `rgb(${s2[0] | 0},${s2[1] | 0},${s2[2] | 0})`);
+    grad.addColorStop(0.56, `rgb(${s3[0] | 0},${s3[1] | 0},${s3[2] | 0})`);
+    grad.addColorStop(0.80, `rgb(${s4[0] | 0},${s4[1] | 0},${s4[2] | 0})`);
+    grad.addColorStop(0.93, 'rgba(58,12,12,0.55)');
+    grad.addColorStop(1.0, 'rgba(38,8,8,0)');
+    ctx.fillStyle = grad; ctx.fillRect(cx - R * 1.3, cy - R * 1.3, R * 2.6, R * 2.6);
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (const m of this.molten) {
+      const a = m.ph + t * m.spd;
+      const wb = 1 + 0.18 * Math.sin(t * 0.9 + m.ph);
+      const ox = Math.cos(a) * R * m.rad, oy = Math.sin(a) * R * m.rad * 0.92;
+      const cr = R * m.size * wb;
+      const heatC = this._mix([255, 150, 70], [255, 96, 52], (ar + m.hue) * 0.5);
+      const inner = m.rad < 0.32 ? this._mix([255, 226, 152], heatC, 0.4) : heatC;
+      const al = (0.05 + 0.055 * contraction) * (1.1 - m.rad);
+      const g = ctx.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, cr);
+      g.addColorStop(0, `rgba(${inner[0] | 0},${inner[1] | 0},${inner[2] | 0},${al})`);
+      g.addColorStop(1, `rgba(${heatC[0] | 0},${heatC[1] | 0},40,0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx + ox, cy + oy, cr, 0, 6.2832); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.globalCompositeOperation = 'multiply';
+    /* Softer strands — lower opacity than before so the filaments read
+       as faint veining, not a hard net. */
+    ctx.strokeStyle = `rgba(26,5,5,${0.2 + 0.1 * ar})`;
+    const sway = Math.sin(t * 0.5) * 0.05 + Math.sin(t * 0.27) * 0.03;
+    for (const f of this.filaments) {
+      ctx.lineWidth = Math.max(0.5, f.w * R);
+      ctx.beginPath();
+      const p = f.pts;
+      for (let i = 0; i < p.length; i++) {
+        const d = Math.hypot(p[i].x, p[i].y);
+        const rot = sway * (0.4 + d);
+        const ca = Math.cos(rot), sa = Math.sin(rot);
+        const x = cx + (p[i].x * ca - p[i].y * sa) * R;
+        const y = cy + (p[i].x * sa + p[i].y * ca) * R;
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.globalCompositeOperation = 'lighter';
+    const nucR = R * (0.36 - 0.14 * contraction) * (1 - 0.05 * ar);
+    const nucBright = 0.46 + contraction * 0.62 + this.beatPulse * 0.22 + this.absorbFlare * 0.45;
+    let ng = ctx.createRadialGradient(gx, gy, 0, gx, gy, nucR);
+    ng.addColorStop(0, `rgba(255,255,250,${Math.min(1, nucBright)})`);
+    ng.addColorStop(0.4, `rgba(255,228,166,${Math.min(0.95, nucBright * 0.8)})`);
+    ng.addColorStop(1, 'rgba(255,150,70,0)');
+    ctx.fillStyle = ng; ctx.beginPath(); ctx.arc(gx, gy, nucR, 0, 6.2832); ctx.fill();
+
+    /* Counter-rotating glyph ring — 28 radial machine-code dashes at
+       ~0.7R inside the nucleus, drifting against the plasma. */
+    const gr = R * 0.7, grot = -t * 0.22;
+    ctx.lineCap = 'butt';
+    for (let i = 0; i < 28; i++) {
+      const a = grot + (i / 28) * Math.PI * 2;
+      const len = R * 0.06 * (this.glyphSeed[i] ?? 0.7);
+      const r0 = gr - len, r1 = gr + len;
+      ctx.strokeStyle = `rgba(255,208,150,${0.14 + 0.14 * contraction})`;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+      ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+      ctx.stroke();
+    }
+    ctx.lineCap = 'round';
+
+    /* Twin speculars — a soft broad wet-sheen highlight upper-left,
+       plus a small tight glint just right of centre. Together they
+       give the membrane a rounded, glassy read. */
+    ctx.save();
+    ctx.translate(cx - R * 0.3, cy - R * 0.36); ctx.rotate(-0.5); ctx.scale(1, 0.5);
+    let sp = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.28);
+    sp.addColorStop(0, 'rgba(255,255,255,0.55)');
+    sp.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = sp; ctx.beginPath(); ctx.arc(0, 0, R * 0.28, 0, 6.2832); ctx.fill();
+    ctx.restore();
+    sp = ctx.createRadialGradient(cx + R * 0.12, cy - R * 0.04, 0, cx + R * 0.12, cy - R * 0.04, R * 0.08);
+    sp.addColorStop(0, 'rgba(255,250,235,0.4)');
+    sp.addColorStop(1, 'rgba(255,250,235,0)');
+    ctx.fillStyle = sp; ctx.beginPath(); ctx.arc(cx + R * 0.12, cy - R * 0.04, R * 0.08, 0, 6.2832); ctx.fill();
+
+    /* Upper-membrane rim light — a thin warm crescent hugging the top
+       edge of the blob, brightening a touch with arousal. */
+    const rim = ctx.createRadialGradient(cx, cy - R * 0.55, R * 0.5, cx, cy - R * 0.2, R * 1.06);
+    rim.addColorStop(0, 'rgba(255,240,210,0)');
+    rim.addColorStop(0.8, 'rgba(255,210,150,0)');
+    rim.addColorStop(0.95, `rgba(255,228,176,${0.22 + 0.14 * ar})`);
+    rim.addColorStop(1, 'rgba(255,200,150,0)');
+    ctx.fillStyle = rim; ctx.fillRect(cx - R * 1.3, cy - R * 1.3, R * 2.6, R * 2.6);
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.restore();
+  }
+
+  /* ── Audio (gated behind user toggle) ──────────────── */
+
+  setAudio(on: boolean) {
+    this.audioOn = on;
+    if (on) {
+      if (!this.actx) this._initAudio();
+      if (this.actx && this.actx.state === 'suspended') this.actx.resume();
+      if (this.master && this.actx) this.master.gain.setTargetAtTime(0.85, this.actx.currentTime, 0.4);
+    } else if (this.master && this.actx) {
+      this.master.gain.setTargetAtTime(0.0001, this.actx.currentTime, 0.25);
+    }
+  }
+
+  private _initAudio() {
+    const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return;
+    this.actx = new AC();
+    if (!this.actx) return;
+    this.master = this.actx.createGain(); this.master.gain.value = 0.0001;
+    this.master.connect(this.actx.destination);
+    this.drone = this.actx.createOscillator(); this.drone.type = 'sine'; this.drone.frequency.value = 38;
+    this.droneG = this.actx.createGain(); this.droneG.gain.value = 0.0;
+    this.drone.connect(this.droneG); this.droneG.connect(this.master); this.drone.start();
+    const buf = this.actx.createBuffer(1, this.actx.sampleRate * 2, this.actx.sampleRate);
+    const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    this.noiseBuf = buf;
+    const tide = this.actx.createBufferSource(); tide.buffer = buf; tide.loop = true;
+    const bp = this.actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 220; bp.Q.value = 0.7;
+    this.tideG = this.actx.createGain(); this.tideG.gain.value = 0.0;
+    tide.connect(bp); bp.connect(this.tideG); this.tideG.connect(this.master); tide.start();
+  }
+
+  private _tone(o: { type?: OscillatorType; freq: number; freq2?: number; dur?: number; peak?: number; atk?: number }) {
+    if (!this.audioOn || !this.actx || !this.master) return;
+    const t = this.actx.currentTime;
+    const osc = this.actx.createOscillator(); osc.type = o.type || 'sine';
+    osc.frequency.setValueAtTime(o.freq, t);
+    if (o.freq2) osc.frequency.exponentialRampToValueAtTime(o.freq2, t + (o.dur || 0.3));
+    const g = this.actx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, o.peak || 0.3), t + (o.atk || 0.01));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (o.dur || 0.3));
+    osc.connect(g); g.connect(this.master); osc.start(t); osc.stop(t + (o.dur || 0.3) + 0.05);
+  }
+
+  private _noiseBurst(dur: number, freq: number, q: number, peak: number) {
+    if (!this.audioOn || !this.actx || !this.master || !this.noiseBuf) return;
+    const t = this.actx.currentTime;
+    const src = this.actx.createBufferSource(); src.buffer = this.noiseBuf;
+    const bp = this.actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = q || 1;
+    const g = this.actx.createGain();
+    g.gain.setValueAtTime(peak, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(bp); bp.connect(g); g.connect(this.master); src.start(t); src.stop(t + dur + 0.02);
+  }
+
+  private _beatSound(ar: number) {
+    if (!this.audioOn) return;
+    this._tone({ type: 'sine', freq: 56 * (1 + 0.12 * ar), freq2: 34, dur: 0.22, peak: 0.9, atk: 0.005 });
+    this._noiseBurst(0.04, 180, 1.2, 0.18 + 0.12 * ar);
+    setTimeout(() => {
+      this._tone({ type: 'sine', freq: 46 * (1 + 0.1 * ar), freq2: 30, dur: 0.16, peak: 0.5, atk: 0.005 });
+      this._noiseBurst(0.03, 150, 1.2, 0.1);
+    }, 95);
+  }
+
+  private _alertSound() { this._tone({ type: 'sine', freq: 392, freq2: 370, dur: 0.5, peak: 0.16, atk: 0.02 }); this._tone({ type: 'triangle', freq: 588, freq2: 555, dur: 0.45, peak: 0.06, atk: 0.03 }); }
+  private _ackSound()   { this._tone({ type: 'sine', freq: 330, freq2: 494, dur: 0.4, peak: 0.18, atk: 0.01 }); this._tone({ type: 'triangle', freq: 660, freq2: 988, dur: 0.36, peak: 0.07, atk: 0.02 }); }
+  private _tap()        { this._tone({ type: 'sine', freq: 220, freq2: 150, dur: 0.16, peak: 0.12, atk: 0.004 }); }
+}
