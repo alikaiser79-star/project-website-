@@ -15,7 +15,8 @@ import { read, write, uid, emit } from './store';
 export type Domain =
   | 'income' | 'debt' | 'garden' | 'makadi' | 'instagram'
   | 'priorities' | 'expense' | 'habit' | 'content'
-  | 'commitment' | 'people' | 'system' | 'anomaly';
+  | 'commitment' | 'people' | 'system' | 'anomaly'
+  | 'agent' | 'leads' | 'deadline';
 
 export type EventSource = 'user' | 'voice' | 'receipt' | 'braindump' | 'ai' | 'auto';
 

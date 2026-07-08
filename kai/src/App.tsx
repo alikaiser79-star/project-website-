@@ -47,6 +47,8 @@ import AskKaiDrawer from './components/AskKaiDrawer';
 import LektionPanel from './components/panels/LektionPanel';
 import AnalystPanel from './components/panels/AnalystPanel';
 import { runAnomalyWatch } from './lib/kai/anomaly';
+import MissionPanel from './components/panels/MissionPanel';
+import LeadsPanel from './components/panels/LeadsPanel';
 import Debrief from './components/Debrief';
 import { shouldShowDebrief, ensureDebrief, markDebriefShown, type Debrief as DebriefData } from './lib/kai/debrief';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
@@ -761,6 +763,8 @@ export default function App() {
                 "what's holding things up" surface. */}
             {view === 'ops' && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+                <MissionPanel delay={0.06} />
+                <LeadsPanel delay={0.08} />
                 <GardenPanel delay={0.10} />
                 <MakadiPanel delay={0.15} />
                 <LedgerPanel delay={0.20} />

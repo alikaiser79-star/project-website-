@@ -11,6 +11,8 @@
 import { getCommandSignals } from './commandSignals';
 import { getCommitments } from './commitments';
 import { getEvents } from './events';
+import { activeMissions } from './agent';
+import { leadCounts } from './leads';
 
 const DAY = 86_400_000;
 
@@ -67,6 +69,16 @@ export function buildKaiContext(now = Date.now()): string {
       out.push(`    ${dago}d ago · ${e.domain}.${e.type}${v}`);
     }
   } catch { out.push('  (spine unavailable)'); }
+
+  /* ── active missions + pipeline ── */
+  try {
+    const missions = activeMissions();
+    const lc = leadCounts();
+    const pipe = Object.entries(lc).filter(([, n]) => n > 0).map(([s, n]) => `${s} ${n}`).join(', ') || 'empty';
+    out.push('\nAGENT & PIPELINE:');
+    out.push(`  active missions: ${missions.length}${missions.length ? ' (' + missions.map(m => m.preset || 'custom').join(', ') + ')' : ''}`);
+    out.push(`  leads: ${pipe}`);
+  } catch { out.push('\nAGENT & PIPELINE: (unavailable)'); }
 
   return out.join('\n');
 }
