@@ -51,6 +51,7 @@ import MissionPanel from './components/panels/MissionPanel';
 import LeadsPanel from './components/panels/LeadsPanel';
 import EscapeVelocityPanel from './components/panels/EscapeVelocityPanel';
 import DeadlinesPanel from './components/panels/DeadlinesPanel';
+import VaultPanel from './components/panels/VaultPanel';
 import Debrief from './components/Debrief';
 import { shouldShowDebrief, ensureDebrief, markDebriefShown, type Debrief as DebriefData } from './lib/kai/debrief';
 import OneThingMode from './components/OneThingMode';
@@ -799,6 +800,7 @@ export default function App() {
                 <WatchtowerPanel delay={0.30} />
                 <EnvoyPanel delay={0.35} />
                 <DelegatePanel delay={0.40} />
+                <VaultPanel delay={0.45} />
               </div>
             )}
           </motion.div>
