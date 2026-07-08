@@ -8,7 +8,7 @@
    ============================================================ */
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Leaf, Plus, Droplet, X, Trash2 } from 'lucide-react';
+import { Leaf, Plus, Droplet, X, Trash2, Camera } from 'lucide-react';
 import { subscribe, getVersion } from '../../lib/kai/store';
 import {
   listPlants, getPlant, addPlant, updatePlant, removePlant,
@@ -16,6 +16,7 @@ import {
 } from '../../lib/kai/garden';
 import type { Plant, PlantHealth } from '../../types';
 import { operator } from '../../kaiConfig';
+import GardenEye from '../GardenEye';
 
 const HEALTHS: PlantHealth[] = ['thriving', 'watch', 'ailing', 'unknown'];
 
@@ -35,6 +36,7 @@ export default function GartenCodexPanel() {
   useSyncExternalStore(subscribe, getVersion, getVersion);
   const plants = listPlants();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [eyeId, setEyeId] = useState<string | null>(null);
 
   return (
     <section className="glass rounded-lg p-5">
@@ -44,12 +46,21 @@ export default function GartenCodexPanel() {
           <span className="font-mono text-[11px] tracking-[0.22em] uppercase">Garten Codex</span>
           <span className="font-mono text-[10px] text-steel/60">· {plants.length} catalogued</span>
         </div>
-        <button
-          onClick={() => { const p = addPlant({ name: 'New plant' }); setOpenId(p.id); }}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 border border-emerald-400/40 text-emerald-300 hover:border-emerald-300 rounded text-[10px] tracking-[0.14em] uppercase"
-        >
-          <Plus size={12} /> Register
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { const p = addPlant({ name: 'Unidentified' }); setEyeId(p.id); }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-emerald-400/40 text-emerald-300 hover:border-emerald-300 rounded text-[10px] tracking-[0.14em] uppercase"
+            title="Point the camera at any plant"
+          >
+            <Camera size={12} /> Show KAI
+          </button>
+          <button
+            onClick={() => { const p = addPlant({ name: 'New plant' }); setOpenId(p.id); }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-emerald-400/40 text-emerald-300 hover:border-emerald-300 rounded text-[10px] tracking-[0.14em] uppercase"
+          >
+            <Plus size={12} /> Register
+          </button>
+        </div>
       </div>
 
       {plants.length === 0 ? (
@@ -71,12 +82,13 @@ export default function GartenCodexPanel() {
         </div>
       )}
 
-      {openId && <PlantDetail id={openId} onClose={() => setOpenId(null)} />}
+      {openId && <PlantDetail id={openId} onClose={() => setOpenId(null)} onShowKai={() => { const id = openId; setOpenId(null); setEyeId(id); }} />}
+      {eyeId && <GardenEye plantId={eyeId} onClose={() => setEyeId(null)} />}
     </section>
   );
 }
 
-function PlantDetail({ id, onClose }: { id: string; onClose: () => void }) {
+function PlantDetail({ id, onClose, onShowKai }: { id: string; onClose: () => void; onShowKai: () => void }) {
   useSyncExternalStore(subscribe, getVersion, getVersion);
   const plant = getPlant(id);
   const [local, setLocal] = useState<Plant | undefined>(plant);
@@ -101,9 +113,13 @@ function PlantDetail({ id, onClose }: { id: string; onClose: () => void }) {
           <button className="share-x" onClick={() => { commit(); onClose(); }} aria-label="close"><X size={14} /></button>
         </div>
 
+        <button className="garten-showkai" onClick={() => { commit(); onShowKai(); }}>
+          <Camera size={13} /> SHOW KAI — capture &amp; diagnose
+        </button>
+
         {/* photo history strip */}
         <div className="garten-strip">
-          {local.photos.length === 0 && <div className="garten-strip-empty">No captures yet. SHOW KAI (camera) arrives in §10.2.</div>}
+          {local.photos.length === 0 && <div className="garten-strip-empty">No captures yet — tap SHOW KAI to photograph and diagnose.</div>}
           {local.photos.slice().reverse().map((ph) => (
             <div key={ph.id} className="garten-strip-cell" title={new Date(ph.at).toLocaleString(operator.locale)}>
               <img src={ph.thumb} alt="capture" />
