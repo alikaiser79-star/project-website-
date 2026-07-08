@@ -620,10 +620,10 @@ export default function App() {
       setTimeout(() => setOnbOpen(true), 900);
     }
 
-    /* Boot toasts are desktop-only: on the phone the Command hero +
-       NEXT bar already carry this, and a fixed toast would overlay the
-       river (the mobile layout's zero-overlap law). */
-    if (!isMobile) {
+    /* Boot toasts are desktop, off-Command only: the phone carries this
+       in its river, and the Command view is a clean instrument (§7.1) —
+       no toast may clutter the four-corner grid. */
+    if (!isMobile && view !== 'command') {
       setTimeout(() => {
         toast.ok(`Welcome back, ${settings.operatorName}. All systems nominal.`, 'KAI');
       }, 800);
@@ -652,7 +652,7 @@ export default function App() {
     if (last !== today) {
       setTimeout(() => {
         const text = briefing();
-        if (!isMobile) toast.ok('Daily briefing ready — say or type "briefing" to hear it.', 'BRIEFING', 6500);
+        if (!isMobile && view !== 'command') toast.ok('Daily briefing ready — say or type "briefing" to hear it.', 'BRIEFING', 6500);
         if (settings.voiceEnabled) {
           emit('speak-start');
           voice.speak(
@@ -811,10 +811,11 @@ export default function App() {
             )}
           </motion.div>
 
-          {/* Live intel strip + HN ticker. On mobile the Command view
-              owns these inside its river (see MobileCommand), so skip
-              them here to avoid a duplicate stack + overlap. */}
-          {!(isMobile && view === 'command') && (
+          {/* Live intel strip + HN ticker. The Command view is a clean
+              instrument (§7.1 sacred zone) — no dashboard behind the
+              core; mobile owns utilities inside its river. So the strip
+              only shows on the four non-Command views. */}
+          {view !== 'command' && (
             <div className="intel-strip-anchor flex flex-col gap-4 sm:gap-5">
               <IntelStrip delay={1.1} />
               <NewsRow />
@@ -882,9 +883,9 @@ export default function App() {
       <ToastStack />
       <BuildBanner />
 
-      {/* Sovereign telemetry — bottom-left; hidden on the Command view
-          where the core owns the canvas. */}
-      <SystemPulse hidden={view === 'command'} />
+      {/* Sovereign telemetry — bottom-left on every view including
+          Command (§7.1 four corners); long-press it for Rewind. */}
+      <SystemPulse hidden={false} />
 
       {/* Ask KAI — conversational core (A toggles, Esc closes). */}
       <AskKaiDrawer open={askOpen} onClose={() => setAskOpen(false)} />

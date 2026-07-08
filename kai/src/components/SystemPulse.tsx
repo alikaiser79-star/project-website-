@@ -72,9 +72,15 @@ export default function SystemPulse({ hidden = false }: Props) {
 
   if (hidden) return null;
 
+  /* Long-press (500ms) opens Rewind (§7.8) — dispatched globally so the
+     Command view's scrubber can pick it up. */
+  let lp: ReturnType<typeof setTimeout> | undefined;
+  const down = () => { lp = setTimeout(() => window.dispatchEvent(new Event('kai:rewind')), 500); };
+  const up = () => { if (lp) clearTimeout(lp); };
+
   const sep = <span className="sp-sep">·</span>;
   return (
-    <div className="system-pulse" aria-hidden>
+    <div className="system-pulse" onPointerDown={down} onPointerUp={up} onPointerLeave={up} title="long-press to rewind">
       <span className="sp-clock">{clock}</span>{sep}
       <span className="sp-sha" title="deployed build SHA">{__BUILD_ID__}</span>{sep}
       <span className={fps >= 50 ? 'sp-fps ok' : fps >= 30 ? 'sp-fps mid' : 'sp-fps low'}>{fps} FPS</span>{sep}

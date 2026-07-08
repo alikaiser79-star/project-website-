@@ -480,3 +480,76 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .kai-mc-card, .kai-mc-card.is-calling { animation: none !important; transition: none !important; }
 }
+
+/* ============================================================
+   §7 COMMAND — desktop interface (root, HUD top-center, 6/6 cards,
+   states, sparkline, ghost, storm, Rewind). Engine canvas untouched.
+   ============================================================ */
+.kai-cc-root {
+  position: fixed; inset: 0; background: #030303; overflow: hidden;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; cursor: crosshair; z-index: 0;
+}
+.kai-cc-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+
+/* HUD — top-center: BPM large, state, one sub. Four corners, four jobs. */
+.kai-cc-hud { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); text-align: center; z-index: 4; pointer-events: none; }
+.kai-cc-bpm { font-size: 22px; letter-spacing: 4px; color: #ffcaa0; text-shadow: 0 0 16px rgba(255,140,70,0.5); font-variant-numeric: tabular-nums; }
+.kai-cc-state { margin-top: 6px; font-size: 9px; letter-spacing: 6px; color: rgba(255,160,90,0.6); }
+.kai-cc-sub { margin-top: 5px; font-size: 8px; letter-spacing: 3px; color: rgba(232,210,190,0.45); }
+
+/* Organ card — one perfect card, twelve times. */
+.kai-cc-card {
+  position: absolute; width: 168px; padding: 8px 12px 9px;
+  background: rgba(9,5,4,0.5); border: 1px solid rgba(255,170,90,0.16); border-radius: 4px;
+  box-shadow: 0 0 12px rgba(255,140,60,0.05), inset 0 0 16px rgba(255,110,50,0.03);
+  z-index: 3; cursor: pointer;
+  transition: border-color .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s cubic-bezier(.2,.8,.2,1), transform .3s cubic-bezier(.2,.8,.2,1);
+}
+.kai-cc-card-head { display: flex; align-items: center; gap: 7px; }
+.kai-cc-num { font-size: 9px; letter-spacing: 3px; color: rgba(255,185,120,0.5); }
+.kai-cc-label { flex: 1; min-width: 0; font-size: 9px; letter-spacing: 2px; color: rgba(240,225,207,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kai-cc-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,170,90,0.45); box-shadow: 0 0 6px rgba(255,160,80,0.5); flex: none; }
+.kai-cc-value { margin-top: 5px; font-size: 16px; letter-spacing: 0.5px; color: #f7e6cf; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,160,90,0.25); min-height: 20px; white-space: nowrap; }
+.kai-cc-delta { margin-top: 3px; font-size: 9px; letter-spacing: 0.5px; font-variant-numeric: tabular-nums; }
+.kai-cc-delta.good { color: rgba(255,200,110,0.85); }
+.kai-cc-delta.bad { color: rgba(255,110,80,0.9); }
+.kai-cc-sparkrow { margin-top: 4px; display: flex; align-items: center; gap: 7px; min-height: 13px; }
+.kai-cc-spark { display: block; }
+.kai-cc-ghost { font-size: 9px; letter-spacing: 0.5px; color: rgba(255,200,120,0.4); font-variant-numeric: tabular-nums; }
+.kai-cc-bar { margin-top: 6px; height: 2px; width: 100%; background: linear-gradient(90deg, rgba(255,170,90,0.5), rgba(255,170,90,0)); opacity: 0.28; border-radius: 2px; }
+.kai-cc-flag { margin-top: 5px; min-height: 8px; font-size: 7px; letter-spacing: 3px; color: rgba(255,180,120,0.4); }
+
+/* States */
+.kai-cc-card.is-calling {
+  border-color: rgba(255,92,60,0.6);
+  box-shadow: 0 0 18px rgba(255,80,45,0.3), inset 0 0 18px rgba(255,70,40,0.07);
+  transform: translateY(-2px);
+  animation: cc-callpulse 2.4s ease-in-out infinite;
+}
+.kai-cc-card.is-calling .kai-cc-dot { background: #ff6a44; box-shadow: 0 0 8px rgba(255,92,60,0.9); }
+.kai-cc-card.is-muted { border-color: rgba(255,92,60,0.35); box-shadow: none; animation: none; }
+.kai-cc-card.is-muted .kai-cc-dot { background: #ff6a44; box-shadow: 0 0 5px rgba(255,92,60,0.7); }
+@keyframes cc-callpulse {
+  0%,100% { box-shadow: 0 0 14px rgba(255,80,45,0.24), inset 0 0 18px rgba(255,70,40,0.06); }
+  50% { box-shadow: 0 0 24px rgba(255,80,45,0.36), inset 0 0 20px rgba(255,70,40,0.1); }
+}
+@media (prefers-reduced-motion: reduce) { .kai-cc-card, .kai-cc-card.is-calling { animation: none !important; transition: none !important; } }
+
+/* Rewind */
+.kai-cc-rewind-banner {
+  position: absolute; top: 150px; left: 50%; transform: translateX(-50%); z-index: 7;
+  font-size: 12px; letter-spacing: 5px; color: #f0c078; text-shadow: 0 0 20px rgba(255,150,70,0.5);
+  padding: 6px 16px; border: 1px solid rgba(255,170,90,0.35); border-radius: 3px; background: rgba(8,4,4,0.7);
+}
+.kai-cc-rewind-bar { position: absolute; left: 40px; right: 40px; bottom: 66px; z-index: 7; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.kai-cc-rewind-bar input[type=range] { width: 100%; accent-color: #ffb060; }
+.kai-cc-rewind-hint { font-size: 8px; letter-spacing: 3px; color: rgba(240,192,120,0.4); text-transform: uppercase; }
+
+/* Corner buttons */
+.kai-cc-btn {
+  position: absolute; z-index: 6; background: rgba(20,8,6,0.6); border: 1px solid rgba(255,150,80,0.3);
+  color: #f2e4d2; font-family: 'JetBrains Mono', ui-monospace, monospace; cursor: pointer;
+  border-radius: 2px; backdrop-filter: blur(3px);
+}
+.kai-cc-sound { left: 28px; bottom: 52px; font-size: 9px; letter-spacing: 3px; padding: 9px 16px; color: rgba(242,228,210,0.75); }
+.kai-cc-ackall { left: 50%; bottom: 22px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; letter-spacing: 4px; padding: 11px 28px; text-shadow: 0 0 10px rgba(255,140,70,0.3); }

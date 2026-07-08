@@ -169,6 +169,11 @@ export class CommandCore {
   private _tilt = { x: 0, y: 0 };
   private _onTilt: ((e: DeviceOrientationEvent) => void) | null = null;
 
+  /* §7.1 exception — measured DOM anchor rects (canvas-local px). When
+     set, arteries target these true panel positions instead of the
+     fixed PANEL_DEFS fractions. Nothing else in the engine changes. */
+  private domAnchors: Record<string, { x: number; y: number }> | null = null;
+
   /* Neural layer — synaptic sparks riding artery polylines. Caps are
      halved automatically if a frame's spark work exceeds the budget. */
   private sparks: Spark[] = [];
@@ -301,6 +306,21 @@ export class CommandCore {
     }
   }
 
+  /* §7.1 exception — point the arteries at measured DOM anchors
+     (canvas-local px). Pass {} or null to revert to fixed fractions.
+     Rebuilds the lattice geometry immediately. */
+  setAnchors(map: Record<string, { x: number; y: number }> | null): void {
+    this.domAnchors = map && Object.keys(map).length ? map : null;
+    if (this.ctx) this._buildVeins();
+  }
+
+  /* §7.8 Rewind — swap the signal source (e.g. to a historical
+     provider while scrubbing). Values + arousal follow it live. */
+  setSignalProvider(fn: SignalProvider): void {
+    this.signalProvider = fn;
+    try { this._pullValues(true); } catch { /* ignore */ }
+  }
+
   /* ── Layout / geometry ───────────────────────────────── */
 
   private _resize() {
@@ -366,7 +386,8 @@ export class CommandCore {
       return mu * mu * mu * p0 + 3 * mu * mu * u * p1 + 3 * mu * u * u * p2 + u * u * u * p3;
     };
     for (const [id, fx, fy] of PANEL_DEFS) {
-      const tx = fx * W, ty = fy * H;
+      const da = this.domAnchors?.[id];
+      const tx = da ? da.x : fx * W, ty = da ? da.y : fy * H;
       this.panelAnchors[id] = pt(tx, ty);
       const dx = tx - cx, dy = ty - cy, dist = Math.hypot(dx, dy) || 1;
       const ux = dx / dist, uy = dy / dist, nx = -uy, ny = ux;
