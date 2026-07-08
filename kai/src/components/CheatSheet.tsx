@@ -10,6 +10,7 @@ const rows: Array<[string[], string]> = [
   [['←', '→'],  'Walk views (swipe on touch)'],
   [['Swipe'],   'Walk views (horizontal)'],
   [['A'],       'Ask KAI'],
+  [['O'],       'One Thing focus'],
   [['⌘', 'K'],  'Open command bar'],
   [['⌘', '/'],  'Spotlight search'],
   [['Esc'],     'Close any overlay'],

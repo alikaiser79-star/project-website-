@@ -53,6 +53,9 @@ import EscapeVelocityPanel from './components/panels/EscapeVelocityPanel';
 import DeadlinesPanel from './components/panels/DeadlinesPanel';
 import Debrief from './components/Debrief';
 import { shouldShowDebrief, ensureDebrief, markDebriefShown, type Debrief as DebriefData } from './lib/kai/debrief';
+import OneThingMode from './components/OneThingMode';
+import DayRitual from './components/DayRitual';
+import { shouldDayCompile, shouldShutdown } from './lib/kai/protocol';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -127,6 +130,8 @@ export default function App() {
   const [cheatOpen, setCheatOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [debriefData, setDebriefData] = useState<DebriefData | null>(null);
+  const [oneThingOpen, setOneThingOpen] = useState(false);
+  const [dayRitual, setDayRitual] = useState<'compile' | 'shutdown' | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
   const [focusJournalEntry, setFocusJournalEntry] = useState<string | null>(null);
   const [focusSettingsSection, setFocusSettingsSection] = useState<string | null>(null);
@@ -521,6 +526,7 @@ export default function App() {
       else if (k === 'j') { setJournalOpen(o => !o); sfx.click(); }
       else if (k === '?') { setCheatOpen(o => !o); sfx.click(); }
       else if (k === 'a') { setAskOpen(o => !o); sfx.click(); }
+      else if (k === 'o') { setOneThingOpen(o => !o); sfx.click(); }
     }
     function saveSettings(next: KaiSettings) {
       setSettings(next);
@@ -554,6 +560,11 @@ export default function App() {
     if (shouldShowDebrief()) {
       ensureDebrief().then(d => { setDebriefData(d); markDebriefShown(); }).catch(() => {});
     }
+
+    // Protocol (6.3) — first open of the day compiles the day; after
+    // 21:00 the first open runs the shutdown ritual instead.
+    if (shouldShutdown()) setDayRitual('shutdown');
+    else if (shouldDayCompile()) setTimeout(() => setDayRitual('compile'), 1200);
     /* Dev hook to preview the weekly debrief on any day. */
     (window as any).__kaiDebrief = () => {
       ensureDebrief().then(setDebriefData).catch(() => setDebriefData({
@@ -872,6 +883,10 @@ export default function App() {
 
       {/* Debrief — the weekly Sunday review (typed, gold). */}
       {debriefData && <Debrief data={debriefData} onDone={() => setDebriefData(null)} />}
+
+      {/* Protocol (6.3) — ONE THING focus + the daily ritual. */}
+      {oneThingOpen && <OneThingMode onExit={() => setOneThingOpen(false)} />}
+      {dayRitual && <DayRitual mode={dayRitual} onDone={() => setDayRitual(null)} />}
 
       {/* Biometric / PIN lock. Setup is one-time, unlock gates every
           relaunch + post-idle resume when enabled. */}
