@@ -162,3 +162,43 @@ body { font-variant-numeric: tabular-nums; }
 .explain-val { margin-top: 6px; font-size: 15px; color: #ffcaa0; text-shadow: 0 0 10px rgba(255, 150, 70, 0.2); }
 .explain-body { margin-top: 12px; font-size: 12.5px; line-height: 1.7; color: #f0c078; white-space: pre-wrap; }
 .explain-dim { color: rgba(240, 192, 120, 0.4); }
+
+/* ── DEBRIEF — the Sunday review overlay ─────────────────── */
+.kai-debrief {
+  position: fixed; inset: 0; z-index: 590;
+  background: #000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px; cursor: pointer;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  animation: kai-witness-in 0.5s ease both;
+}
+.kai-debrief.is-leaving { animation: kai-witness-out 0.42s ease both; }
+.kai-debrief-head {
+  font-size: 11px; letter-spacing: 5px; color: rgba(240, 192, 120, 0.5);
+  margin-bottom: 28px; text-transform: uppercase;
+}
+.kai-debrief-body { width: min(620px, 92vw); display: flex; flex-direction: column; gap: 16px; }
+.kai-debrief-line { display: flex; gap: 12px; align-items: baseline; }
+.kai-debrief-label {
+  flex: none; width: 74px; font-size: 10px; letter-spacing: 2px;
+  color: rgba(240, 192, 120, 0.55); text-transform: uppercase; padding-top: 2px;
+}
+.kai-debrief-label.danger { color: rgba(255, 120, 90, 0.8); }
+.kai-debrief-text {
+  flex: 1; font-size: 15px; line-height: 1.6; color: #f0c078;
+  text-shadow: 0 0 16px rgba(255, 150, 70, 0.3);
+}
+.kai-debrief-caret {
+  display: inline-block; width: 8px; height: 1em; margin-top: 8px;
+  background: #f0c078; box-shadow: 0 0 10px rgba(255, 150, 70, 0.6);
+  animation: kai-witness-blink 0.9s steps(1) infinite;
+}
+.kai-debrief-skip {
+  position: absolute; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
+  text-align: center; font-size: 11px; letter-spacing: 4px; color: rgba(240, 192, 120, 0.32);
+}
+.kai-debrief-ver {
+  position: absolute; right: calc(env(safe-area-inset-right, 0px) + 12px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  font-size: 11px; letter-spacing: 2px; color: rgba(240, 192, 120, 0.4);
+}

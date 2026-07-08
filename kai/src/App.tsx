@@ -47,6 +47,8 @@ import AskKaiDrawer from './components/AskKaiDrawer';
 import LektionPanel from './components/panels/LektionPanel';
 import AnalystPanel from './components/panels/AnalystPanel';
 import { runAnomalyWatch } from './lib/kai/anomaly';
+import Debrief from './components/Debrief';
+import { shouldShowDebrief, ensureDebrief, markDebriefShown, type Debrief as DebriefData } from './lib/kai/debrief';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -120,6 +122,7 @@ export default function App() {
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
+  const [debriefData, setDebriefData] = useState<DebriefData | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
   const [focusJournalEntry, setFocusJournalEntry] = useState<string | null>(null);
   const [focusSettingsSection, setFocusSettingsSection] = useState<string | null>(null);
@@ -543,6 +546,21 @@ export default function App() {
     // only if a fresh trigger fires. No timer, no polling.
     runAnomalyWatch().catch(() => {});
 
+    // Debrief (8.3) — the Sunday review, once per week, first open.
+    if (shouldShowDebrief()) {
+      ensureDebrief().then(d => { setDebriefData(d); markDebriefShown(); }).catch(() => {});
+    }
+    /* Dev hook to preview the weekly debrief on any day. */
+    (window as any).__kaiDebrief = () => {
+      ensureDebrief().then(setDebriefData).catch(() => setDebriefData({
+        kept: '2 kept — arrears paid, lock replaced',
+        broke: '1 broken — Katie photos by the 12th',
+        best: 'Replaced the Makadi lock with your own hands, 500km out',
+        mistake: '25,000 EGP Makadi trip in a minimum-payment month',
+        lesson: 'You move fast on hardware, slow on the listing that pays for it.',
+      }));
+    };
+
     // Warm the calendar cache so the briefing + Agenda have data
     // ready instead of waiting for the first AgendaTile mount.
     fetchCalendar().catch(() => {});
@@ -843,6 +861,9 @@ export default function App() {
 
       {/* Ask KAI — conversational core (A toggles, Esc closes). */}
       <AskKaiDrawer open={askOpen} onClose={() => setAskOpen(false)} />
+
+      {/* Debrief — the weekly Sunday review (typed, gold). */}
+      {debriefData && <Debrief data={debriefData} onDone={() => setDebriefData(null)} />}
 
       {/* Biometric / PIN lock. Setup is one-time, unlock gates every
           relaunch + post-idle resume when enabled. */}
