@@ -11,6 +11,7 @@
    ============================================================ */
 
 import { read, write, uid, emit } from './store';
+import type { Currency } from '../../types';
 
 export type Domain =
   | 'income' | 'debt' | 'garden' | 'makadi' | 'instagram'
@@ -26,6 +27,10 @@ export interface KaiEvent {
   domain: Domain;
   type: string;
   value?: number;
+  /* Explicit currency for money-valued events (debt, income, makadi
+     rate, expense…). When set, `value` is denominated in `ccy` — never
+     an assumed unit. Absent for non-money events (counts, ratios). */
+  ccy?: Currency;
   meta?: Record<string, unknown>;
   source: EventSource;
 }
@@ -40,6 +45,7 @@ export function logEvent(e: Omit<KaiEvent, 'id' | 'ts'> & { ts?: number }): KaiE
     domain: e.domain,
     type: e.type,
     value: e.value,
+    ccy: e.ccy,
     meta: e.meta,
     source: e.source,
   };

@@ -10,16 +10,11 @@
 import { getEvents } from './events';
 import { getCommandSignals } from './commandSignals';
 import { operator } from '../../kaiConfig';
+import { fmtMoney } from './money';
 import type { OrganSignal } from './commandCore';
+import type { Currency } from '../../types';
 
 const DAY = 86_400_000;
-
-function fmtEgp(n: number): string {
-  if (!isFinite(n)) return '—';
-  if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (Math.abs(n) >= 10_000) return Math.round(n / 1000) + 'K';
-  return Math.round(n).toLocaleString(operator.locale);
-}
 
 /* Last event value on/before t for a domain+type. */
 function lastValueAt(domain: any, type: string, t: number): number | undefined {
@@ -37,10 +32,14 @@ export function signalsAt(t: number): Record<string, OrganSignal> {
   for (const k of Object.keys(live)) out[k] = { formatted: live[k].formatted, calling: false };
 
   const debt = lastValueAt('debt', 'balance_updated', t);
-  if (debt != null) out['02'] = { formatted: fmtEgp(debt), calling: false };
+  if (debt != null) out['02'] = { formatted: fmtMoney(debt, 'EGP'), calling: false };
 
-  const rate = lastValueAt('makadi', 'rate_changed', t);
-  if (rate != null) out['04'] = { formatted: fmtEgp(rate), calling: false };
+  /* Makadi rate as it stood on day t — render in the currency the event
+     recorded (USD today; legacy events carry none → assume USD). */
+  const rateEv = getEvents({ domain: 'makadi', type: 'rate_changed' }).filter(e => e.ts <= t).slice(-1)[0];
+  if (rateEv?.value != null) {
+    out['04'] = { formatted: fmtMoney(rateEv.value, (rateEv.ccy ?? 'USD') as Currency), calling: false };
+  }
 
   const plants = lastValueAt('garden', 'plant_added', t);
   if (plants != null) out['03'] = { formatted: Math.round(plants).toLocaleString(operator.locale), calling: false };

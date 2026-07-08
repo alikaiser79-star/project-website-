@@ -4,7 +4,8 @@ import { AlertTriangle, Bed, Star } from 'lucide-react';
 import { operator } from '../../kaiConfig';
 import { useCounter } from '../../hooks/useCounter';
 import { getMakadi } from '../../lib/store';
-import type { MakadiState } from '../../types';
+import { toEgp } from '../../lib/kai/money';
+import type { MakadiState, Currency } from '../../types';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -23,7 +24,9 @@ export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
     };
   }, []);
 
+  const rateCcy = (m?.rateCcy ?? 'USD') as Currency;
   const rate   = useCounter(Number(m?.nightlyRate) || 0, { duration: 1.6 });
+  const rateEgp = Math.round(toEgp(Number(m?.nightlyRate) || 0, rateCcy));
   const occ    = useCounter((Number(m?.occupancy30d) || 0) * 100, { decimals: 0, duration: 1.6 });
   const rating = useCounter(Number(m?.rating) || 0, { decimals: 2, duration: 1.4 });
   const next   = m?.nextBooking ? new Date(m.nextBooking) : new Date(NaN);
@@ -33,13 +36,14 @@ export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
 
   return (
     <Panel num="04" title="Makadi Airbnb" tag="Short-term" delay={delay}
-      explain={{ metric: 'Nightly rate & occupancy', value: `${m?.nightlyRate ?? 0} EGP/night · ${Math.round((m?.occupancy30d ?? 0) * 100)}% occ` }}>
+      explain={{ metric: 'Nightly rate & occupancy', value: `${m?.nightlyRate ?? 0} ${rateCcy}/night (≈ ${fmt(rateEgp)} EGP) · ${Math.round((m?.occupancy30d ?? 0) * 100)}% occ` }}>
       <div className="grid grid-cols-2 gap-5">
         <div>
           <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel/65">Nightly</div>
           <div className="font-sans text-amber text-3xl font-extralight tabular-nums mt-1">
-            {fmt(rate)}<span className="font-mono text-steel/65 text-xs ml-2">EGP</span>
+            {fmt(rate)}<span className="font-mono text-steel/65 text-xs ml-2">{rateCcy}</span>
           </div>
+          <div className="font-mono text-[10px] text-steel/50 tabular-nums mt-1">≈ {fmt(rateEgp)} EGP/night</div>
         </div>
         <div>
           <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel/65">Occupancy · 30d</div>

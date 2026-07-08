@@ -773,13 +773,24 @@ function MakadiEditor() {
     <div className="space-y-2 font-mono text-[11px]">
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
-          <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Nightly · EGP</span>
-          <input
-            type="number"
-            value={m.nightlyRate}
-            onChange={e => commit({ nightlyRate: parseFloat(e.target.value) || 0 })}
-            className="mt-1 w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
-          />
+          <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Nightly · {m.rateCcy ?? 'USD'}</span>
+          <div className="mt-1 flex gap-1">
+            <input
+              type="number"
+              value={m.nightlyRate}
+              onChange={e => commit({ nightlyRate: parseFloat(e.target.value) || 0 })}
+              className="w-full bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1 text-bone tabular-nums outline-none"
+            />
+            <select
+              value={m.rateCcy ?? 'USD'}
+              onChange={e => commit({ rateCcy: e.target.value as MakadiState['rateCcy'] })}
+              className="bg-transparent border border-amber/20 focus:border-amber rounded px-1 py-1 text-bone outline-none"
+            >
+              <option value="USD">USD</option>
+              <option value="EGP">EGP</option>
+              <option value="EUR">EUR</option>
+            </select>
+          </div>
         </label>
         <label className="block">
           <span className="text-[10px] tracking-[0.18em] uppercase text-steel">Occupancy · %</span>

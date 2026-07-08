@@ -22,7 +22,7 @@ export const COMMITMENT_VOCAB: VocabEntry[] = [
   { domain: 'debt',       event: 'balance_updated',  means: 'credit-card balance after a payment, absolute EGP. Use for "pay down to X".' },
 
   /* Makadi Airbnb — fired by lib/store.ts updateMakadi when rate changes. */
-  { domain: 'makadi',     event: 'rate_changed',     means: 'the nightly Airbnb rate, as an absolute EGP number per night' },
+  { domain: 'makadi',     event: 'rate_changed',     means: 'the nightly Airbnb rate per night; carries its own currency in event.ccy (USD by default — do NOT assume EGP)' },
   { domain: 'makadi',     event: 'occupancy_set',    means: 'the 30-day occupancy fraction 0..1 (e.g. 0.85 for 85%)' },
 
   /* Hidden Garden — fired by lib/store.ts updateGarden when plant count changes. */

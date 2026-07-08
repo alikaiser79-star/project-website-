@@ -16,7 +16,7 @@
 
 import { getEvents } from './events';
 import { getLiquidCash } from '../store';
-import { monthlyTotalEGP } from '../../kaiConfig';
+import { monthlyIncomeEgp } from './money';
 import { loadState } from '../store';
 import { getCalendarCached } from '../calendar';
 
@@ -50,7 +50,7 @@ export function dailyBurn(now: number = Date.now()): { burn: number; count: numb
 export function liquidCash(now: number = Date.now()): number {
   const cash = getLiquidCash();
   const s = loadState();
-  const monthIncome = monthlyTotalEGP(s.income, s.fxEgpPerEur);
+  const monthIncome = monthlyIncomeEgp(s.income);
   const d = new Date(now);
   const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
   const dayOfMonth = d.getDate();

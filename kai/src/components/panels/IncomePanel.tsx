@@ -1,7 +1,8 @@
 import Panel from '../Panel';
 import { useState, useEffect } from 'react';
 import { useCounter } from '../../hooks/useCounter';
-import { monthlyTotalEGP, operator } from '../../kaiConfig';
+import { operator } from '../../kaiConfig';
+import { monthlyIncomeEgp } from '../../lib/kai/money';
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { loadState } from '../../lib/store';
 import type { IncomeOverride } from '../../types';
@@ -52,7 +53,7 @@ export default function IncomePanel({ delay = 0 }: { delay?: number }) {
     };
   }, []);
 
-  const total = monthlyTotalEGP(streams, fx);
+  const total = monthlyIncomeEgp(streams);
   const animatedTotal = useCounter(total, { duration: 1.8 });
   const eur = total / fx;
   const incomeSeries = seriesFor('incomeMonthly', 14);
@@ -60,9 +61,9 @@ export default function IncomePanel({ delay = 0 }: { delay?: number }) {
 
   return (
     <Panel num="01" title="Income" tag="Monthly" delay={delay}
-      explain={{ metric: 'Monthly income (projected)', value: `${Math.round(total).toLocaleString()} EGP/mo` }}>
+      explain={{ metric: 'Monthly income (occupancy-aware)', value: `${Math.round(total).toLocaleString()} EGP/mo` }}>
       <div className="mb-5 pb-5 border-b border-white/[0.05]">
-        <div className="font-mono text-[10px] tracking-[0.18em] text-steel/65 uppercase">Projected total</div>
+        <div className="font-mono text-[10px] tracking-[0.18em] text-steel/65 uppercase">Monthly total · EGP</div>
         <div className="flex items-baseline gap-3 mt-2">
           <div className="font-sans text-amber text-4xl sm:text-[42px] leading-none font-extralight tabular-nums">
             {fmt(animatedTotal)}

@@ -47,6 +47,7 @@ export const defaults: KaiPersisted = {
   },
   makadi: {
     nightlyRate:  configMakadi.nightlyRate,
+    rateCcy:      configMakadi.rateCcy,
     occupancy30d: configMakadi.occupancy30d,
     nextBooking:  configMakadi.nextBooking,
     fixLock:      configMakadi.fixLock,
@@ -171,7 +172,7 @@ export function updateMakadi(patch: Partial<MakadiState>) {
   saveState(s);
   /* Spine — Makadi rate / occupancy changes are commitment-relevant. */
   if (typeof patch.nightlyRate === 'number' && patch.nightlyRate !== prevRate) {
-    logEvent({ domain: 'makadi', type: 'rate_changed', value: patch.nightlyRate, source: 'user' });
+    logEvent({ domain: 'makadi', type: 'rate_changed', value: patch.nightlyRate, ccy: s.makadi.rateCcy, source: 'user' });
   }
   if (typeof patch.occupancy30d === 'number' && patch.occupancy30d !== prevOcc) {
     logEvent({ domain: 'makadi', type: 'occupancy_set', value: patch.occupancy30d, source: 'user' });

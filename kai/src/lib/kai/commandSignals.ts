@@ -34,12 +34,15 @@ import { getEvents } from './events';
 import { getPending } from './pending';
 import { operator } from '../../kaiConfig';
 import { deadlineCalling } from './deadlines';
+import { fmtMoney, monthlyIncomeEgp } from './money';
+import type { Currency } from '../../types';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
 
-function fmtUsd(n: number): string {
-  /* Display in EGP — operator's home currency — formatted compactly. */
+/* Compact magnitude for NON-money values (follower counts, etc.). Money
+   never uses this — money goes through fmtMoney so it carries a code. */
+function fmtCompact(n: number): string {
   if (!isFinite(n)) return '—';
   if (Math.abs(n) >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
   if (Math.abs(n) >= 10_000)    return Math.round(n / 1000) + 'K';
@@ -62,14 +65,14 @@ export function getCommandSignals(): Record<string, OrganSignal> {
   try {
     const s = loadState();
 
-    /* 01 INCOME — monthly projection in EGP. Never calls. */
+    /* 01 INCOME — monthly projection in EGP, occupancy-aware. Every
+       stream is converted to EGP by its own currency; Makadi is NOT
+       counted at a flat 22-night assumption — it contributes only its
+       realised nights (0 booked → 0), so the headline can't show
+       phantom rental income. Never calls. */
     try {
-      const income = (s.income || []).reduce((sum, i) => {
-        const monthly = i.cadence === 'nightly' ? i.amount * 22 : i.amount;
-        const rate = s.fxEgpPerEur || 53.5;
-        return sum + (i.ccy === 'EUR' ? monthly * rate : monthly);
-      }, 0);
-      out['01'] = { formatted: fmtUsd(income), calling: false };
+      const income = monthlyIncomeEgp(s.income, now);
+      out['01'] = { formatted: fmtMoney(income, 'EGP'), calling: false };
     } catch { out['01'] = { formatted: '—', calling: false }; }
 
     /* 02 DEBT — balance. Calls "card past due" ONLY on a real dated
@@ -82,7 +85,7 @@ export function getCommandSignals(): Record<string, OrganSignal> {
         c.status === 'open' && c.metric?.domain === 'debt' && c.deadline < now
       );
       out['02'] = {
-        formatted: fmtUsd(bal),
+        formatted: fmtMoney(bal, 'EGP'),
         calling: bal > 0 && overdueDebt,
       };
     } catch { out['02'] = { formatted: '—', calling: false }; }
@@ -100,12 +103,13 @@ export function getCommandSignals(): Record<string, OrganSignal> {
        not a "needs you now" signal. */
     try {
       const rate = s.makadi?.nightlyRate ?? 0;
+      const rateCcy = (s.makadi?.rateCcy ?? 'USD') as Currency;
       const lastNights = getEvents({ domain: 'makadi', type: 'nights_booked', since: now - 30 * DAY }).slice(-1)[0];
       const nightsZero = lastNights
         ? (lastNights.value ?? 0) === 0
         : (s.makadi?.occupancy30d ?? 1) === 0;
       out['04'] = {
-        formatted: fmtUsd(rate),
+        formatted: fmtMoney(rate, rateCcy),          // e.g. "34 USD" — never a naked number
         calling: nightsZero,
       };
     } catch { out['04'] = { formatted: '—', calling: false }; }
@@ -113,7 +117,7 @@ export function getCommandSignals(): Record<string, OrganSignal> {
     /* 05 INSTAGRAM — total followers. Status-only. */
     try {
       const total = (s.instagram || []).reduce((sum, a) => sum + (a.followers || 0), 0);
-      out['05'] = { formatted: fmtUsd(total), calling: false };
+      out['05'] = { formatted: fmtCompact(total), calling: false };   // followers, not money
     } catch { out['05'] = { formatted: '—', calling: false }; }
 
     /* 06 PRIORITIES — open count. Status-only. The old ">5 open"
@@ -134,7 +138,7 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       const month = monthlyTotal();
       const count = listExpenses().filter(e => e.date.startsWith(new Date().toISOString().slice(0, 7))).length;
       void count;
-      out['07'] = { formatted: fmtUsd(month), calling: false };
+      out['07'] = { formatted: fmtMoney(month, 'EGP'), calling: false };
     } catch { out['07'] = { formatted: '—', calling: false }; }
 
     /* 08 CONTENT — queued items. Status-only. */

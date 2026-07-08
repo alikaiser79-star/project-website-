@@ -10,6 +10,7 @@
 import { income as CONFIG_INCOME, currency } from '../../kaiConfig';
 import { loadState } from '../store';
 import { getEvents } from './events';
+import { makadiRealisedMonthlyEgp, toEgp } from './money';
 
 const DAY = 86_400_000;
 const BASE_EUR = 620;               // Enpal net — the base to escape
@@ -28,17 +29,21 @@ export interface EscapeState {
 function ownedMonthlyEur(now = Date.now()): number {
   const s = loadState();
   const streams = (s.income && s.income.length ? s.income : CONFIG_INCOME) as typeof CONFIG_INCOME;
-  const rate = s.fxEgpPerEur || currency.egpPerEur;
-  let egp = 0, eur = 0;
+  const fx = s.fxEgpPerEur || currency.egpPerEur;
+  /* Accumulate every owned stream in EGP by its own currency, then
+     convert once to EUR at the end. */
+  let egp = 0;
   for (const st of streams) {
     if (st.id === 'enpal') continue;                     // the base, not owned-escape
+    if (st.id === 'makadi') continue;                    // realised via occupancy below
     const monthly = st.cadence === 'nightly' ? st.amount * 22 : st.amount;
-    if (st.ccy === 'EUR') eur += monthly; else egp += monthly;
+    egp += toEgp(monthly, st.ccy);
   }
-  /* Makadi realised nightly income from the Spine, if it has surfaced. */
-  const nights = getEvents({ domain: 'makadi', type: 'nights_booked', since: now - 30 * DAY }).slice(-1)[0];
-  void nights;   // reserved: once nights_booked > 0, realised income refines this
-  return eur + egp / rate;
+  /* Makadi contributes only its REALISED income — booked nights × the
+     nightly rate in its own currency. 0 nights → 0, so THE number never
+     rides on phantom occupancy. */
+  egp += makadiRealisedMonthlyEgp(now);
+  return egp / fx;                                       // EGP → EUR
 }
 
 /* Trailing daily debt paydown from balance_updated events (last 90d).

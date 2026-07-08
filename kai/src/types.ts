@@ -2,6 +2,11 @@ export type Priority = { id: string; text: string; done: boolean };
 
 export type Accent = 'amber' | 'cyan' | 'emerald';
 
+/* Every money value in KAI carries one of these — no bare numbers with
+   assumed units. EGP is the operator's home/headline currency; USD is
+   the Makadi listing currency; EUR is Enpal (and future agency work). */
+export type Currency = 'EGP' | 'USD' | 'EUR';
+
 export type KaiSettings = {
   voiceEnabled: boolean;
   soundEnabled: boolean;
@@ -39,6 +44,7 @@ export type GardenState = {
 };
 export type MakadiState = {
   nightlyRate: number;
+  rateCcy: Currency;        // currency of nightlyRate — Makadi lists in USD
   occupancy30d: number;     // 0..1
   nextBooking: string;
   fixLock: boolean;
@@ -64,7 +70,7 @@ export type IncomeOverride = {
   id: string;
   label: string;
   amount: number;
-  ccy: 'EUR' | 'EGP';
+  ccy: Currency;
   cadence: 'monthly' | 'nightly';
   note?: string;
   trend?: number;

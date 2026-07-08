@@ -12,7 +12,7 @@
      makadi  lock_replaced    1       {cost:8000, source:'russia_family'}
      makadi  couch_installed  1       {transport:6000}
      makadi  arrears_paid     11000   {remaining:4000}
-     makadi  rate_changed     45
+     makadi  rate_changed     34      USD after tax (≈ 1,700 EGP)
      makadi  nights_booked    0       (rentable, listing pending Katie's photos)
      garden  plant_added      85
      content reel_posted      4       {window:'30d'}
@@ -23,7 +23,7 @@
 
    Store writes (kills any stale demo state on-device):
      debtCurrent   → 59000
-     makadi.rate   → 45, occupancy → 0, fixLock → false
+     makadi.rate   → 34 USD, occupancy → 0, fixLock → false
      garden.plants → 85
      liquidCash    → 15000
      + the 3 real expenses added to the expenses store
@@ -48,7 +48,7 @@ export function seedSpine(force = false): SeedResult {
     /* ── 1. Real store state (kills demo defaults on-device) ── */
     const s = loadState();
     s.debtCurrent = 59000;
-    s.makadi = { ...s.makadi, nightlyRate: 45, occupancy30d: 0, fixLock: false };
+    s.makadi = { ...s.makadi, nightlyRate: 34, rateCcy: 'USD', occupancy30d: 0, fixLock: false };
     s.garden = { ...s.garden, plantCount: 85 };
     s.liquidCash = 15000;
     saveState(s);
@@ -68,21 +68,21 @@ export function seedSpine(force = false): SeedResult {
     const at = (d: number) => now - d * DAY;
 
     const events: Array<Parameters<typeof logEvent>[0]> = [
-      { domain: 'debt',    type: 'payment_logged',  value: 4700,  source: 'user', ts: at(8) },
-      { domain: 'debt',    type: 'balance_updated',  value: 59000, source: 'user', ts: at(8) },
-      { domain: 'income',  type: 'salary_logged',    value: 33000, meta: { src: 'enpal_eur', spent: 'fully' }, source: 'auto', ts: at(6) },
-      { domain: 'income',  type: 'rent_paid',        value: 16000, meta: { src: 'honda' }, source: 'auto', ts: at(5) },
+      { domain: 'debt',    type: 'payment_logged',  value: 4700,  ccy: 'EGP', source: 'user', ts: at(8) },
+      { domain: 'debt',    type: 'balance_updated',  value: 59000, ccy: 'EGP', source: 'user', ts: at(8) },
+      { domain: 'income',  type: 'salary_logged',    value: 33000, ccy: 'EGP', meta: { src: 'enpal_eur', gross: '620 EUR', spent: 'fully' }, source: 'auto', ts: at(6) },
+      { domain: 'income',  type: 'rent_paid',        value: 16000, ccy: 'EGP', meta: { src: 'honda' }, source: 'auto', ts: at(5) },
       { domain: 'makadi',  type: 'lock_replaced',    value: 1,     meta: { cost: 8000, source: 'russia_family' }, source: 'user', ts: at(12) },
       { domain: 'makadi',  type: 'couch_installed',  value: 1,     meta: { transport: 6000 }, source: 'user', ts: at(11) },
-      { domain: 'makadi',  type: 'arrears_paid',     value: 11000, meta: { remaining: 4000 }, source: 'user', ts: at(10) },
-      { domain: 'makadi',  type: 'rate_changed',     value: 45,    source: 'user', ts: at(9) },
+      { domain: 'makadi',  type: 'arrears_paid',     value: 11000, ccy: 'EGP', meta: { remaining: 4000 }, source: 'user', ts: at(10) },
+      { domain: 'makadi',  type: 'rate_changed',     value: 34,    ccy: 'USD', meta: { afterTax: true, egpApprox: 1700 }, source: 'user', ts: at(9) },
       { domain: 'makadi',  type: 'nights_booked',    value: 0,     source: 'auto', ts: at(1) },
       { domain: 'garden',  type: 'plant_added',      value: 85,    source: 'user', ts: at(14) },
       { domain: 'content', type: 'reel_posted',      value: 4,     meta: { window: '30d' }, source: 'user', ts: at(4) },
-      { domain: 'expense', type: 'trip_makadi',      value: 25000, meta: { lock: 8000, transport: 6000, arrears: 11000 }, source: 'user', ts: at(11) },
-      { domain: 'expense', type: 'gear_glasses',     value: 3000,  meta: { purpose: 'street_content' }, source: 'user', ts: at(7) },
-      { domain: 'expense', type: 'brother',          value: 5000,  source: 'user', ts: at(3) },
-      { domain: 'system',  type: 'cash_on_hand',     value: 15000, meta: { until_payday: 'all obligations paid' }, source: 'user', ts: at(1) },
+      { domain: 'expense', type: 'trip_makadi',      value: 25000, ccy: 'EGP', meta: { lock: 8000, transport: 6000, arrears: 11000 }, source: 'user', ts: at(11) },
+      { domain: 'expense', type: 'gear_glasses',     value: 3000,  ccy: 'EGP', meta: { purpose: 'street_content' }, source: 'user', ts: at(7) },
+      { domain: 'expense', type: 'brother',          value: 5000,  ccy: 'EGP', source: 'user', ts: at(3) },
+      { domain: 'system',  type: 'cash_on_hand',     value: 15000, ccy: 'EGP', meta: { until_payday: 'all obligations paid' }, source: 'user', ts: at(1) },
     ];
 
     for (const e of events) {
@@ -98,6 +98,26 @@ export function seedSpine(force = false): SeedResult {
 
 export function resetSeedFlag(): void {
   try { localStorage.removeItem(SEED_FLAG); } catch { /* ignore */ }
+}
+
+/* Currency migration — runs every boot, independent of the seed flag,
+   so devices ALREADY seeded (v3, before the currency discipline) get
+   corrected without re-running the whole seed (which would duplicate
+   events + expenses). Idempotent: only touches a makadi state that has
+   no rateCcy yet. The legacy "45 EGP-equivalent" was wrong on both the
+   number and the unit — the real listing is 34 USD after tax. Logs a
+   currency-tagged rate_changed so history/Rewind stay honest. */
+export function migrateMoney(): void {
+  try {
+    const s = loadState();
+    if (s.makadi && (s.makadi as any).rateCcy == null) {
+      const wasLegacy = s.makadi.nightlyRate === 45;
+      const rate = wasLegacy ? 34 : s.makadi.nightlyRate;
+      s.makadi = { ...s.makadi, nightlyRate: rate, rateCcy: 'USD' };
+      saveState(s);
+      logEvent({ domain: 'makadi', type: 'rate_changed', value: rate, ccy: 'USD', meta: { correction: 'currency-fix', afterTax: true }, source: 'auto' });
+    }
+  } catch { /* ignore — boot must never throw here */ }
 }
 
 /* Dev console hooks:

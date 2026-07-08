@@ -1,5 +1,5 @@
 import { loadState, saveState } from './store';
-import { monthlyTotalEGP } from '../kaiConfig';
+import { monthlyIncomeEgp } from './kai/money';
 import type { Snapshot } from '../types';
 
 const MAX_SNAPS = 180;
@@ -22,7 +22,7 @@ export function recordSnapshot() {
   const snap: Snapshot = {
     d: today,
     debt: s.debtCurrent,
-    incomeMonthly: Math.round(monthlyTotalEGP(s.income, s.fxEgpPerEur)),
+    incomeMonthly: Math.round(monthlyIncomeEgp(s.income)),
     prioritiesOpen: s.priorities.filter(p => !p.done).length,
     prioritiesDone: s.priorities.filter(p => p.done).length,
     habitsToday,

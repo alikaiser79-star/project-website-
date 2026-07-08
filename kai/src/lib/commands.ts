@@ -3,7 +3,7 @@
    factual values read from the live store via accessors. */
 
 import {
-  debt, monthlyTotalEGP, debtUtilizationPct, currency, operator,
+  debt, debtUtilizationPct, currency, operator,
 } from '../kaiConfig';
 import { loadState } from './store';
 import { focusTimer } from './focusTimer';
@@ -17,6 +17,7 @@ import { mirrorBriefing } from './kai/commitments';
 import { computeRunway, costInDays, paydayCushion, runwayBriefing } from './kai/runway';
 import { ledgerBriefing } from './kai/ledger';
 import { escapeLine } from './kai/escape';
+import { toEgp, monthlyIncomeEgp } from './kai/money';
 import { parseDeadlineCommand, addDeadline, deadlineBriefing } from './kai/deadlines';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -32,7 +33,7 @@ export function runBuiltin(cmd: string): CmdResult | null {
     const open = s.priorities.filter(p => !p.done).length;
     return [
       `Systems nominal, ${s.settings.operatorName}.`,
-      `Monthly throughput projecting ${fmt(monthlyTotalEGP(s.income, s.fxEgpPerEur))} ${currency.primary}.`,
+      `Monthly income ${fmt(monthlyIncomeEgp(s.income))} ${currency.primary} (occupancy-aware).`,
       `Credit card ${fmt(s.debtCurrent)} of ${fmt(debt.limit)} EGP (${debtUtilizationPct(s.debtCurrent).toFixed(0)}% utilised).`,
       `Hidden Garden plant count ${s.garden.plantCount}.`,
       `Makadi occupancy ${(s.makadi.occupancy30d*100).toFixed(0)}% — ${s.makadi.fixLock ? 'door lock still flagged.' : 'lock OK.'}`,
@@ -87,9 +88,9 @@ export function runBuiltin(cmd: string): CmdResult | null {
 
   if (/\b(income|earnings|money|revenue)\b/.test(q)) {
     const s = loadState();
-    const total = monthlyTotalEGP(s.income, s.fxEgpPerEur);
+    const total = monthlyIncomeEgp(s.income);
     const lines = s.income.map(x => `${x.label}: ${fmt(x.amount)} ${x.ccy}${x.cadence === 'nightly' ? ' / night' : ''}`).join(' · ');
-    return `Income streams — ${lines}. Projected monthly total: ${fmt(total)} EGP (≈${fmt(total / s.fxEgpPerEur)} EUR).`;
+    return `Income streams — ${lines}. Monthly total (occupancy-aware, Makadi at booked nights): ${fmt(total)} EGP (≈${fmt(total / s.fxEgpPerEur)} EUR).`;
   }
 
   if (/\b(tasks?|priorit(y|ies)|todo|to.do)\b/.test(q)) {
@@ -114,7 +115,10 @@ export function runBuiltin(cmd: string): CmdResult | null {
     const nextLabel = Number.isNaN(+next)
       ? '—'
       : next.toLocaleDateString(operator.locale, { weekday: 'long', day: '2-digit', month: 'short' });
-    return `Makadi nightly rate ${fmt(m.nightlyRate)} EGP. Occupancy ${(m.occupancy30d*100).toFixed(0)}% over 30 days. Next booking ${nextLabel}.${m.fixLock ? ' Reminder — door lock still flagged for repair.' : ''} Rating ${m.rating}.`;
+    const rCcy = m.rateCcy ?? 'USD';
+    const rEgp = fmt(Math.round(toEgp(m.nightlyRate, rCcy)));
+    const rateSpoken = rCcy === 'EGP' ? `${fmt(m.nightlyRate)} EGP` : `${fmt(m.nightlyRate)} ${rCcy}, about ${rEgp} EGP,`;
+    return `Makadi nightly rate ${rateSpoken} after tax. Occupancy ${(m.occupancy30d*100).toFixed(0)}% over 30 days. Next booking ${nextLabel}.${m.fixLock ? ' Reminder — door lock still flagged for repair.' : ''} Rating ${m.rating}.`;
   }
 
   if (/\b(instagram|insta|followers|social)\b/.test(q)) {
@@ -213,7 +217,7 @@ export function briefing(): string {
   const h = new Date().getHours();
   const greet = h < 5 ? "You're up late" : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   const name = s.settings?.operatorName || 'commander';
-  const total = monthlyTotalEGP(s.income, s.fxEgpPerEur);
+  const total = monthlyIncomeEgp(s.income);
   const util = debtUtilizationPct(s.debtCurrent);
 
   /* Candidate actions, weighted. Higher weight = more important. */

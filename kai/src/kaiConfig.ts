@@ -18,15 +18,19 @@ export const operator = {
    editable via Settings → FX rate, voice, or the set_fx_rate tool. */
 export const currency = {
   egpPerEur: 53.5,
+  /* Makadi lists in USD; ~50 EGP per USD (34 USD ≈ 1,700 EGP). Default
+     only — a live USD rate can join the store later like egpPerEur. */
+  egpPerUsd: 50,
   primary: 'EGP' as const,
 };
 
 /* ── INCOME STREAMS ───────────────────────────────────── */
+import type { Currency } from './types';
 export type IncomeStream = {
   id: string;
   label: string;
   amount: number;            // raw amount in `ccy`
-  ccy: 'EUR' | 'EGP';
+  ccy: Currency;
   cadence: 'monthly' | 'nightly';
   trend?: number;            // % vs last month, signed
   note?: string;
@@ -69,10 +73,11 @@ export const garden = {
    rentable now — but 0 nights booked (listing pending Katie's
    photos). occupancy 0 → the Makadi organ legitimately calls. */
 export const makadi = {
-  nightlyRate: 45,     // EGP-equivalent nightly
-  occupancy30d: 0,     // 0 nights booked
+  nightlyRate: 34,          // listed rate AFTER tax, in USD (≈ 1,700 EGP)
+  rateCcy: 'USD' as Currency,
+  occupancy30d: 0,          // 0 nights booked
   nextBooking: addDays(3),
-  fixLock: false,      // lock was replaced (russia_family, 8000)
+  fixLock: false,           // lock was replaced (russia_family, 8000)
   rating: 4.91,
 };
 
@@ -208,8 +213,10 @@ function addDays(n: number) {
   return d.toISOString();
 }
 
-export function toEGP(amount: number, ccy: 'EUR' | 'EGP', rate?: number) {
-  return ccy === 'EUR' ? amount * (rate ?? currency.egpPerEur) : amount;
+export function toEGP(amount: number, ccy: Currency, rate?: number) {
+  if (ccy === 'EUR') return amount * (rate ?? currency.egpPerEur);
+  if (ccy === 'USD') return amount * currency.egpPerUsd;
+  return amount;
 }
 export function monthlyTotalEGP(
   streams?: ReadonlyArray<Pick<IncomeStream, 'amount' | 'ccy' | 'cadence'>>,

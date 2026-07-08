@@ -18,6 +18,7 @@ import { fetchCalendar } from './calendar';
 import { expensesSnapshot } from './expenses';
 import { queueSnapshot } from './content';
 import { logEvent, getEvents } from './kai/events';
+import { toEgp, makadiRealisedMonthlyEgp, monthlyIncomeEgp } from './kai/money';
 import { addCommitment } from './kai/commitments';
 import { extractCommitment } from './kai/ai';
 import { runwaySnapshot, costInDays } from './kai/runway';
@@ -29,7 +30,7 @@ import { crownSnapshot } from './kai/crown';
 import { proposeAction, pendingSnapshot } from './kai/pending';
 import { toast } from '../hooks/useToasts';
 import {
-  debt, monthlyTotalEGP, debtUtilizationPct, operator,
+  debt, debtUtilizationPct, operator,
 } from '../kaiConfig';
 
 export type ToolCall = { id: string; name: string; input: any };
@@ -164,11 +165,13 @@ export const TOOL_SCHEMAS = [
   },
   {
     name: 'update_makadi',
-    description: 'Update Makadi Airbnb state. Provide only the fields the user changed.',
+    description: 'Update Makadi Airbnb state. Provide only the fields the user changed. The nightly rate carries a currency — Makadi lists in USD by default.',
     input_schema: {
       type: 'object',
       properties: {
-        nightly_rate_egp: { type: 'number' },
+        nightly_rate:     { type: 'number', description: 'Nightly rate value, in rate_ccy.' },
+        rate_ccy:         { type: 'string', enum: ['USD', 'EGP', 'EUR'], description: 'Currency of nightly_rate. Default USD.' },
+        nightly_rate_egp: { type: 'number', description: 'Deprecated — a nightly rate expressed in EGP. Prefer nightly_rate + rate_ccy.' },
         occupancy_30d:    { type: 'number', description: 'Fraction 0..1.' },
         next_booking:     { type: 'string', description: 'ISO timestamp.' },
         fix_lock:         { type: 'boolean' },
@@ -493,7 +496,9 @@ export async function runTool(call: ToolCall): Promise<string> {
         operator: { name: s.settings.operatorName, timezone: operator.timezone },
         fx_egp_per_eur: s.fxEgpPerEur,
         income: s.income.map(i => ({ label: i.label, amount: i.amount, ccy: i.ccy, cadence: i.cadence })),
-        income_total_monthly_egp: Math.round(monthlyTotalEGP(s.income, s.fxEgpPerEur)),
+        /* Occupancy-aware: every stream by its own currency; Makadi at
+           realised nights only (0 booked → 0). Matches the INCOME organ. */
+        income_total_monthly_egp: Math.round(monthlyIncomeEgp(s.income)),
         debt: { limit: debt.limit, current: s.debtCurrent, percent_utilised: Math.round(debtUtilizationPct(s.debtCurrent)) },
         garden: {
           plant_count: s.garden.plantCount,
@@ -502,8 +507,14 @@ export async function runTool(call: ToolCall): Promise<string> {
           next_event: s.garden.nextEvent,
         },
         makadi: {
-          rate_egp: s.makadi.nightlyRate,
+          /* The listing rate carries its currency — do NOT read the
+             number as EGP. It's a USD (after-tax) rate; the EGP
+             conversion is provided separately. */
+          nightly_rate: s.makadi.nightlyRate,
+          rate_ccy: s.makadi.rateCcy,
+          nightly_rate_egp_approx: Math.round(toEgp(s.makadi.nightlyRate, s.makadi.rateCcy)),
           occupancy_30d: s.makadi.occupancy30d,
+          realised_monthly_egp: Math.round(makadiRealisedMonthlyEgp()),
           next_booking: s.makadi.nextBooking,
           fix_lock_flag: s.makadi.fixLock,
           rating: s.makadi.rating,
@@ -645,7 +656,13 @@ export async function runTool(call: ToolCall): Promise<string> {
     case 'update_makadi': {
       const i = call.input || {};
       const patch: any = {};
-      if (typeof i.nightly_rate_egp === 'number')  patch.nightlyRate  = i.nightly_rate_egp;
+      if (typeof i.nightly_rate === 'number') {
+        patch.nightlyRate = i.nightly_rate;
+        patch.rateCcy = (i.rate_ccy === 'EGP' || i.rate_ccy === 'EUR' || i.rate_ccy === 'USD') ? i.rate_ccy : 'USD';
+      } else if (typeof i.nightly_rate_egp === 'number') {
+        patch.nightlyRate = i.nightly_rate_egp;
+        patch.rateCcy = 'EGP';
+      }
       if (typeof i.occupancy_30d    === 'number')  patch.occupancy30d = Math.max(0, Math.min(1, i.occupancy_30d));
       if (typeof i.next_booking     === 'string')  patch.nextBooking  = i.next_booking;
       if (typeof i.fix_lock         === 'boolean') patch.fixLock      = i.fix_lock;

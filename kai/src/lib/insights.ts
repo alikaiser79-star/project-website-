@@ -3,7 +3,8 @@
    synthesised data — trend observations are gated on real coverage. */
 
 import { loadState } from './store';
-import { debt, debtUtilizationPct, monthlyTotalEGP } from '../kaiConfig';
+import { debt, debtUtilizationPct } from '../kaiConfig';
+import { monthlyIncomeEgp } from './kai/money';
 import { streak } from './habits';
 import { trend, coverage } from './history';
 
@@ -13,7 +14,9 @@ export function computeInsights(): Insight[] {
   const s = loadState();
   const out: Insight[] = [];
 
-  const total = monthlyTotalEGP(s.income, s.fxEgpPerEur);
+  /* Occupancy-aware monthly income in EGP — matches the INCOME organ,
+     IncomePanel, and the Ask-KAI snapshot so numbers never disagree. */
+  const total = monthlyIncomeEgp(s.income);
   const util = debtUtilizationPct(s.debtCurrent);
   const available = Math.max(0, debt.limit - s.debtCurrent);
 
