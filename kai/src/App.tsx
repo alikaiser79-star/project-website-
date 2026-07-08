@@ -50,6 +50,8 @@ import WarChestSession from './components/WarChestSession';
 import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
+import InstallPrompt from './components/InstallPrompt';
+import PullToRefresh from './components/PullToRefresh';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -846,6 +848,8 @@ export default function App() {
         />
       )}
       {warChestOpen && <WarChestSession onClose={() => setWarChestOpen(false)} />}
+      <InstallPrompt />
+      {isMobile && <PullToRefresh />}
       <SettingsDrawer
         open={setOpen}
         onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}
