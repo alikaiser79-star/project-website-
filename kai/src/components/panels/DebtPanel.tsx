@@ -45,7 +45,8 @@ export default function DebtPanel({ delay = 0 }: { delay?: number }) {
   const ringColor = util >= 80 ? '#FF5C36' : util >= 50 ? '#FFB300' : '#FFC94A';
 
   return (
-    <Panel num="02" title="Credit Card" tag={debt.label} delay={delay}>
+    <Panel num="02" title="Credit Card" tag={debt.label} delay={delay}
+      explain={{ metric: 'Card utilisation', value: `${fmt(current)} of ${fmt(debt.limit)} EGP · ${util.toFixed(0)}%` }}>
       <div className="flex flex-col sm:flex-row items-center gap-6">
         <div className="relative shrink-0">
           <svg viewBox="0 0 180 180" width="160" height="160">

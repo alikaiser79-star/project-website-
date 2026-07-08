@@ -55,7 +55,8 @@ export default function TollgatePanel({ delay = 0 }: { delay?: number }) {
     'text-emerald';
 
   return (
-    <Panel num="10" title="The Tollgate" tag={days === null ? 'set up' : `${Math.floor(days)}d free`} delay={delay}>
+    <Panel num="10" title="The Tollgate" tag={days === null ? 'set up' : `${Math.floor(days)}d free`} delay={delay}
+      explain={{ metric: 'Runway', value: days === null ? 'not set' : `${Math.floor(days)} days of freedom` }}>
       <div className="space-y-5">
 
         {/* Hero — days of freedom */}

@@ -59,7 +59,8 @@ export default function IncomePanel({ delay = 0 }: { delay?: number }) {
   const incomeTrend = trend('incomeMonthly', 14);
 
   return (
-    <Panel num="01" title="Income" tag="Monthly" delay={delay}>
+    <Panel num="01" title="Income" tag="Monthly" delay={delay}
+      explain={{ metric: 'Monthly income (projected)', value: `${Math.round(total).toLocaleString()} EGP/mo` }}>
       <div className="mb-5 pb-5 border-b border-white/[0.05]">
         <div className="font-mono text-[10px] tracking-[0.18em] text-steel/65 uppercase">Projected total</div>
         <div className="flex items-baseline gap-3 mt-2">

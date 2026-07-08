@@ -52,7 +52,8 @@ export default function GardenPanel({ delay = 0 }: { delay?: number }) {
   const tasks = Array.isArray(g?.todayTasks) ? g.todayTasks : [];
 
   return (
-    <Panel num="03" title="Hidden Garden" tag="Live" delay={delay}>
+    <Panel num="03" title="Hidden Garden" tag="Live" delay={delay}
+      explain={{ metric: 'Plant count', value: `${g?.plantCount ?? 0} plants` }}>
       <div className="grid grid-cols-2 gap-5 mb-5">
         <div>
           <div className="flex items-center gap-2 text-steel/65 text-[10px] tracking-[0.18em] uppercase font-mono">

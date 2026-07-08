@@ -32,7 +32,8 @@ export default function MakadiPanel({ delay = 0 }: { delay?: number }) {
     : next.toLocaleDateString(operator.locale, { weekday: 'long', day: '2-digit', month: 'short' });
 
   return (
-    <Panel num="04" title="Makadi Airbnb" tag="Short-term" delay={delay}>
+    <Panel num="04" title="Makadi Airbnb" tag="Short-term" delay={delay}
+      explain={{ metric: 'Nightly rate & occupancy', value: `${m?.nightlyRate ?? 0} EGP/night · ${Math.round((m?.occupancy30d ?? 0) * 100)}% occ` }}>
       <div className="grid grid-cols-2 gap-5">
         <div>
           <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-steel/65">Nightly</div>

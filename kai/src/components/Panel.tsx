@@ -19,6 +19,7 @@
 
 import { motion } from 'framer-motion';
 import { ReactNode } from 'react';
+import ExplainButton from './ExplainButton';
 
 type Props = {
   num: string;
@@ -29,6 +30,9 @@ type Props = {
   className?: string;
   /* When true, a breathing dot next to the title signals "live". */
   live?: boolean;
+  /* Explain Anything (AI 7.2): pass the panel's headline metric + its
+     current value → a ⓘ in the header opens a cached Claude explainer. */
+  explain?: { metric: string; value: string };
 };
 
 /* Panel num → accent (rgb triple + hex). Mirrors VIEW_ACCENT so
@@ -67,7 +71,7 @@ const PANEL_ACCENT: Record<string, { hex: string; rgb: string }> = {
 const DEFAULT = { hex: '#FFB300', rgb: '255,179,0' };
 
 export default function Panel({
-  num, title, tag, delay = 0, children, className = '', live = false,
+  num, title, tag, delay = 0, children, className = '', live = false, explain,
 }: Props) {
   const a = PANEL_ACCENT[num] || DEFAULT;
 
@@ -135,6 +139,13 @@ export default function Panel({
             }}
           >
             {tag}
+          </span>
+        )}
+
+        {/* Explain Anything ⓘ */}
+        {explain && (
+          <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <ExplainButton panel={title} metric={explain.metric} value={explain.value} />
           </span>
         )}
       </header>

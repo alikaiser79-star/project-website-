@@ -130,3 +130,35 @@ body { font-variant-numeric: tabular-nums; }
   color: #ffcaa0; font-size: 16px;
 }
 .ask-kai-send:disabled { opacity: 0.4; cursor: default; }
+
+/* ── EXPLAIN ANYTHING (ⓘ + popover) ──────────────────────── */
+.explain-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(255, 170, 90, 0.08);
+  border: 1px solid rgba(255, 170, 90, 0.22);
+  color: rgba(255, 190, 120, 0.7);
+  cursor: pointer; flex: none;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.explain-btn:hover { background: rgba(255, 170, 90, 0.16); color: #ffcaa0; border-color: rgba(255, 186, 100, 0.5); }
+.explain-scrim {
+  position: fixed; inset: 0; z-index: 520;
+  background: rgba(3, 2, 2, 0.6); backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: ask-kai-fade 0.18s ease both;
+}
+.explain-card {
+  width: min(420px, 94vw); max-height: 80vh; overflow-y: auto;
+  background: linear-gradient(180deg, rgba(16, 9, 7, 0.98), rgba(7, 4, 4, 0.98));
+  border: 1px solid rgba(255, 170, 90, 0.2); border-radius: 8px;
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.85);
+  padding: 16px 18px; font-family: 'JetBrains Mono', ui-monospace, monospace;
+  animation: ask-kai-slide 0.22s ease both;
+}
+.explain-head { display: flex; align-items: center; justify-content: space-between; }
+.explain-title { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: rgba(240, 192, 120, 0.7); }
+.explain-x { background: none; border: none; color: rgba(240, 192, 120, 0.5); font-size: 13px; cursor: pointer; }
+.explain-val { margin-top: 6px; font-size: 15px; color: #ffcaa0; text-shadow: 0 0 10px rgba(255, 150, 70, 0.2); }
+.explain-body { margin-top: 12px; font-size: 12.5px; line-height: 1.7; color: #f0c078; white-space: pre-wrap; }
+.explain-dim { color: rgba(240, 192, 120, 0.4); }

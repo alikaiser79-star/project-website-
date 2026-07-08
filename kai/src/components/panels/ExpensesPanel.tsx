@@ -191,7 +191,8 @@ export default function ExpensesPanel({ delay = 0 }: { delay?: number }) {
   const maxCat = breakdown.reduce((m, b) => Math.max(m, b.total), 0);
 
   return (
-    <Panel num="07" title="Expenses" tag={monthLabel} delay={delay}>
+    <Panel num="07" title="Expenses" tag={monthLabel} delay={delay}
+      explain={{ metric: 'Spend this month', value: `${Math.round(total).toLocaleString()} EGP` }}>
       <div className="space-y-5">
 
         {/* Hero number */}
