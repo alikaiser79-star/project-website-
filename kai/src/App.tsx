@@ -23,46 +23,20 @@ import { logEvent as logEventSpine } from './lib/kai/events';
 import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
-import IncomePanel    from './components/panels/IncomePanel';
-import DebtPanel      from './components/panels/DebtPanel';
-import GardenPanel    from './components/panels/GardenPanel';
-import GartenCodexPanel from './components/panels/GartenCodexPanel';
-import MakadiPanel    from './components/panels/MakadiPanel';
-import PrioritiesPanel from './components/panels/PrioritiesPanel';
-import ExpensesPanel   from './components/panels/ExpensesPanel';
-import ContentQueuePanel from './components/panels/ContentQueuePanel';
-import { MirrorPanel, startMirror } from './lib/kai/mirror';
-import TollgatePanel from './components/panels/TollgatePanel';
-import LedgerPanel from './components/panels/LedgerPanel';
-import CrownPanel from './components/panels/CrownPanel';
-import InboxPanel from './components/panels/InboxPanel';
-import SitePanel from './components/panels/SitePanel';
-import IgFeedPanel from './components/panels/IgFeedPanel';
-import AutopilotPanel from './components/panels/AutopilotPanel';
+import { startMirror } from './lib/kai/mirror';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import MobileCommand from './components/MobileCommand';
 import { useIsMobile } from './hooks/useIsMobile';
 import { useSovereignNav } from './hooks/useSovereignNav';
 import SystemPulse from './components/SystemPulse';
 import AskKaiDrawer from './components/AskKaiDrawer';
-import LektionPanel from './components/panels/LektionPanel';
-import AnalystPanel from './components/panels/AnalystPanel';
 import { runAnomalyWatch } from './lib/kai/anomaly';
-import MissionPanel from './components/panels/MissionPanel';
-import LeadsPanel from './components/panels/LeadsPanel';
-import EscapeVelocityPanel from './components/panels/EscapeVelocityPanel';
-import DeadlinesPanel from './components/panels/DeadlinesPanel';
-import VaultPanel from './components/panels/VaultPanel';
 import Debrief from './components/Debrief';
 import { shouldShowDebrief, ensureDebrief, markDebriefShown, type Debrief as DebriefData } from './lib/kai/debrief';
 import OneThingMode from './components/OneThingMode';
 import DayRitual from './components/DayRitual';
 import { shouldDayCompile, shouldShutdown } from './lib/kai/protocol';
 import NightWatch from './components/NightWatch';
-import WatchtowerPanel from './components/panels/WatchtowerPanel';
-import ScribePanel from './components/panels/ScribePanel';
-import EnvoyPanel from './components/panels/EnvoyPanel';
-import DelegatePanel from './components/panels/DelegatePanel';
 import { startWatchtower } from './lib/kai/watchtower';
 import { seedSpine, installSeedDevHooks, migrateMoney } from './lib/kai/seed';
 import { seedCodex, installGardenDevHooks } from './lib/kai/garden';
@@ -70,7 +44,6 @@ import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
 import { scanMilestones, hasVictory } from './lib/kai/warchest';
 import WarChestSession from './components/WarChestSession';
-import LedgerOfWinsPanel from './components/panels/LedgerOfWinsPanel';
 import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
@@ -78,7 +51,12 @@ import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureS
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
 const KaiCore        = lazy(() => import('./components/KaiCore'));
-const InstagramPanel = lazy(() => import('./components/panels/InstagramPanel'));
+/* §13.1 — route-level code splitting: one chunk per non-Command view. */
+const MoneyView   = lazy(() => import('./components/views/MoneyView'));
+const GrowthView  = lazy(() => import('./components/views/GrowthView'));
+const OpsView     = lazy(() => import('./components/views/OpsView'));
+const CommsView   = lazy(() => import('./components/views/CommsView'));
+import ViewSkeleton from './components/views/ViewSkeleton';
 import { loadState, saveState } from './lib/store';
 import { setSoundEnabled, sfx } from './lib/sound';
 import { voice, type VoiceState } from './lib/speech';
@@ -804,65 +782,16 @@ export default function App() {
 
             {view === 'command' && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
 
-            {/* MONEY */}
-            {view === 'money' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
-                <EscapeVelocityPanel delay={0.06} />
-                <AnalystPanel delay={0.08} />
-                <TollgatePanel delay={0.10} />
-                <IncomePanel delay={0.15} />
-                <DebtPanel delay={0.20} />
-                <ExpensesPanel delay={0.25} />
-                <LedgerOfWinsPanel />
-              </div>
-            )}
-
-            {/* GROWTH */}
-            {view === 'growth' && (
-              <div className="space-y-6 sm:space-y-8">
-                <GartenCodexPanel />
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
-                <LektionPanel delay={0.08} />
-                <CrownPanel delay={0.10} />
-                <ContentQueuePanel delay={0.15} />
-                <Suspense fallback={<div className="glass rounded-lg p-5 text-steel font-mono text-xs">loading charts…</div>}>
-                  <InstagramPanel delay={0.20} />
-                </Suspense>
-                <IgFeedPanel delay={0.25} />
-                <ScribePanel delay={0.30} />
-                </div>
-              </div>
-            )}
-
-            {/* OPERATIONS — gained MirrorPanel and PrioritiesPanel
-                from the old Command view; both fit here as the
-                "what's holding things up" surface. */}
-            {view === 'ops' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
-                <DeadlinesPanel delay={0.05} />
-                <MissionPanel delay={0.06} />
-                <LeadsPanel delay={0.08} />
-                <GardenPanel delay={0.10} />
-                <MakadiPanel delay={0.15} />
-                <LedgerPanel delay={0.20} />
-                <MirrorPanel delay={0.25} />
-                <PrioritiesPanel delay={0.30} />
-              </div>
-            )}
-
-            {/* COMMS — gained AutopilotPanel and WatchtowerPanel
-                from the old Command view; the loop + the interrupt
-                surfaces sit naturally with the outbound stack. */}
-            {view === 'comms' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
-                <AutopilotPanel delay={0.10} />
-                <InboxPanel delay={0.15} />
-                <SitePanel delay={0.25} />
-                <WatchtowerPanel delay={0.30} />
-                <EnvoyPanel delay={0.35} />
-                <DelegatePanel delay={0.40} />
-                <VaultPanel delay={0.45} />
-              </div>
+            {/* Non-Command views (§13.1) — each is its own lazy chunk, so
+                the default Command load never pulls Money/Growth/Ops/Comms
+                panels or the charts bundle. Skeleton grid while it loads. */}
+            {view !== 'command' && (
+              <Suspense fallback={<ViewSkeleton count={view === 'comms' ? 7 : 6} />}>
+                {view === 'money'  && <MoneyView />}
+                {view === 'growth' && <GrowthView />}
+                {view === 'ops'    && <OpsView />}
+                {view === 'comms'  && <CommsView />}
+              </Suspense>
             )}
           </motion.div>
 

@@ -4,6 +4,15 @@
    any component. Blood-gold identity throughout.
    ============================================================ */
 
+/* ── §13.1 skeleton panels (lazy view loading) ───────────── */
+.skeleton-panel { opacity: 0; animation: sk-fade 0.3s ease forwards; }
+@keyframes sk-fade { to { opacity: 1; } }
+.sk-line { height: 10px; border-radius: 5px; margin: 10px 0;
+  background: linear-gradient(90deg, rgba(255,190,110,0.05) 25%, rgba(255,190,110,0.12) 37%, rgba(255,190,110,0.05) 63%);
+  background-size: 400% 100%; animation: sk-shimmer 1.4s ease-in-out infinite; }
+.sk-line.sk-title { width: 40%; height: 12px; margin-bottom: 16px; }
+@keyframes sk-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
 /* ── WAR CHEST (§9) — victory gold, session, ledger ───────── */
 /* Organ card GOLD pulse when a money milestone lands (not crimson —
    this is a win). Overrides the crimson calling treatment. */
