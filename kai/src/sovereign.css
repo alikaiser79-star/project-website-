@@ -202,3 +202,17 @@ body { font-variant-numeric: tabular-nums; }
   bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
   font-size: 11px; letter-spacing: 2px; color: rgba(240, 192, 120, 0.4);
 }
+
+/* ── Propose Mode chips (in the Ask KAI drawer) ──────────── */
+.ask-kai-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.ask-kai-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 11px; border-radius: 999px; cursor: pointer;
+  background: rgba(255, 170, 90, 0.1);
+  border: 1px solid rgba(255, 170, 90, 0.3);
+  color: #ffcaa0; font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px; letter-spacing: 0.5px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.ask-kai-chip:hover { background: rgba(255, 170, 90, 0.2); border-color: rgba(255, 186, 100, 0.6); }
+.ask-kai-chipmsg { margin-top: 6px; font-size: 11px; color: rgba(150, 220, 150, 0.8); font-family: 'JetBrains Mono', ui-monospace, monospace; }

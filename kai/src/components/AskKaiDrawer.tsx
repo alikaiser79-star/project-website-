@@ -10,6 +10,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { askClaudeStream } from '../lib/claude';
 import { buildKaiContext } from '../lib/kai/context';
+import { suggestChips, fireChip, type ProposeChip } from '../lib/kai/propose';
+import { Mail, Target, CalendarClock } from 'lucide-react';
 import type { ChatTurn } from '../types';
 
 const HKEY = 'kai.ask.history';
@@ -29,6 +31,8 @@ export default function AskKaiDrawer({ open, onClose }: Props) {
   const [streaming, setStreaming] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [chips, setChips] = useState<ProposeChip[]>([]);
+  const [chipMsg, setChipMsg] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +48,7 @@ export default function AskKaiDrawer({ open, onClose }: Props) {
   async function ask() {
     const question = q.trim();
     if (!question || busy) return;
-    setBusy(true); setErr(null); setStreaming(''); setQ('');
+    setBusy(true); setErr(null); setStreaming(''); setQ(''); setChips([]); setChipMsg(null);
     const preamble =
       'You are KAI, Ali\'s command core. Answer ONLY from the CONTEXT below — his real ' +
       'numbers. Show the math when it applies. Flat, direct tone; no praise, no padding; ' +
@@ -55,12 +59,22 @@ export default function AskKaiDrawer({ open, onClose }: Props) {
       await askClaudeStream(prompt, history, (chunk) => { acc += chunk; setStreaming(acc); });
       const next: ChatTurn[] = [...history, { you: question, kai: acc, at: new Date().toISOString() }].slice(-12);
       setHistory(next); saveHistory(next); setStreaming('');
+      /* Propose Mode (7.5): offer up to 3 follow-up chips. */
+      suggestChips(question, acc).then(setChips).catch(() => {});
     } catch (e: any) {
       const msg = String(e?.message || e);
       setErr(msg.includes('NO_API_KEY') ? 'No API key wired on the server — Ask KAI is offline.' : 'KAI could not answer just now.');
       setStreaming('');
     } finally { setBusy(false); setTimeout(() => inputRef.current?.focus(), 30); }
   }
+
+  async function tapChip(c: ProposeChip) {
+    setChips(cs => cs.filter(x => x !== c));
+    const msg = await fireChip(c);
+    setChipMsg(msg);
+  }
+
+  const ChipIcon = (k: ProposeChip['kind']) => k === 'email' ? Mail : k === 'commitment' ? Target : CalendarClock;
 
   if (!open) return null;
 
@@ -94,6 +108,20 @@ export default function AskKaiDrawer({ open, onClose }: Props) {
             </div>
           )}
           {err && <div className="ask-kai-err">{err}</div>}
+
+          {chips.length > 0 && (
+            <div className="ask-kai-chips">
+              {chips.map((c, i) => {
+                const Icon = ChipIcon(c.kind);
+                return (
+                  <button key={i} className="ask-kai-chip" onClick={() => tapChip(c)} title={c.detail}>
+                    <Icon size={12} /> {c.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {chipMsg && <div className="ask-kai-chipmsg">{chipMsg}</div>}
         </div>
 
         <form className="ask-kai-foot" onSubmit={(e) => { e.preventDefault(); ask(); }}>
