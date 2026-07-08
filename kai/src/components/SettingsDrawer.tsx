@@ -114,6 +114,11 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
             animate={{ x: 0 }}
             exit={{ x: 380 }}
             transition={{ duration: 0.32, ease: [0.25, 0.46, 0.45, 0.94] }}
+            /* position:absolute inline — sovereign.css's `.glass { position:
+               relative }` loads after Tailwind and would otherwise win over
+               the `absolute` utility, unbounding the drawer's height so the
+               inner list never scrolls. Inline style beats the class rule. */
+            style={{ position: 'absolute' }}
             className="glass absolute right-3 top-3 bottom-3 w-[360px] rounded-md overflow-hidden flex flex-col"
           >
             <header className="flex items-center justify-between px-4 py-3 border-b border-amber/15">
