@@ -337,9 +337,9 @@ function SyncSection() {
   if (serverReady === false) {
     return (
       <p className="text-[10px] text-steel leading-relaxed">
-        Cross-device sync isn't wired on the server yet. Add an Upstash Redis integration
-        on Vercel (env <span className="text-bone/80">UPSTASH_REDIS_REST_URL</span> and
-        <span className="text-bone/80"> UPSTASH_REDIS_REST_TOKEN</span>), redeploy, and this
+        Cross-device sync isn't wired on the server yet. Connect an Upstash KV / Redis
+        database on Vercel (env <span className="text-bone/80">KV_REST_API_URL</span> and
+        <span className="text-bone/80"> KV_REST_API_TOKEN</span>), redeploy, and this
         turns on. Your Spine keeps working locally until then.
       </p>
     );

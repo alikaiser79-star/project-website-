@@ -34,8 +34,11 @@
 
 export const config = { runtime: 'edge' };
 
-const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
-const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+/* Vercel's Upstash KV integration provisions KV_REST_API_URL /
+   KV_REST_API_TOKEN; a standalone Upstash database uses the
+   UPSTASH_REDIS_REST_* names. Accept either — KV names first. */
+const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const TTL_SECONDS = 60 * 60 * 24 * 180;   // 180d rolling — abandoned namespaces expire
 const PUSH_CHUNK = 200;                    // HSET fields per request
 const MAX_EVENTS = 5000;                   // safety bound on a namespace
