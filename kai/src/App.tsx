@@ -45,6 +45,7 @@ import { useSovereignNav } from './hooks/useSovereignNav';
 import SystemPulse from './components/SystemPulse';
 import AskKaiDrawer from './components/AskKaiDrawer';
 import LektionPanel from './components/panels/LektionPanel';
+import AnalystPanel from './components/panels/AnalystPanel';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -710,6 +711,7 @@ export default function App() {
             {/* MONEY */}
             {view === 'money' && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+                <AnalystPanel delay={0.08} />
                 <TollgatePanel delay={0.10} />
                 <IncomePanel delay={0.15} />
                 <DebtPanel delay={0.20} />
