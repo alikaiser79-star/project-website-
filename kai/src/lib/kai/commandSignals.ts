@@ -35,6 +35,7 @@ import { getPending } from './pending';
 import { operator } from '../../kaiConfig';
 import { deadlineCalling } from './deadlines';
 import { fmtMoney, monthlyIncomeEgp } from './money';
+import { hasVictory } from './warchest';
 import type { Currency } from '../../types';
 
 const DAY = 86_400_000;
@@ -87,6 +88,7 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['02'] = {
         formatted: fmtMoney(bal, 'EGP'),
         calling: bal > 0 && overdueDebt,
+        victory: hasVictory(),          // §9 — gold pulse when a money milestone landed
       };
     } catch { out['02'] = { formatted: '—', calling: false }; }
 

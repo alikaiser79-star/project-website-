@@ -4,6 +4,64 @@
    any component. Blood-gold identity throughout.
    ============================================================ */
 
+/* ── WAR CHEST (§9) — victory gold, session, ledger ───────── */
+/* Organ card GOLD pulse when a money milestone lands (not crimson —
+   this is a win). Overrides the crimson calling treatment. */
+.kai-cc-card.is-victory, .kai-mc-card.is-victory {
+  border-color: rgba(255, 200, 90, 0.85) !important;
+  box-shadow: 0 0 22px rgba(255, 190, 80, 0.5), inset 0 0 12px rgba(255, 190, 80, 0.12) !important;
+  animation: wc-victory 1.5s ease-in-out infinite;
+}
+@keyframes wc-victory { 0%, 100% { box-shadow: 0 0 14px rgba(255,190,80,0.35), inset 0 0 8px rgba(255,190,80,0.1); } 50% { box-shadow: 0 0 28px rgba(255,205,110,0.65), inset 0 0 14px rgba(255,190,80,0.18); } }
+
+.wc-scrim { position: fixed; inset: 0; z-index: 540; background: rgba(6, 4, 1, 0.72); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 12px; animation: ask-kai-fade 0.2s ease both; }
+.wc-sheet { width: min(560px, 96vw); max-height: 92vh; overflow-y: auto;
+  background: linear-gradient(180deg, rgba(24, 17, 6, 0.99), rgba(12, 9, 5, 0.99));
+  border: 1px solid rgba(255, 195, 90, 0.3); border-radius: 15px; box-shadow: 0 24px 70px rgba(0,0,0,0.7), 0 0 40px rgba(255,180,70,0.08);
+  padding: 16px; animation: share-rise 0.26s ease both; }
+.wc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.wc-gold { color: rgba(255, 200, 90, 0.95); filter: drop-shadow(0 0 6px rgba(255,190,80,0.6)); }
+.wc-title { font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 0.26em; color: rgba(255, 205, 120, 0.95); }
+.wc-freed { border: 1px solid rgba(255, 195, 90, 0.25); border-radius: 11px; padding: 12px 14px; margin-bottom: 14px;
+  background: radial-gradient(circle at 30% 0%, rgba(255,190,80,0.08), rgba(0,0,0,0)); }
+.wc-freed-label { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,200,120,0.7); }
+.wc-freed-num { font-size: 26px; font-weight: 300; color: rgba(255, 214, 140, 0.98); letter-spacing: 0.01em; margin: 2px 0; font-variant-numeric: tabular-nums; }
+.wc-freed-num span { font-size: 13px; color: rgba(255,200,120,0.6); }
+.wc-freed-math { font-size: 12px; color: rgba(220, 205, 180, 0.72); line-height: 1.45; }
+.wc-loading { font-family: ui-monospace, monospace; font-size: 12px; color: rgba(255,200,120,0.6); padding: 22px 6px; text-align: center; }
+.wc-options { display: flex; flex-direction: column; gap: 10px; }
+.wc-card { border: 1px solid rgba(255, 176, 96, 0.18); border-radius: 11px; padding: 12px; background: rgba(255,176,96,0.02); }
+.wc-card.is-debt { border-color: rgba(122, 230, 168, 0.4); background: rgba(122,230,168,0.04); }
+.wc-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.wc-card-name { font-size: 14px; color: rgba(240, 230, 215, 0.98); font-weight: 500; }
+.wc-risk { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.1em; font-weight: 600; }
+.wc-what { font-size: 12.5px; color: rgba(220, 212, 200, 0.85); line-height: 1.45; }
+.wc-meta { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+.wc-meta > div { font-size: 12px; color: rgba(224, 216, 204, 0.9); line-height: 1.4; }
+.wc-meta > div > span { display: inline-block; min-width: 74px; font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.12em; color: rgba(255,200,120,0.6); vertical-align: top; }
+.wc-meta-row3 { display: flex; gap: 8px; }
+.wc-chip { font-family: ui-monospace, monospace; font-size: 11px; color: rgba(200,205,210,0.75); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 2px 8px; }
+.wc-commit { margin-top: 10px; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: rgba(255, 190, 80, 0.14); border: 1px solid rgba(255, 195, 90, 0.55); color: rgba(255, 214, 140, 0.98);
+  border-radius: 8px; padding: 9px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+.wc-commit:disabled { opacity: 0.5; }
+.wc-market { margin-top: 10px; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid rgba(120, 200, 255, 0.4); color: rgba(150, 210, 255, 0.95); border-radius: 8px; padding: 9px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.wc-disclaimer { display: flex; align-items: flex-start; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,176,96,0.14);
+  font-size: 11px; color: rgba(200, 190, 175, 0.6); line-height: 1.45; }
+
+.wc-win { border: 1px solid rgba(255,176,96,0.14); border-radius: 9px; padding: 9px 11px; }
+.wc-win-top { display: flex; align-items: center; justify-content: space-between; }
+.wc-win-label { font-size: 12.5px; color: rgba(240, 220, 190, 0.95); font-weight: 500; }
+.wc-win-date { font-family: ui-monospace, monospace; font-size: 10px; color: rgba(200,190,175,0.5); }
+.wc-win-row { display: flex; align-items: center; gap: 8px; margin-top: 3px; font-family: ui-monospace, monospace; font-size: 11px; }
+.wc-win-freed { color: rgba(255, 205, 120, 0.9); }
+.wc-win-arrow { color: rgba(200,190,175,0.4); }
+.wc-win-into { color: rgba(150, 210, 255, 0.9); }
+.wc-win-into.pending { color: rgba(200,190,175,0.45); font-style: italic; }
+.wc-win-return { font-family: ui-monospace, monospace; font-size: 10.5px; color: rgba(122, 230, 168, 0.85); margin-top: 2px; }
+
 /* Gold top-edge hairline on every glass panel — light from above,
    machined. Non-interactive. */
 .glass { position: relative; }

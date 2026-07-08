@@ -93,7 +93,7 @@ export default function MobileCommand() {
   const subRef    = useRef<HTMLDivElement>(null);
   const coreRef   = useRef<CommandCore | null>(null);
 
-  const [signals, setSignals] = useState<Record<string, { formatted: string; calling: boolean }>>({});
+  const [signals, setSignals] = useState<Record<string, { formatted: string; calling: boolean; victory?: boolean }>>({});
   const [brief, setBrief] = useState<string>('');
   const [briefOpen, setBriefOpen] = useState(true);
 
@@ -164,13 +164,14 @@ export default function MobileCommand() {
   const renderCard = (o: OrganDef, muted: boolean) => {
     const s = signals[o.id];
     const calling = !!s?.calling;
+    const victory = !!s?.victory;
     const cd: OrganCardData = organCardData(o.id);
     const goodDown = o.id === '02' || o.id === '07';
     const deltaGood = cd.delta == null ? true : (goodDown ? cd.delta < 0 : cd.delta > 0);
     return (
       <button
         key={o.id}
-        className={'kai-mc-card' + (calling ? (muted ? ' is-muted' : ' is-calling') : '')}
+        className={'kai-mc-card' + (victory ? ' is-victory' : calling ? (muted ? ' is-muted' : ' is-calling') : '')}
         onClick={() => tapOrgan(o.id)}
       >
         <div className="kai-mc-card-top">

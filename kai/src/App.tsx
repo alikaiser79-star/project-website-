@@ -66,6 +66,10 @@ import { startWatchtower } from './lib/kai/watchtower';
 import { seedSpine, installSeedDevHooks, migrateMoney } from './lib/kai/seed';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
+import { scanMilestones, hasVictory } from './lib/kai/warchest';
+import WarChestSession from './components/WarChestSession';
+import LedgerOfWinsPanel from './components/panels/LedgerOfWinsPanel';
+import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
 
@@ -132,6 +136,7 @@ export default function App() {
   const [brainOpen, setBrainOpen] = useState(false);
   const [brainPrefill, setBrainPrefill] = useState<string | undefined>(undefined);
   const [share, setShare] = useState<ShareContent | null>(null);
+  const [warChestOpen, setWarChestOpen] = useState(false);
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
@@ -337,6 +342,17 @@ export default function App() {
   /* Spine sync (§8.1) — foreground + debounced. No-op until the
      operator enables it in Settings and the server has Upstash wired. */
   useEffect(() => { startSync(); }, []);
+
+  /* War Chest (§9) — a money milestone fires a victory session. Scan on
+     boot and (debounced) after any Spine write; auto-open when a freed-
+     cashflow milestone is pending and nothing else is in the way. */
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const check = () => { try { scanMilestones(); if (hasVictory()) setWarChestOpen(true); } catch { /* ignore */ } };
+    check();
+    const off = subscribeSpine(() => { if (t) clearTimeout(t); t = setTimeout(check, 800); });
+    return () => { if (t) clearTimeout(t); off(); };
+  }, []);
 
   /* Share-in (§8.3) — OS shared a URL/text as query params (GET share
      target → '/'). We stash the payload in sessionStorage and strip the
@@ -795,6 +811,7 @@ export default function App() {
                 <IncomePanel delay={0.15} />
                 <DebtPanel delay={0.20} />
                 <ExpensesPanel delay={0.25} />
+                <LedgerOfWinsPanel />
               </div>
             )}
 
@@ -883,6 +900,7 @@ export default function App() {
           onClose={() => { try { sessionStorage.removeItem(SHARE_KEY); } catch { /* ignore */ } setShare(null); }}
         />
       )}
+      {warChestOpen && <WarChestSession onClose={() => setWarChestOpen(false)} />}
       <SettingsDrawer
         open={setOpen}
         onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}

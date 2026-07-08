@@ -50,7 +50,7 @@ function Spark({ data }: { data: number[] }) {
   return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="kai-cc-spark" aria-hidden><polyline points={pts} fill="none" stroke="rgba(255,190,110,0.7)" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" /></svg>;
 }
 
-interface CardState { calling: boolean; series: number[]; delta: number | null; ghost: string | null; }
+interface CardState { calling: boolean; victory?: boolean; series: number[]; delta: number | null; ghost: string | null; }
 
 export default function CommandCorePanel() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -116,7 +116,7 @@ export default function CommandCorePanel() {
     const pull = () => {
       const sig = getCommandSignals();
       const next: Record<string, CardState> = {};
-      for (const o of ORGANS) { const cd = organCardData(o.id); next[o.id] = { calling: !!sig[o.id]?.calling, ...cd }; }
+      for (const o of ORGANS) { const cd = organCardData(o.id); next[o.id] = { calling: !!sig[o.id]?.calling, victory: !!sig[o.id]?.victory, ...cd }; }
       setCards(next);
     };
     pull();
@@ -180,7 +180,7 @@ export default function CommandCorePanel() {
             key={o.id}
             ref={(el) => { organRefs.current[o.id] = el; }}
             data-id={o.id}
-            className={'kai-cc-card' + (c?.calling ? (muted ? ' is-muted' : ' is-calling') : '')}
+            className={'kai-cc-card' + (c?.victory ? ' is-victory' : c?.calling ? (muted ? ' is-muted' : ' is-calling') : '')}
             style={{ left: colCenter(o.col), top: rowCenter(o.row) }}
           >
             <div className="kai-cc-card-head">

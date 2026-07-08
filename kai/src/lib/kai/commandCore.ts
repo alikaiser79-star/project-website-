@@ -29,6 +29,7 @@ export const CORE_VERSION = 'CORE-V4';
 export interface OrganSignal {
   formatted: string;            // display value, e.g. "$12,480"
   calling: boolean;             // domain says "needs you"
+  victory?: boolean;            // §9 — a money milestone landed; pulse GOLD, not crimson
 }
 
 export type SignalProvider = () => Record<string, OrganSignal>;

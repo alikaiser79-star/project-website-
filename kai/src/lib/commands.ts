@@ -19,6 +19,7 @@ import { ledgerBriefing } from './kai/ledger';
 import { escapeLine } from './kai/escape';
 import { toEgp, monthlyIncomeEgp } from './kai/money';
 import { parseDeadlineCommand, addDeadline, deadlineBriefing } from './kai/deadlines';
+import { warChestBrief } from './kai/warchest';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -319,6 +320,12 @@ export function briefing(): string {
   } else {
     top.forEach((c, i) => lines.push(`${i + 1}. ${c.text}.`));
   }
+
+  /* War Chest — one nag for freed cashflow still unallocated (§9.4). */
+  try {
+    const wc = warChestBrief();
+    if (wc) lines.push(wc);
+  } catch { /* defensive */ }
 
   /* Tollgate — runway + payday cushion. Quiet when no burn signal. */
   try {
