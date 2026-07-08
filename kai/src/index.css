@@ -447,3 +447,36 @@ kbd {
   border-radius: 4px !important;
   box-shadow: 0 0 12px rgba(255, 140, 60, 0.05), inset 0 0 16px rgba(255, 110, 50, 0.03) !important;
 }
+
+/* ============================================================
+   §7 COMMAND INTERFACE — organ card anatomy, states, sparkline,
+   ghost, ribbons, storm triage. Mobile river cards.
+   ============================================================ */
+.kai-mc-ribbon {
+  margin: 20px 0 9px; font-size: 9px; letter-spacing: 5px; text-transform: uppercase;
+  color: rgba(255, 185, 120, 0.45); font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.kai-mc-ribbon.calling { color: rgba(255, 110, 80, 0.85); }
+
+.kai-mc-card-top { display: flex; align-items: center; gap: 7px; }
+.kai-mc-card-name {
+  flex: 1; min-width: 0; font-size: 11px; letter-spacing: 1.5px; color: #efe1cf;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kai-mc-card-delta { margin-top: 4px; font-size: 9px; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
+.kai-mc-card-delta.good { color: rgba(255, 200, 110, 0.85); }
+.kai-mc-card-delta.bad { color: rgba(255, 110, 80, 0.85); }
+.kai-mc-card-spark { margin-top: 6px; display: flex; align-items: center; gap: 7px; min-height: 12px; }
+.kai-mc-spark7 { display: block; }
+.kai-mc-card-ghost { font-size: 9px; letter-spacing: 0.5px; color: rgba(255, 200, 120, 0.35); font-variant-numeric: tabular-nums; }
+
+/* storm-muted calling card: border + dot only, no lift/glow */
+.kai-mc-card.is-muted {
+  border-color: rgba(255, 92, 60, 0.35);
+  box-shadow: none; animation: none; transform: none;
+}
+.kai-mc-card.is-muted .kai-mc-card-dot { background: #ff6a44; box-shadow: 0 0 5px rgba(255, 92, 60, 0.7); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kai-mc-card, .kai-mc-card.is-calling { animation: none !important; transition: none !important; }
+}

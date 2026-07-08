@@ -296,3 +296,22 @@ body { font-variant-numeric: tabular-nums; }
   transition: color 0.2s ease, border-color 0.2s ease;
 }
 .ask-kai-speak:hover { color: #ffcaa0; border-color: rgba(255, 186, 100, 0.5); }
+
+/* ── NIGHT WATCH (§7.9) — the standby face ───────────────── */
+.night-watch {
+  position: fixed; inset: 0; z-index: 350;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.8) 62%, rgba(0,0,0,0.92) 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; cursor: pointer;
+  animation: nw-in 1.1s ease both;
+}
+@keyframes nw-in { from { opacity: 0; } to { opacity: 1; } }
+.nw-clock {
+  font-size: clamp(64px, 14vw, 132px); font-weight: 200; letter-spacing: -2px;
+  color: #f3ddbd; font-variant-numeric: tabular-nums; text-shadow: 0 0 40px rgba(255,150,70,0.25);
+  line-height: 1;
+}
+.nw-deadline { font-size: 13px; letter-spacing: 3px; color: rgba(255,190,120,0.55); text-transform: uppercase; }
+.nw-status { font-size: 11px; letter-spacing: 6px; color: rgba(232,210,190,0.4); text-transform: uppercase; }
+.nw-status.calling { color: rgba(255,110,80,0.9); }
+@media (prefers-reduced-motion: reduce) { .night-watch { animation: none; } }

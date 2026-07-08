@@ -16,6 +16,9 @@ export type KaiSettings = {
   /* Voice Out (§6.6) — speechSynthesis TTS for Ask-KAI answers and
      ONE THING. Off by default. */
   speakEnabled?: boolean;
+  /* Haptic pulse (§7.10) — vibrate while an organ calls. On by
+     default where supported (Android); iOS Safari has no vibration. */
+  haptics?: boolean;
 };
 
 export type ChatTurn = { you: string; kai: string; at: string; streamed?: boolean };

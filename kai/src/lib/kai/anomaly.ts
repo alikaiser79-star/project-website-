@@ -108,7 +108,10 @@ export async function runAnomalyWatch(now = Date.now()): Promise<number> {
       text = localAlarm(t);   // offline → the deterministic alarm
     }
     try { logEvent({ domain: 'anomaly', type: t.kind, value: 1, meta: { text, of: t.of, detail: t.detail }, source: 'ai' }); } catch { /* ignore */ }
-    try { toast.warn(text, 'ANOMALY', 9000); } catch { /* ignore */ }
+    /* On phones the calling organ + Spine already carry it; a fixed
+       toast would overlay the river (the zero-overlap law). */
+    const mobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (!mobile) { try { toast.warn(text, 'ANOMALY', 9000); } catch { /* ignore */ } }
     fired++;
   }
   return fired;

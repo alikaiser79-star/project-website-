@@ -57,6 +57,7 @@ import { shouldShowDebrief, ensureDebrief, markDebriefShown, type Debrief as Deb
 import OneThingMode from './components/OneThingMode';
 import DayRitual from './components/DayRitual';
 import { shouldDayCompile, shouldShutdown } from './lib/kai/protocol';
+import NightWatch from './components/NightWatch';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -138,6 +139,8 @@ export default function App() {
   const [focusSettingsSection, setFocusSettingsSection] = useState<string | null>(null);
   const [spotOpen, setSpotOpen] = useState(false);
   const idle = useIdle(5 * 60_000);
+  const nightIdle = useIdle(3 * 60_000);   /* §7.9 Night Watch on Command */
+  const [nwWoke, setNwWoke] = useState(false);
   const [onbOpen, setOnbOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [settings, setSettings] = useState<KaiSettings>(initial.settings);
@@ -304,6 +307,9 @@ export default function App() {
   /* Sovereign navigation — swipe / arrow keys walk the five views.
      Disabled behind the lock so gestures don't leak past auth. */
   useSovereignNav({ view, setView, enabled: !(lockCfg.enabled && !unlocked) });
+
+  /* §7.9 — once activity resumes (idle clears), re-arm Night Watch. */
+  useEffect(() => { if (!nightIdle) setNwWoke(false); }, [nightIdle]);
 
   const onSettings = useCallback((s: KaiSettings) => {
     setSettings(s);
@@ -889,6 +895,11 @@ export default function App() {
       {/* Protocol (6.3) — ONE THING focus + the daily ritual. */}
       {oneThingOpen && <OneThingMode onExit={() => setOneThingOpen(false)} />}
       {dayRitual && <DayRitual mode={dayRitual} onDone={() => setDayRitual(null)} />}
+
+      {/* Night Watch (§7.9) — standby face after idle on Command. */}
+      {nightIdle && !nwWoke && view === 'command' && !oneThingOpen && !cmdOpen && (
+        <NightWatch onWake={() => setNwWoke(true)} />
+      )}
 
       {/* Biometric / PIN lock. Setup is one-time, unlock gates every
           relaunch + post-idle resume when enabled. */}
