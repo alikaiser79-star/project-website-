@@ -17,6 +17,7 @@ import { mirrorBriefing } from './kai/commitments';
 import { computeRunway, costInDays, paydayCushion, runwayBriefing } from './kai/runway';
 import { ledgerBriefing } from './kai/ledger';
 import { escapeLine } from './kai/escape';
+import { parseDeadlineCommand, addDeadline, deadlineBriefing } from './kai/deadlines';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -131,6 +132,16 @@ export function runBuiltin(cmd: string): CmdResult | null {
     const h = new Date().getHours();
     const g = h < 5 ? 'Burning the candle late' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
     return `${g}, ${loadState().settings.operatorName}. KAI here. What's the move?`;
+  }
+
+  /* Calendar of War — "deadline: <date> <text>" seeds a hard date. */
+  {
+    const dl = parseDeadlineCommand(cmd);
+    if (dl) {
+      addDeadline(dl.text, dl.date);
+      const when = new Date(dl.date).toLocaleDateString(operator.locale, { weekday: 'short', day: '2-digit', month: 'short' });
+      return `Deadline set — ${dl.text}, ${when}. The sentinel is watching.`;
+    }
   }
 
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
@@ -297,6 +308,8 @@ export function briefing(): string {
 
   const lines: string[] = [];
   lines.push(`${greet}, ${name}. Card ${util.toFixed(0)}% utilised (${fmt(s.debtCurrent)} of ${fmt(debt.limit)} EGP). ~${fmt(total)} EGP projecting this month.${tail}${spendLine}`);
+  /* Calendar of War — hard dates dominate the briefing as they near. */
+  try { for (const m of deadlineBriefing()) lines.push(m); } catch { /* defensive */ }
   if (top.length === 0) {
     lines.push(`Priority list clear and no garden tasks queued. Take the morning.`);
   } else {

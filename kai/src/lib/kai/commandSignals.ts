@@ -33,6 +33,7 @@ import { computeRunway } from './runway';
 import { getEvents } from './events';
 import { getPending } from './pending';
 import { operator } from '../../kaiConfig';
+import { deadlineCalling } from './deadlines';
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -220,6 +221,12 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       const organ = ORGAN_OF[String(e.meta?.of ?? '')];
       if (organ && out[organ]) out[organ] = { ...out[organ], calling: true };
     }
+  } catch { /* ignore */ }
+
+  /* Calendar of War (6.2): a deadline at T-3d or past makes the
+     Priorities organ (06) call — a hard date must not slip. */
+  try {
+    if (deadlineCalling(now) && out['06']) out['06'] = { ...out['06'], calling: true };
   } catch { /* ignore */ }
 
   return out;
