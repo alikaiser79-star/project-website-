@@ -4,6 +4,24 @@
    any component. Blood-gold identity throughout.
    ============================================================ */
 
+/* ── NIGHT LEDGER (§14.4) — "while you were away" ─────────── */
+.night-ledger {
+  position: fixed; z-index: 300;
+  left: 50%; transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  width: min(440px, 94vw);
+  background: linear-gradient(180deg, rgba(10, 12, 20, 0.98), rgba(6, 7, 12, 0.98));
+  border: 1px solid rgba(120, 150, 220, 0.28);
+  border-radius: 12px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  padding: 11px 13px; animation: share-rise 0.34s cubic-bezier(0.25,0.46,0.45,0.94) both;
+}
+.night-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.night-title { display: inline-flex; align-items: center; gap: 6px; font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.16em; color: rgba(150, 175, 235, 0.85); }
+.night-x { background: none; border: none; color: rgba(180, 190, 210, 0.5); cursor: pointer; padding: 2px; }
+.night-lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.night-lines li { font-size: 12.5px; color: rgba(220, 224, 234, 0.9); line-height: 1.4; padding-left: 12px; position: relative; }
+.night-lines li::before { content: '·'; position: absolute; left: 2px; color: rgba(150, 175, 235, 0.7); }
+
 /* ── WAR CHEST (§9) — victory gold, session, ledger ───────── */
 /* Organ card GOLD pulse when a money milestone lands (not crimson —
    this is a win). Overrides the crimson calling treatment. */

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame, Leaf, Bed, AtSign, ShieldCheck, Fingerprint, KeyRound, Cloud, Copy, RefreshCw } from 'lucide-react';
+import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame, Leaf, Bed, AtSign, ShieldCheck, Fingerprint, KeyRound, Cloud, Copy, RefreshCw, Moon } from 'lucide-react';
 import {
   loadState, saveState, defaults,
   updateGarden, updateMakadi, upsertInstagram, removeInstagram, setFx,
@@ -31,6 +31,7 @@ import {
   isSyncEnabled, getSyncKey, enableSync, disableSync, syncNow, syncConfigured,
   getSyncStatus, onSyncStatus, type SyncStatus,
 } from '../lib/kai/sync';
+import { shadowEnabled, pulseConfigured, enableShadow, disableShadow } from '../lib/kai/shadow';
 
 const ACCENTS: { id: Accent; label: string; hex: string }[] = [
   { id: 'amber',   label: 'Amber',   hex: '#FFB300' },
@@ -274,6 +275,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
                 <SyncSection />
               </Section>
 
+              <Section icon={<Moon size={12} />} title="Der Schatten · daily pulse">
+                <ShadowSection />
+              </Section>
+
               <Section icon={<Download size={12} />} title="Vault export">
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -316,6 +321,52 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function ShadowSection() {
+  const [enabled, setEnabled] = useState(() => shadowEnabled());
+  const [ready, setReady] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { pulseConfigured().then(setReady).catch(() => setReady(false)); }, []);
+
+  async function turnOn() {
+    setBusy(true);
+    try {
+      const r = await enableShadow();
+      if (r.ok) { setEnabled(true); toast.ok(r.reason === 'push-on' ? 'Pulse on — morning dispatch enabled.' : 'Pulse on — the heartbeat runs nightly.', 'SCHATTEN', 3500); }
+      else if (r.reason === 'sync-off') toast.err('Turn on Spine sync first — it provides the namespace.');
+      else if (r.reason === 'server-off') toast.err('Pulse isn\'t wired on the server yet (Upstash + cron).');
+      else toast.err('Could not enable the pulse.');
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="space-y-2 text-[11px]">
+      {ready === false ? (
+        <p className="text-[10px] text-steel leading-relaxed">
+          The daily pulse runs on a Vercel cron against the Upstash Spine. Wire it once (VAPID keys +
+          the cron in <span className="text-bone/80">vercel.json</span> ship with this build) and it
+          turns on. Until then, KAI still computes everything the moment you open it.
+        </p>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-bone/85">{enabled ? 'On — heartbeat runs daily' : 'Off'}</span>
+            {enabled ? (
+              <button onClick={() => { disableShadow(); setEnabled(false); }} className="px-2 py-1 border border-steel/40 text-steel hover:text-bone rounded text-[10px] tracking-[0.14em] uppercase">Turn off</button>
+            ) : (
+              <button onClick={turnOn} disabled={busy} className="px-2 py-1 border border-amber/50 text-amber rounded text-[10px] tracking-[0.14em] uppercase disabled:opacity-50">{busy ? '…' : 'Turn on'}</button>
+            )}
+          </div>
+          <p className="text-[10px] text-steel leading-relaxed">
+            KAI works while you don't: a daily heartbeat recomputes deadline escalations and anomalies
+            overnight and writes them to the Spine, so the morning state is ready on any device. One
+            quiet dispatch at 07:30 Cairo when something needs you — silence otherwise. Needs Spine sync on.
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 

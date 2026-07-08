@@ -70,6 +70,7 @@ import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
 import { scanMilestones, hasVictory } from './lib/kai/warchest';
 import WarChestSession from './components/WarChestSession';
+import NightLedger from './components/NightLedger';
 import LedgerOfWinsPanel from './components/panels/LedgerOfWinsPanel';
 import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
@@ -906,6 +907,7 @@ export default function App() {
         />
       )}
       {warChestOpen && <WarChestSession onClose={() => setWarChestOpen(false)} />}
+      <NightLedger />
       <SettingsDrawer
         open={setOpen}
         onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}
