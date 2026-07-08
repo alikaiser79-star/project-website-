@@ -116,7 +116,7 @@ export async function diagnosePlant(plant: Plant, frames: Frame[], photoId?: str
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: claudeConfig.model,
+      model: claudeConfig.modelHeavy,
       max_tokens: 700,
       system: SYSTEM,
       messages: [{ role: 'user', content }],
@@ -126,6 +126,7 @@ export async function diagnosePlant(plant: Plant, frames: Frame[], photoId?: str
   if (!res.ok) throw new Error('API_ERROR: ' + res.status + ' ' + (await res.text()).slice(0, 160));
 
   const data = await res.json();
+  try { const u = data?.usage; const { logTokens } = await import('./tokens'); logTokens('vision', u?.input_tokens || 0, u?.output_tokens || 0, claudeConfig.modelHeavy); } catch { /* ignore */ }
   const raw = (data?.content?.[0]?.text || '').trim();
   const parsed = parseJson(raw) || {};
 

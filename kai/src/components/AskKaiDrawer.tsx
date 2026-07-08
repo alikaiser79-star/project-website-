@@ -54,7 +54,7 @@ export default function AskKaiDrawer({ open, onClose }: Props) {
       'You are KAI, Ali\'s command core. Answer ONLY from the CONTEXT below — his real ' +
       'numbers. Show the math when it applies. Flat, direct tone; no praise, no padding; ' +
       'under 160 words. If the context does not contain the answer, say so plainly.';
-    const prompt = `${preamble}\n\nCONTEXT:\n${buildKaiContext()}\n\nQUESTION: ${question}`;
+    const prompt = `${preamble}\n\nCONTEXT:\n${buildKaiContext(Date.now(), question)}\n\nQUESTION: ${question}`;
     let acc = '';
     try {
       await askClaudeStream(prompt, history, (chunk) => { acc += chunk; setStreaming(acc); });

@@ -258,10 +258,11 @@ export async function requestCouncil(m: Milestone): Promise<{ options: DeployOpt
         `"kind": "asset"|"floor"|"market", "market": boolean, "marketQuery": string }`;
       const res = await fetch(claudeConfig.endpoint, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ model: claudeConfig.model, max_tokens: 1500, system, messages: [{ role: 'user', content: prompt }] }),
+        body: JSON.stringify({ model: claudeConfig.modelHeavy, max_tokens: 1500, system, messages: [{ role: 'user', content: prompt }] }),
       });
       if (res.ok) {
         const data = await res.json();
+        try { const u = data?.usage; const { logTokens } = await import('./tokens'); logTokens('council', u?.input_tokens || 0, u?.output_tokens || 0, claudeConfig.modelHeavy); } catch { /* ignore */ }
         const text = (data?.content?.[0]?.text || '').trim();
         let arr: any = null;
         try { arr = JSON.parse(text); } catch { const mm = text.match(/\[[\s\S]*\]/); if (mm) { try { arr = JSON.parse(mm[0]); } catch { /* ignore */ } } }

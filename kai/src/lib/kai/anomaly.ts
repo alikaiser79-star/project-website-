@@ -103,7 +103,7 @@ export async function runAnomalyWatch(now = Date.now()): Promise<number> {
         'Write ONE plain, flat sentence (no praise, no padding) alerting the operator to ' +
         'this anomaly in his numbers. Name the number. Give the counter-move in the same ' +
         `sentence if it fits.\n\nANOMALY: ${t.detail}`;
-      text = (await askClaude(prompt, [])).trim() || localAlarm(t);
+      text = (await askClaude(prompt, [], { tier: 'cheap', feature: 'anomaly' })).trim() || localAlarm(t);
     } catch {
       text = localAlarm(t);   // offline → the deterministic alarm
     }

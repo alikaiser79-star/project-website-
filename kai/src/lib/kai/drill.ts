@@ -59,7 +59,7 @@ export async function ensureDrillQuestion(lessonDate: string): Promise<DrillQ | 
     'grasped its key idea. Exactly 3 options, one correct. Return ONLY JSON, no prose:\n' +
     '{"question":"...","options":["...","...","..."],"correct":<0-2>}\n\nLESSON:\n' + text;
   try {
-    const raw = await askClaude(prompt, []);
+    const raw = await askClaude(prompt, [], { tier: 'cheap', feature: 'drill' });
     const m = String(raw || '').match(/\{[\s\S]*\}/);
     if (!m) return null;
     const obj = JSON.parse(m[0]);

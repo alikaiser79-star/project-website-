@@ -66,7 +66,7 @@ export async function ensureAnalystBrief(now = Date.now()): Promise<AnalystBrief
     'WATCH: <the one number to watch, with its value>\n\n' +
     'CONTEXT:\n' + buildKaiContext(now);
 
-  const raw = await askClaude(prompt, []);         // throws on 503 → caller handles offline
+  const raw = await askClaude(prompt, [], { tier: 'heavy', feature: 'analyst', maxTokens: 700 });   // throws on 503 → caller handles offline
   const brief = parse(String(raw || '').trim());
   try { localStorage.setItem(CACHE(key), JSON.stringify(brief)); } catch { /* ignore */ }
   return brief;

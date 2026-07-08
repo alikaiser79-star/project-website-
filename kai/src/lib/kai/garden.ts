@@ -217,11 +217,12 @@ export async function generateMasterplan(): Promise<{ ok: boolean; updated: numb
     const res = await fetch(claudeConfig.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: claudeConfig.model, max_tokens: 1500, system, messages: [{ role: 'user', content: prompt }] }),
+      body: JSON.stringify({ model: claudeConfig.modelHeavy, max_tokens: 1500, system, messages: [{ role: 'user', content: prompt }] }),
     });
     if (res.status === 503) return { ok: false, updated: 0, reason: 'NO_API_KEY' };
     if (!res.ok) return { ok: false, updated: 0, reason: 'api ' + res.status };
     const data = await res.json();
+    try { const u = data?.usage; const { logTokens } = await import('./tokens'); logTokens('masterplan', u?.input_tokens || 0, u?.output_tokens || 0, claudeConfig.modelHeavy); } catch { /* ignore */ }
     const text = (data?.content?.[0]?.text || '').trim();
     let arr: any = null;
     try { arr = JSON.parse(text); } catch { const m = text.match(/\[[\s\S]*\]/); if (m) { try { arr = JSON.parse(m[0]); } catch { /* ignore */ } } }

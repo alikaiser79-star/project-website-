@@ -14,6 +14,7 @@
 import { claudeConfig } from '../kaiConfig';
 import type { ChatTurn } from '../types';
 import { TOOL_SCHEMAS, runTool, ToolCall } from './tools';
+import { logTokens } from './kai/tokens';
 
 function buildMessages(prompt: string, history: ChatTurn[]) {
   const turns: Array<{ role: 'user' | 'assistant'; content: string }> = [];
@@ -29,27 +30,33 @@ function buildMessages(prompt: string, history: ChatTurn[]) {
    Multi-round tool-use loop: when Claude calls a tool, we execute
    it locally, append a tool_result message, and continue streaming
    until end_turn. */
+export interface StreamOpts { feature?: string; tier?: 'cheap' | 'heavy'; noTools?: boolean }
 export async function askClaudeStream(
   prompt: string,
   history: ChatTurn[],
   onDelta: (chunk: string) => void,
   onTool?: (call: ToolCall, result: string) => void,
+  opts: StreamOpts = {},
 ): Promise<string> {
   if (!claudeConfig.enabled) throw new Error('NO_API_KEY');
 
+  const feature = opts.feature || 'ask-kai';
+  const model = opts.tier === 'cheap' ? claudeConfig.modelCheap : opts.tier === 'heavy' ? claudeConfig.modelHeavy : claudeConfig.model;
+  const tools = opts.noTools ? [] : TOOL_SCHEMAS;
   const messages: Array<{ role: 'user' | 'assistant'; content: any }> = buildMessages(prompt, history);
   let full = '';
+  let tokIn = 0, tokOut = 0;   // §13.3d — accumulate usage across rounds
 
   for (let round = 0; round < 4; round++) {
     const res = await fetch(claudeConfig.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: claudeConfig.model,
+        model,
         max_tokens: 800,
         system: claudeConfig.systemPrompt,
         messages,
-        tools: TOOL_SCHEMAS,
+        tools,
         stream: true,
       }),
     });
@@ -118,8 +125,12 @@ export async function askClaudeStream(
                 blocks.push({ ...st.tool, input });
               }
             }
+            else if (ev.type === 'message_start') {
+              tokIn += ev.message?.usage?.input_tokens || 0;
+            }
             else if (ev.type === 'message_delta') {
               if (ev.delta?.stop_reason) stopReason = ev.delta.stop_reason;
+              tokOut += ev.usage?.output_tokens || 0;
             }
           } catch { /* tolerate partial frames */ }
         }
@@ -129,6 +140,7 @@ export async function askClaudeStream(
     messages.push({ role: 'assistant', content: blocks });
 
     if (stopReason !== 'tool_use') {
+      logTokens(feature, tokIn, tokOut, model);
       return full;
     }
 
@@ -146,18 +158,23 @@ export async function askClaudeStream(
     }
     messages.push({ role: 'user', content: tool_results });
   }
+  logTokens(feature, tokIn, tokOut, model);
   return full;
 }
 
-/* Non-streaming variant — kept for callers that don't need SSE. */
-export async function askClaude(prompt: string, history: ChatTurn[] = []): Promise<string> {
+/* Non-streaming variant — kept for callers that don't need SSE.
+   §13.3d — opts.tier picks the model (cheap for Explain/chips, heavy for
+   synthesis); opts.feature labels the token log. */
+export interface AskOpts { tier?: 'cheap' | 'heavy'; feature?: string; maxTokens?: number }
+export async function askClaude(prompt: string, history: ChatTurn[] = [], opts: AskOpts = {}): Promise<string> {
   if (!claudeConfig.enabled) throw new Error('NO_API_KEY');
+  const model = opts.tier === 'cheap' ? claudeConfig.modelCheap : opts.tier === 'heavy' ? claudeConfig.modelHeavy : claudeConfig.model;
   const res = await fetch(claudeConfig.endpoint, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: claudeConfig.model,
-      max_tokens: 400,
+      model,
+      max_tokens: opts.maxTokens ?? 400,
       system: claudeConfig.systemPrompt,
       messages: buildMessages(prompt, history),
     }),
@@ -168,6 +185,8 @@ export async function askClaude(prompt: string, history: ChatTurn[] = []): Promi
     throw new Error('API_ERROR: ' + res.status + ' ' + t.slice(0, 200));
   }
   const data = await res.json();
+  const u = data?.usage;
+  logTokens(opts.feature || 'ask', u?.input_tokens || 0, u?.output_tokens || 0, model);
   const text = (data?.content?.[0]?.text || '').trim();
   return text || '…';
 }

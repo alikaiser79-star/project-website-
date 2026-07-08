@@ -9,6 +9,7 @@
    ============================================================ */
 
 import { getCommandSignals } from './commandSignals';
+import { retrievalBlock } from './retrieval';
 import { getCommitments } from './commitments';
 import { getEvents } from './events';
 import { activeMissions } from './agent';
@@ -22,9 +23,15 @@ const ORGAN_LABELS: Record<string, string> = {
   '09': 'MIRROR', '10': 'LEDGER', '11': 'TOLLGATE', '12': 'INBOX',
 };
 
-export function buildKaiContext(now = Date.now()): string {
+export function buildKaiContext(now = Date.now(), query?: string): string {
   const out: string[] = [];
   out.push(`DATE: ${new Date(now).toISOString().slice(0, 10)} (Africa/Cairo)`);
+
+  /* §13.3a — query-aware Spine retrieval: pull the RIGHT events for the
+     question (keyword+recency over the whole Spine), not just recent. */
+  if (query && query.trim()) {
+    try { const block = retrievalBlock(query, now); if (block) out.push(block); } catch { /* ignore */ }
+  }
 
   /* ── live organ values ── */
   out.push('\nLIVE SIGNALS (an organ marked [CALLING] genuinely needs Ali now):');

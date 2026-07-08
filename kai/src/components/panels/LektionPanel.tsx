@@ -95,7 +95,7 @@ export default function LektionPanel({ delay = 0 }: { delay?: number }) {
       'BEGRIFF: <one German business term — translation>\n\n' +
       'CONTEXT:\n' + buildKaiContext();
 
-    askClaude(prompt, []).then(raw => {
+    askClaude(prompt, [], { tier: 'heavy', feature: 'lektion', maxTokens: 600 }).then(raw => {
       if (!alive) return;
       const parsed = parseLesson(raw);
       try { localStorage.setItem(CACHE(d), JSON.stringify(parsed)); } catch { /* ignore */ }

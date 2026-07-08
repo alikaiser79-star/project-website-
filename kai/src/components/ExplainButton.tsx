@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
-import { askClaude } from '../lib/claude';
+import { askClaudeStream } from '../lib/claude';
 import { buildKaiContext } from '../lib/kai/context';
 
 interface Props { panel: string; metric: string; value: string; }
@@ -48,6 +48,7 @@ export default function ExplainButton({ panel, metric, value }: Props) {
     } catch { /* fall through */ }
 
     setState('loading');
+    setText('');
     const id = ++reqId.current;
     const prompt =
       'Explain ONE metric for the operator, from HIS data below. Four short parts, each ' +
@@ -56,13 +57,16 @@ export default function ExplainButton({ panel, metric, value }: Props) {
       'COMPUTED: <how it comes from the Spine>\n' +
       'VERDICT: <good or bad FOR HIS situation, and why>\n' +
       'LEVER: <the one thing that moves it>\n\n' +
-      `METRIC: ${panel} — ${metric} = ${value}\n\nCONTEXT:\n${buildKaiContext()}`;
-    askClaude(prompt, []).then(raw => {
+      `METRIC: ${panel} — ${metric} = ${value}\n\nCONTEXT:\n${buildKaiContext(Date.now(), `${metric} ${panel}`)}`;
+    /* §13.3c/d — streams token-by-token on the cheap tier (no tools). */
+    let acc = '';
+    askClaudeStream(prompt, [], (chunk) => {
       if (id !== reqId.current) return;
-      const clean = String(raw || '').trim();
-      try { localStorage.setItem(cacheKey, clean); } catch { /* ignore */ }
-      setText(clean); setState('ready');
-    }).catch(() => { if (id === reqId.current) setState('offline'); });
+      acc += chunk; setText(acc); setState('ready');
+    }, undefined, { tier: 'cheap', noTools: true, feature: 'explain' }).then(() => {
+      if (id !== reqId.current) return;
+      try { localStorage.setItem(cacheKey, acc.trim()); } catch { /* ignore */ }
+    }).catch(() => { if (id === reqId.current && !acc) setState('offline'); });
   }
 
   return (

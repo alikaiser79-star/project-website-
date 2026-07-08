@@ -28,6 +28,7 @@ import {
 } from '../lib/lock';
 import { downloadBackup, importBackupFile } from '../lib/kai/backup';
 import { runIntegrity, backfillCcy, alignDebtToSpine, type IntegrityCheck } from '../lib/kai/integrity';
+import { tokenTotals } from '../lib/kai/tokens';
 import {
   isSyncEnabled, getSyncKey, enableSync, disableSync, syncNow, syncConfigured,
   getSyncStatus, onSyncStatus, type SyncStatus,
@@ -326,8 +327,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
 
 function IntegritySection() {
   const [checks, setChecks] = useState<IntegrityCheck[]>(() => runIntegrity());
+  const [tok] = useState(() => tokenTotals(30));
   const refresh = () => setChecks(runIntegrity());
   const failing = checks.filter(c => c.status !== 'ok').length;
+  const topFeatures = Object.entries(tok.byFeature).sort((a, b) => b[1] - a[1]).slice(0, 4);
 
   function fix(c: IntegrityCheck) {
     if (!c.fix) return;
@@ -367,6 +370,12 @@ function IntegritySection() {
           )}
         </div>
       ))}
+
+      {/* §13.3d — AI cost, made visible (tokens per feature, 30 days). */}
+      <div className="int-card ok">
+        <div className="int-head"><span className="int-dot" style={{ background: '#FFB300' }} /><span className="int-title">AI tokens · 30d</span></div>
+        <div className="int-detail">{tok.total.toLocaleString()} tokens total{topFeatures.length ? ' — ' + topFeatures.map(([f, n]) => `${f} ${(n / 1000).toFixed(1)}k`).join(', ') : ' (none yet)'}.</div>
+      </div>
     </div>
   );
 }

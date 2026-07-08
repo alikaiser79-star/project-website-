@@ -43,6 +43,9 @@ import { seedCodex, installGardenDevHooks } from './lib/kai/garden';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
 import { scanMilestones, hasVictory } from './lib/kai/warchest';
+import { retrieveEvents } from './lib/kai/retrieval';
+import { weeklyDrifts } from './lib/kai/patterns';
+import { tokenTotals } from './lib/kai/tokens';
 import WarChestSession from './components/WarChestSession';
 import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
@@ -317,7 +320,15 @@ export default function App() {
      (debt 59k/89k, makadi 45/0 nights/lock replaced, garden 85,
      cash 15k) + logs the 15 canonical events. window.__kaiSeed()
      forces a re-seed for dev. */
-  useEffect(() => { installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); seedCodex(); }, []);
+  useEffect(() => {
+    installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); seedCodex();
+    /* §13.3 verification hooks (retrieval / patterns / tokens) */
+    try {
+      (window as any).__kaiRetrieve = (q: string) => retrieveEvents(q);
+      (window as any).__kaiDrifts = () => weeklyDrifts();
+      (window as any).__kaiTokens = () => tokenTotals(30);
+    } catch { /* ignore */ }
+  }, []);
 
   /* Spine sync (§8.1) — foreground + debounced. No-op until the
      operator enables it in Settings and the server has Upstash wired. */

@@ -21,6 +21,7 @@ import { toEgp, monthlyIncomeEgp } from './kai/money';
 import { waterBriefingLine } from './kai/garden';
 import { parseDeadlineCommand, addDeadline, deadlineBriefing } from './kai/deadlines';
 import { warChestBrief } from './kai/warchest';
+import { weeklyDrifts } from './kai/patterns';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -326,6 +327,11 @@ export function briefing(): string {
   try {
     const wc = warChestBrief();
     if (wc) lines.push(wc);
+  } catch { /* defensive */ }
+
+  /* Proactive KAI (§13.3b) — pattern drifts vs the trailing 8 weeks. */
+  try {
+    for (const d of weeklyDrifts()) lines.push(d);
   } catch { /* defensive */ }
 
   /* Der Gärtner — today's watering plan (§10.3). Quiet when no plant

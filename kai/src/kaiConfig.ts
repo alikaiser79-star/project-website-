@@ -122,6 +122,11 @@ export const defaultPriorities = [
    fallback. See README. */
 export const claudeConfig = {
   model: 'claude-sonnet-4-6',
+  /* §13.3d model tiers — heavy synthesis (Council, Debrief, Masterplan,
+     vision) on the strong model; cheap calls (Explain, chips) on the
+     fast one. The proxy forwards whichever the client sends. */
+  modelHeavy: 'claude-sonnet-4-6',
+  modelCheap: 'claude-haiku-4-5-20251001',
   enabled: true,
   endpoint: '/api/claude',
   systemPrompt:
