@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { oneThingSuggestion, logFocus, getPlannedOneThing } from '../lib/kai/protocol';
+import { speak } from '../lib/tts';
 
 interface Props { onExit: () => void; }
 
@@ -14,6 +15,7 @@ export default function OneThingMode({ onExit }: Props) {
   const [secs, setSecs] = useState(0);
 
   useEffect(() => {
+    speak('Focus. ' + thing);
     const t = setInterval(() => setSecs(s => s + 1), 1000);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key.toLowerCase() === 'o') exit(); };
     window.addEventListener('keydown', onKey);
@@ -23,6 +25,7 @@ export default function OneThingMode({ onExit }: Props) {
 
   function exit() {
     logFocus(secs / 60, thing);
+    speak('Done.');
     onExit();
   }
 

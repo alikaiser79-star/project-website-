@@ -285,3 +285,14 @@ body { font-variant-numeric: tabular-nums; }
 .dr-kept { background: rgba(122, 230, 168, 0.12); border-color: rgba(122, 230, 168, 0.4); color: #9ff0c0; }
 .dr-broke { background: rgba(255, 92, 60, 0.1); border-color: rgba(255, 92, 60, 0.4); color: #ff9d84; }
 .dr-input { width: 100%; margin-top: 6px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 170, 90, 0.25); border-radius: 6px; padding: 10px 12px; color: #f3ddbd; font-family: inherit; font-size: 13px; outline: none; }
+
+/* ── Voice Out speak button (Ask KAI) ────────────────────── */
+.ask-kai-speak {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 2px; padding: 3px 8px; border-radius: 999px; cursor: pointer;
+  background: transparent; border: 1px solid rgba(255, 170, 90, 0.2);
+  color: rgba(255, 190, 120, 0.55); font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.ask-kai-speak:hover { color: #ffcaa0; border-color: rgba(255, 186, 100, 0.5); }

@@ -142,6 +142,7 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
 
               <Section icon={<Mic size={12} />} title="Voice">
                 <Toggle label="Recognition" value={s.voiceEnabled} onChange={v => setS({ ...s, voiceEnabled: v })} />
+                <Toggle label="Speak (voice out)" value={!!s.speakEnabled} onChange={v => setS({ ...s, speakEnabled: v })} />
                 <Toggle label='Wake word ("Hey KAI")' value={s.wakeWord} onChange={v => setS({ ...s, wakeWord: v })} />
                 <label className="block mt-3 text-[10px] tracking-[0.18em] text-steel uppercase mb-1">Rate · {s.voiceRate.toFixed(2)}</label>
                 <input type="range" min={0.6} max={1.4} step={0.05} value={s.voiceRate}

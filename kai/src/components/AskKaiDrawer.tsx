@@ -11,7 +11,8 @@ import { useEffect, useRef, useState } from 'react';
 import { askClaudeStream } from '../lib/claude';
 import { buildKaiContext } from '../lib/kai/context';
 import { suggestChips, fireChip, type ProposeChip } from '../lib/kai/propose';
-import { Mail, Target, CalendarClock } from 'lucide-react';
+import { Mail, Target, CalendarClock, Volume2 } from 'lucide-react';
+import { speak, speechSupported, ttsEnabled } from '../lib/tts';
 import type { ChatTurn } from '../types';
 
 const HKEY = 'kai.ask.history';
@@ -100,6 +101,11 @@ export default function AskKaiDrawer({ open, onClose }: Props) {
             <div key={i} className="ask-kai-turn">
               <div className="ask-kai-you">{t.you}</div>
               <div className="ask-kai-ans">{t.kai}</div>
+              {speechSupported() && (
+                <button className="ask-kai-speak" onClick={() => speak(t.kai)} title={ttsEnabled() ? 'Speak' : 'Voice out is off — enable in Settings'}>
+                  <Volume2 size={11} /> speak
+                </button>
+              )}
             </div>
           ))}
           {streaming && (

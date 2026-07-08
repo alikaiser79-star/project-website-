@@ -13,6 +13,9 @@ export type KaiSettings = {
   onboarded: boolean;
   notifications: boolean;
   wakeWord: boolean;
+  /* Voice Out (§6.6) — speechSynthesis TTS for Ask-KAI answers and
+     ONE THING. Off by default. */
+  speakEnabled?: boolean;
 };
 
 export type ChatTurn = { you: string; kai: string; at: string; streamed?: boolean };
