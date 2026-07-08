@@ -18,6 +18,17 @@ export function ttsEnabled(): boolean {
 
 export function speak(text: string): void {
   if (!ttsEnabled() || !speechSupported() || !text) return;
+  speakNow(text);
+}
+
+/* Explicit, operator-initiated speech — tapping the "speak" button
+   on an answer. The tap IS the consent, so this deliberately bypasses
+   the speakEnabled auto-speak gate (that setting governs proactive
+   speech, not a manual request). Still no-ops when the platform has
+   no synthesiser. Without this, tapping speak while auto-speak was
+   off did nothing — a dead, silent button. */
+export function speakNow(text: string): void {
+  if (!speechSupported() || !text) return;
   try {
     const s = loadState().settings;
     voice.speak(text, { rate: s.voiceRate, pitch: s.voicePitch, voiceName: s.voiceName });

@@ -70,11 +70,16 @@ export async function askClaudeStream(
       const { value, done } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });
-      let idx: number;
-      while ((idx = buf.indexOf('\n\n')) >= 0) {
-        const frame = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        for (const line of frame.split('\n')) {
+      /* Split on the SSE frame boundary tolerating CRLF. A proxy that
+         normalises newlines to \r\n emits \r\n\r\n between frames;
+         a bare indexOf('\n\n') never matches it, so the whole stream
+         buffers and NOTHING renders — the "frozen answer". Match both. */
+      let sep: RegExpExecArray | null;
+      const FRAME_SEP = /\r?\n\r?\n/;
+      while ((sep = FRAME_SEP.exec(buf))) {
+        const frame = buf.slice(0, sep.index);
+        buf = buf.slice(sep.index + sep[0].length);
+        for (const line of frame.split(/\r?\n/)) {
           const trimmed = line.trim();
           if (!trimmed.startsWith('data:')) continue;
           const payload = trimmed.slice(5).trim();
