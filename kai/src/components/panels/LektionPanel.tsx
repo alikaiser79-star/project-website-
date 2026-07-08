@@ -14,6 +14,7 @@ import { GraduationCap, Flame } from 'lucide-react';
 import { askClaude } from '../../lib/claude';
 import { buildKaiContext } from '../../lib/kai/context';
 import { logEvent } from '../../lib/kai/events';
+import { pendingDrillDate, ensureDrillQuestion, recordDrillAnswer, getDrillStreak, type DrillQ } from '../../lib/kai/drill';
 
 interface Lesson { number: string; principle: string; move: string; begriff: string; raw?: string; }
 
@@ -47,6 +48,29 @@ export default function LektionPanel({ delay = 0 }: { delay?: number }) {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [streak, setStreak] = useState(0);
   const [state, setState] = useState<'loading' | 'ready' | 'offline'>('loading');
+
+  /* Drill (8.2): yesterday's lesson, gated before today's. */
+  const [drill, setDrill] = useState<DrillQ | null>(null);
+  const [drillDate, setDrillDate] = useState<string | null>(null);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [drillStreak, setDrillStreak] = useState(() => getDrillStreak());
+
+  useEffect(() => {
+    let alive = true;
+    const dd = pendingDrillDate();
+    if (dd) {
+      ensureDrillQuestion(dd).then(q => {
+        if (alive && q) { setDrill(q); setDrillDate(dd); }
+      }).catch(() => {});
+    }
+    return () => { alive = false; };
+  }, []);
+
+  function answerDrill(i: number) {
+    if (picked !== null || !drill || !drillDate) return;
+    setPicked(i);
+    setDrillStreak(recordDrillAnswer(drillDate, i === drill.correct));
+  }
 
   useEffect(() => {
     let alive = true;
@@ -94,12 +118,48 @@ export default function LektionPanel({ delay = 0 }: { delay?: number }) {
           <GraduationCap size={14} className="text-amber" />
           <span className="font-mono text-[11px] tracking-[0.25em] text-amber/80 uppercase">Lektion</span>
         </div>
-        {streak > 0 && (
+        {(drillStreak > 0 ? drillStreak : streak) > 0 && (
           <span className="flex items-center gap-1 font-mono text-[11px] text-amber">
-            <Flame size={12} /> {streak}
+            <Flame size={12} /> {drillStreak > 0 ? drillStreak : streak}
           </span>
         )}
       </div>
+
+      {/* DRILL — gate on yesterday's lesson before today's shows. */}
+      {drill && (
+        <div className="mb-4 pb-4 border-b border-amber/10">
+          <div className="font-mono text-[9px] tracking-[0.2em] text-amber/50 uppercase mb-2">Drill · yesterday</div>
+          <div className="font-mono text-[12px] leading-relaxed text-bone mb-2.5">{drill.question}</div>
+          <div className="flex flex-col gap-1.5">
+            {drill.options.map((opt, i) => {
+              const answered = picked !== null;
+              const isCorrect = i === drill.correct;
+              const cls = !answered
+                ? 'border-white/[0.08] text-bone/80 hover:border-amber/40 hover:text-bone'
+                : isCorrect
+                  ? 'border-emerald-400/50 text-emerald-300 bg-emerald-400/5'
+                  : i === picked
+                    ? 'border-danger/50 text-danger bg-danger/5'
+                    : 'border-white/[0.05] text-steel/50';
+              return (
+                <button
+                  key={i}
+                  onClick={() => answerDrill(i)}
+                  disabled={answered}
+                  className={'text-left font-mono text-[11.5px] px-3 py-2 rounded border transition ' + cls}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+          {picked !== null && (
+            <div className={'mt-2.5 font-mono text-[11px] ' + (picked === drill.correct ? 'text-emerald-300' : 'text-danger')}>
+              {picked === drill.correct ? 'Correct. Streak holds.' : 'Wrong — re-queued in 3 days.'}
+            </div>
+          )}
+        </div>
+      )}
 
       {state === 'loading' && <div className="font-mono text-xs text-steel">preparing today's lesson…</div>}
       {state === 'offline' && <div className="font-mono text-xs text-steel">Lesson offline — no API key wired on the server.</div>}
