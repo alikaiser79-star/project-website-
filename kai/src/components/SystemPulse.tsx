@@ -7,6 +7,7 @@
    ============================================================ */
 
 import { useEffect, useRef, useState } from 'react';
+import { getSyncStatus, onSyncStatus, type SyncStatus } from '../lib/kai/sync';
 
 declare const __BUILD_ID__: string;
 
@@ -17,7 +18,11 @@ export default function SystemPulse({ hidden = false }: Props) {
   const [fps, setFps] = useState(0);
   const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
   const [batt, setBatt] = useState<{ level: number; charging: boolean } | null>(null);
+  const [sync, setSync] = useState<SyncStatus>(() => getSyncStatus());
   const raf = useRef(0);
+
+  /* sync state — subscribe to the Spine-sync engine */
+  useEffect(() => onSyncStatus(() => setSync(getSyncStatus())), []);
 
   /* clock — 1 Hz */
   useEffect(() => {
@@ -86,6 +91,10 @@ export default function SystemPulse({ hidden = false }: Props) {
       <span className={fps >= 50 ? 'sp-fps ok' : fps >= 30 ? 'sp-fps mid' : 'sp-fps low'}>{fps} FPS</span>{sep}
       <span className={online ? 'sp-net ok' : 'sp-net low'}>{online ? 'ONLINE' : 'OFFLINE'}</span>
       {batt && <>{sep}<span className="sp-batt">{batt.charging ? '⚡' : ''}{batt.level}%</span></>}
+      {sync !== 'off' && <>{sep}<span
+        className={'sp-sync ' + (sync === 'synced' ? 'ok' : sync === 'failing' ? 'bad' : 'wait')}
+        title={sync === 'synced' ? 'Spine synced' : sync === 'failing' ? 'Spine sync failing' : sync === 'syncing' ? 'Spine syncing…' : 'Spine sync pending'}
+      >⬤</span></>}
     </div>
   );
 }

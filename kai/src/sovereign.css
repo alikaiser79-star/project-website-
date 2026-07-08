@@ -77,7 +77,60 @@ body { font-variant-numeric: tabular-nums; }
 .system-pulse .ok { color: rgba(150, 220, 150, 0.7); }
 .system-pulse .mid { color: rgba(255, 200, 110, 0.75); }
 .system-pulse .low { color: rgba(255, 120, 90, 0.8); }
+/* Spine-sync dot (§8.1): gold = synced, hollow = pending/syncing,
+   crimson = failing. */
+.system-pulse .sp-sync { font-size: 7px; line-height: 1; vertical-align: middle; }
+.system-pulse .sp-sync.ok  { color: rgba(255, 179, 0, 0.9); text-shadow: 0 0 5px rgba(255, 179, 0, 0.6); }
+.system-pulse .sp-sync.bad { color: rgba(224, 80, 58, 0.95); text-shadow: 0 0 5px rgba(224, 80, 58, 0.6); }
+.system-pulse .sp-sync.wait { color: transparent; -webkit-text-stroke: 0.6px rgba(255, 200, 140, 0.7); animation: sp-sync-pulse 1.4s ease-in-out infinite; }
+@keyframes sp-sync-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 .idle-mode .system-pulse { opacity: 0.4; }
+
+/* ── SHARE CAPTURE sheet (§8.3) ───────────────────────────── */
+.share-scrim {
+  position: fixed; inset: 0; z-index: 520;
+  background: rgba(3, 2, 2, 0.6);
+  backdrop-filter: blur(3px);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: ask-kai-fade 0.2s ease both;
+}
+.share-sheet {
+  width: min(460px, 96vw);
+  margin-bottom: max(12px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(18, 14, 12, 0.98), rgba(10, 8, 7, 0.99));
+  border: 1px solid rgba(255, 176, 96, 0.18);
+  border-radius: 14px;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.6);
+  padding: 14px 14px 16px;
+  animation: share-rise 0.26s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+@keyframes share-rise { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.share-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.share-title { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.22em; color: rgba(255, 179, 0, 0.9); }
+.share-x { background: none; border: none; color: rgba(232, 210, 190, 0.5); font-size: 14px; cursor: pointer; }
+.share-preview {
+  border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px;
+  padding: 9px 10px; margin-bottom: 12px; max-height: 96px; overflow: hidden;
+}
+.share-url { font-family: ui-monospace, monospace; font-size: 11px; color: rgba(120, 200, 255, 0.85); word-break: break-all; }
+.share-text { font-size: 12px; color: rgba(232, 224, 214, 0.9); margin-top: 3px; line-height: 1.4; }
+.share-actions { display: flex; flex-direction: column; gap: 8px; }
+.share-act {
+  position: relative; text-align: left;
+  display: grid; grid-template-columns: 20px 1fr; column-gap: 10px; row-gap: 1px; align-items: center;
+  padding: 11px 12px; border: 1px solid rgba(255, 176, 96, 0.2); border-radius: 10px;
+  background: rgba(255, 176, 96, 0.03); color: rgba(232, 224, 214, 0.95); cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.share-act:hover { border-color: rgba(255, 179, 0, 0.6); background: rgba(255, 176, 96, 0.07); }
+.share-act > svg { grid-row: span 2; color: rgba(255, 179, 0, 0.85); }
+.share-act > span { font-size: 13px; letter-spacing: 0.02em; }
+.share-act > em { font-style: normal; font-size: 10px; color: rgba(180, 170, 160, 0.65); }
+.share-days {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: rgba(10, 8, 7, 0.9); border: 1px solid rgba(255, 176, 96, 0.25); border-radius: 6px;
+  color: rgba(255, 200, 140, 0.9); font-size: 10px; padding: 3px 4px; outline: none;
+}
 
 /* ── ASK KAI drawer ──────────────────────────────────────── */
 .ask-kai-scrim {

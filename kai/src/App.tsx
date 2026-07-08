@@ -65,6 +65,9 @@ import DelegatePanel from './components/panels/DelegatePanel';
 import { startWatchtower } from './lib/kai/watchtower';
 import { seedSpine, installSeedDevHooks, migrateMoney } from './lib/kai/seed';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
+import { startSync } from './lib/kai/sync';
+import { installBackupDevHooks } from './lib/kai/backup';
+import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -128,6 +131,7 @@ export default function App() {
   const [contentOpen, setContentOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
   const [brainPrefill, setBrainPrefill] = useState<string | undefined>(undefined);
+  const [share, setShare] = useState<ShareContent | null>(null);
   const [setOpen, setSetOpen] = useState(false);
   const [cheatOpen, setCheatOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
@@ -328,7 +332,36 @@ export default function App() {
      (debt 59k/89k, makadi 45/0 nights/lock replaced, garden 85,
      cash 15k) + logs the 15 canonical events. window.__kaiSeed()
      forces a re-seed for dev. */
-  useEffect(() => { installSeedDevHooks(); seedSpine(); migrateMoney(); }, []);
+  useEffect(() => { installSeedDevHooks(); installBackupDevHooks(); seedSpine(); migrateMoney(); }, []);
+
+  /* Spine sync (§8.1) — foreground + debounced. No-op until the
+     operator enables it in Settings and the server has Upstash wired. */
+  useEffect(() => { startSync(); }, []);
+
+  /* Share-in (§8.3) — OS shared a URL/text as query params (GET share
+     target → '/'). We stash the payload in sessionStorage and strip the
+     URL, THEN read it back into state — so the one-shot service-worker
+     reload on first activation (pwa.ts) can't eat the share. It stays
+     pending in sessionStorage across that reload until the operator acts
+     on the sheet (cleared in the sheet's onClose). */
+  const SHARE_KEY = 'kai.share.pending';
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(location.search);
+      const url = p.get('url') || undefined;
+      const text = p.get('text') || undefined;
+      const title = p.get('title') || undefined;
+      if (url || text || title) {
+        sessionStorage.setItem(SHARE_KEY, JSON.stringify({ url, text, title }));
+        history.replaceState(null, '', location.pathname + location.hash);
+      }
+      const raw = sessionStorage.getItem(SHARE_KEY);   // peek — don't clear until acted on
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && (s.url || s.text || s.title)) setShare(s);
+      }
+    } catch { /* ignore malformed search / storage */ }
+  }, []);
 
   /* The Watchtower — ambient triggers. Ticks on boot, every 5 min
      while visible, on visibility regain. Fires toasts and (if
@@ -842,6 +875,14 @@ export default function App() {
       <CommandBar open={cmdOpen} onClose={() => setCmdOpen(false)} settings={settings} />
       <ContentPanel open={contentOpen} onClose={() => setContentOpen(false)} />
       <BrainDump    open={brainOpen}   onClose={() => { setBrainOpen(false); setBrainPrefill(undefined); }} initialText={brainPrefill} />
+      {share && (
+        <ShareCaptureSheet
+          content={share}
+          onBrainDump={(t) => { setBrainPrefill(t); setBrainOpen(true); }}
+          onLaunched={() => setView('command')}
+          onClose={() => { try { sessionStorage.removeItem(SHARE_KEY); } catch { /* ignore */ } setShare(null); }}
+        />
+      )}
       <SettingsDrawer
         open={setOpen}
         onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}

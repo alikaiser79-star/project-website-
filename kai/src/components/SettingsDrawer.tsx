@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame, Leaf, Bed, AtSign, ShieldCheck, Fingerprint, KeyRound } from 'lucide-react';
+import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame, Leaf, Bed, AtSign, ShieldCheck, Fingerprint, KeyRound, Cloud, Copy, RefreshCw } from 'lucide-react';
 import {
   loadState, saveState, defaults,
   updateGarden, updateMakadi, upsertInstagram, removeInstagram, setFx,
@@ -26,6 +26,11 @@ import {
   setPin, verifyPin,
   type LockConfig,
 } from '../lib/lock';
+import { downloadBackup, importBackupFile } from '../lib/kai/backup';
+import {
+  isSyncEnabled, getSyncKey, enableSync, disableSync, syncNow, syncConfigured,
+  getSyncStatus, onSyncStatus, type SyncStatus,
+} from '../lib/kai/sync';
 
 const ACCENTS: { id: Accent; label: string; hex: string }[] = [
   { id: 'amber',   label: 'Amber',   hex: '#FFB300' },
@@ -78,30 +83,19 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
   }
 
   function exportState() {
-    const payload = loadState();
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `kai-state-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.ok('State exported.', 'BACKUP', 3000);
+    /* §8.2 — full Spine + commitments + settings, not just the state blob. */
+    const name = downloadBackup();
+    toast.ok(`Exported ${name}`, 'VAULT', 3000);
   }
 
-  function importState(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result));
-        localStorage.setItem('kai.state.v1', JSON.stringify(parsed));
-        toast.ok('State imported. Reloading…');
-        setTimeout(() => location.reload(), 700);
-      } catch {
-        toast.err('Could not parse that file.');
-      }
-    };
-    reader.readAsText(file);
+  async function importState(file: File) {
+    try {
+      const r = await importBackupFile(file);
+      toast.ok(`Imported — ${r.events} events, ${r.collections} stores merged. Reloading…`, 'VAULT', 3000);
+      setTimeout(() => location.reload(), 900);
+    } catch (e: any) {
+      toast.err(String(e?.message || 'Could not parse that file.'));
+    }
   }
 
   return (
@@ -271,7 +265,11 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
                 <SecurityEditor />
               </Section>
 
-              <Section icon={<Download size={12} />} title="Backup">
+              <Section icon={<Cloud size={12} />} title="Spine sync">
+                <SyncSection />
+              </Section>
+
+              <Section icon={<Download size={12} />} title="Vault export">
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={exportState}
@@ -290,7 +288,9 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
                   </label>
                 </div>
                 <p className="mt-2 text-[10px] text-steel leading-relaxed">
-                  Download a JSON snapshot of all KAI state, or load one back.
+                  One tap downloads the full Spine, commitments and settings as
+                  <span className="text-bone/80"> kai-spine-{new Date().toISOString().slice(0, 10)}.json</span>.
+                  Import merges by event id — it never overwrites newer records.
                 </p>
               </Section>
 
@@ -311,6 +311,100 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function SyncSection() {
+  const [enabled, setEnabled] = useState(() => isSyncEnabled());
+  const [status, setStatus] = useState<SyncStatus>(() => getSyncStatus());
+  const [serverReady, setServerReady] = useState<boolean | null>(null);
+  const [showKey, setShowKey] = useState(false);
+  const [pasteKey, setPasteKey] = useState('');
+  const [joining, setJoining] = useState(false);
+
+  useEffect(() => onSyncStatus(() => setStatus(getSyncStatus())), []);
+  useEffect(() => { syncConfigured().then(setServerReady).catch(() => setServerReady(false)); }, []);
+
+  const key = getSyncKey();
+  const label = status === 'synced' ? 'Synced' : status === 'failing' ? 'Failing' : status === 'syncing' ? 'Syncing…' : status === 'pending' ? 'Pending' : 'Off';
+  const dot = status === 'synced' ? '#FFB300' : status === 'failing' ? '#E0503A' : '#7d7d7d';
+
+  function copyKey() {
+    try { navigator.clipboard?.writeText(key); toast.ok('Sync key copied.', 'SYNC', 2500); }
+    catch { toast.err('Copy failed — reveal and copy manually.'); }
+  }
+
+  if (serverReady === false) {
+    return (
+      <p className="text-[10px] text-steel leading-relaxed">
+        Cross-device sync isn't wired on the server yet. Add an Upstash Redis integration
+        on Vercel (env <span className="text-bone/80">UPSTASH_REDIS_REST_URL</span> and
+        <span className="text-bone/80"> UPSTASH_REDIS_REST_TOKEN</span>), redeploy, and this
+        turns on. Your Spine keeps working locally until then.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2 text-[11px]">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-bone/85">
+          <span style={{ width: 8, height: 8, borderRadius: 99, background: dot, display: 'inline-block' }} />
+          {enabled ? label : 'Off'}
+        </span>
+        {enabled ? (
+          <button
+            onClick={() => { disableSync(); setEnabled(false); }}
+            className="px-2 py-1 border border-steel/40 text-steel hover:text-bone rounded text-[10px] tracking-[0.14em] uppercase"
+          >Turn off</button>
+        ) : (
+          <button
+            onClick={() => { enableSync(); setEnabled(true); }}
+            className="px-2 py-1 border border-amber/50 text-amber hover:border-amber hover:shadow-glow-amber rounded text-[10px] tracking-[0.14em] uppercase"
+          >Turn on</button>
+        )}
+      </div>
+
+      {enabled && (
+        <>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setShowKey(v => !v)} className="flex-1 text-left px-2 py-1.5 border border-white/10 rounded font-mono text-[10px] text-bone/80 truncate">
+              {showKey ? key : '•••••••• device key •••••••• (tap to reveal)'}
+            </button>
+            <button onClick={copyKey} title="copy key" className="px-2 py-1.5 border border-white/10 rounded text-steel hover:text-bone"><Copy size={12} /></button>
+            <button onClick={() => { void syncNow(); }} title="sync now" className="px-2 py-1.5 border border-white/10 rounded text-steel hover:text-bone"><RefreshCw size={12} /></button>
+          </div>
+          <p className="text-[10px] text-steel leading-relaxed">
+            This key is the private namespace for your Spine. Copy it onto your other devices —
+            paste it below there to converge them onto the same Spine. Anyone with this key can
+            read your data, so treat it like a password.
+          </p>
+
+          {joining ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                value={pasteKey}
+                onChange={e => setPasteKey(e.target.value)}
+                placeholder="paste another device's key"
+                className="flex-1 bg-transparent border border-amber/20 focus:border-amber rounded px-2 py-1.5 text-bone font-mono text-[10px] outline-none"
+              />
+              <button
+                onClick={() => {
+                  if (pasteKey.trim().length < 16) { toast.err('That key looks too short.'); return; }
+                  enableSync(pasteKey.trim()); setPasteKey(''); setJoining(false);
+                  toast.ok('Joined — pulling the shared Spine…', 'SYNC', 3000);
+                }}
+                className="px-2 py-1.5 border border-amber/50 text-amber rounded text-[10px] tracking-[0.14em] uppercase"
+              >Join</button>
+            </div>
+          ) : (
+            <button onClick={() => setJoining(true)} className="text-[10px] text-amber/80 hover:text-amber tracking-[0.14em] uppercase">
+              + Join with a key from another device
+            </button>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
