@@ -26,6 +26,7 @@ import { briefing } from './lib/commands';
 import IncomePanel    from './components/panels/IncomePanel';
 import DebtPanel      from './components/panels/DebtPanel';
 import GardenPanel    from './components/panels/GardenPanel';
+import GartenCodexPanel from './components/panels/GartenCodexPanel';
 import MakadiPanel    from './components/panels/MakadiPanel';
 import PrioritiesPanel from './components/panels/PrioritiesPanel';
 import ExpensesPanel   from './components/panels/ExpensesPanel';
@@ -64,6 +65,7 @@ import EnvoyPanel from './components/panels/EnvoyPanel';
 import DelegatePanel from './components/panels/DelegatePanel';
 import { startWatchtower } from './lib/kai/watchtower';
 import { seedSpine, installSeedDevHooks, migrateMoney } from './lib/kai/seed';
+import { seedCodex } from './lib/kai/garden';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
 import { installBackupDevHooks } from './lib/kai/backup';
@@ -332,7 +334,7 @@ export default function App() {
      (debt 59k/89k, makadi 45/0 nights/lock replaced, garden 85,
      cash 15k) + logs the 15 canonical events. window.__kaiSeed()
      forces a re-seed for dev. */
-  useEffect(() => { installSeedDevHooks(); installBackupDevHooks(); seedSpine(); migrateMoney(); }, []);
+  useEffect(() => { installSeedDevHooks(); installBackupDevHooks(); seedSpine(); migrateMoney(); seedCodex(); }, []);
 
   /* Spine sync (§8.1) — foreground + debounced. No-op until the
      operator enables it in Settings and the server has Upstash wired. */
@@ -800,7 +802,9 @@ export default function App() {
 
             {/* GROWTH */}
             {view === 'growth' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+              <div className="space-y-6 sm:space-y-8">
+                <GartenCodexPanel />
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
                 <LektionPanel delay={0.08} />
                 <CrownPanel delay={0.10} />
                 <ContentQueuePanel delay={0.15} />
@@ -809,6 +813,7 @@ export default function App() {
                 </Suspense>
                 <IgFeedPanel delay={0.25} />
                 <ScribePanel delay={0.30} />
+                </div>
               </div>
             )}
 

@@ -129,6 +129,49 @@ export type ContentItem = {
   createdAt: string;
 };
 
+/* ── DER GÄRTNER (§10) — the Garten Codex plant registry ──
+   Each plant/tree is a living record. Full-resolution photos live
+   in IndexedDB (on-device); only a small thumbnail dataURL rides in
+   the record, and captures append to the plant's own history. */
+export type PlantHealth = 'thriving' | 'watch' | 'ailing' | 'unknown';
+export type IdConfidence = 'high' | 'med' | 'low';
+
+export type PlantPhoto = {
+  id: string;             // also the IndexedDB key for the full image
+  thumb: string;          // small JPEG dataURL (~120px) — cheap to keep in the record
+  at: number;             // ms
+  note?: string;          // e.g. the health read this capture produced
+};
+
+export type PlantDiagnosis = {
+  at: number;
+  identification?: string;
+  health?: string;
+  confidence?: IdConfidence;
+  move?: string;          // the one action now
+  watchFor?: string;      // re-check in 7 days
+  photoId?: string;       // the capture this diagnosis came from
+};
+
+export type Plant = {
+  id: string;
+  name: string;
+  species?: string;
+  speciesConfidence?: IdConfidence;
+  zone?: string;                 // where in the garden
+  plantedAt?: number;            // ms, when known
+  ageYears?: number;             // manual, for heritage trees whose exact date is lost
+  heritage?: string;             // provenance note (e.g. planted by Horst Kaiser; legal evidence)
+  health: PlantHealth;
+  lastWateredAt?: number;
+  photos: PlantPhoto[];          // capture history (thumbnails)
+  diagnoses: PlantDiagnosis[];   // AI reads over time
+  carePlan?: string;             // §10.3 masterplan text
+  waterEveryDays?: number;       // §10.3 schedule cadence
+  notes?: string;
+  createdAt: number;
+};
+
 export type KaiPersisted = {
   priorities: Priority[];
   settings: KaiSettings;
