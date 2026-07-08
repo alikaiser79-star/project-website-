@@ -13,10 +13,13 @@ import { subscribe, getVersion } from '../../lib/kai/store';
 import {
   listPlants, getPlant, addPlant, updatePlant, removePlant,
   setHealth, logWatering, HEALTH_META,
+  dueToday, generateMasterplan, isHeatwave, getCachedTempC,
 } from '../../lib/kai/garden';
 import type { Plant, PlantHealth } from '../../types';
 import { operator } from '../../kaiConfig';
+import { toast } from '../../hooks/useToasts';
 import GardenEye from '../GardenEye';
+import { Sparkles, Droplets } from 'lucide-react';
 
 const HEALTHS: PlantHealth[] = ['thriving', 'watch', 'ailing', 'unknown'];
 
@@ -35,8 +38,20 @@ export default function GartenCodexPanel() {
   /* live re-read on any Spine write */
   useSyncExternalStore(subscribe, getVersion, getVersion);
   const plants = listPlants();
+  const due = dueToday();
   const [openId, setOpenId] = useState<string | null>(null);
   const [eyeId, setEyeId] = useState<string | null>(null);
+  const [planning, setPlanning] = useState(false);
+
+  async function masterplan() {
+    if (planning) return;
+    setPlanning(true);
+    try {
+      const r = await generateMasterplan();
+      if (r.ok) toast.ok(`Care masterplan generated for ${r.updated} plants.`, 'GÄRTNER', 3500);
+      else toast.err(r.reason === 'NO_API_KEY' ? 'Masterplan needs the API key wired on the server.' : 'Could not generate the masterplan.');
+    } finally { setPlanning(false); }
+  }
 
   return (
     <section className="glass rounded-lg p-5">
@@ -47,6 +62,13 @@ export default function GartenCodexPanel() {
           <span className="font-mono text-[10px] text-steel/60">· {plants.length} catalogued</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={masterplan} disabled={planning}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-emerald-400/40 text-emerald-300 hover:border-emerald-300 rounded text-[10px] tracking-[0.14em] uppercase disabled:opacity-50"
+            title="Generate a per-plant seasonal care plan"
+          >
+            <Sparkles size={12} /> {planning ? 'Planning…' : 'Masterplan'}
+          </button>
           <button
             onClick={() => { const p = addPlant({ name: 'Unidentified' }); setEyeId(p.id); }}
             className="flex items-center gap-1.5 px-2.5 py-1.5 border border-emerald-400/40 text-emerald-300 hover:border-emerald-300 rounded text-[10px] tracking-[0.14em] uppercase"
@@ -62,6 +84,18 @@ export default function GartenCodexPanel() {
           </button>
         </div>
       </div>
+
+      {/* §10.3 — today's watering list */}
+      {due.length > 0 && (
+        <div className="garten-water-strip">
+          <span className="garten-water-lead"><Droplets size={12} /> Water today{isHeatwave() ? ` · heatwave ${getCachedTempC()}°C` : ''}:</span>
+          {due.map((p) => (
+            <button key={p.id} className="garten-water-chip" onClick={() => { logWatering(p.id); toast.ok(`Logged watering · ${p.name}`, 'GÄRTNER', 2500); }}>
+              <Droplet size={10} /> {p.zone || p.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {plants.length === 0 ? (
         <div className="font-mono text-steel/55 text-[12px] py-6 text-center">No plants yet — register the garden.</div>

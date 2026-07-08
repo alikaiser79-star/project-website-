@@ -35,6 +35,7 @@ import { getPending } from './pending';
 import { operator } from '../../kaiConfig';
 import { deadlineCalling } from './deadlines';
 import { fmtMoney, monthlyIncomeEgp } from './money';
+import { gardenCalls } from './garden';
 import type { Currency } from '../../types';
 
 const DAY = 86_400_000;
@@ -90,10 +91,11 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       };
     } catch { out['02'] = { formatted: '—', calling: false }; }
 
-    /* 03 GARDEN — plant count. Status-only. */
+    /* 03 GARDEN — plant count. Calls (§10.3) when any Codex plant has
+       missed 2+ watering cycles. */
     try {
       const plants = s.garden?.plantCount ?? 0;
-      out['03'] = { formatted: fmtInt(plants), calling: false };
+      out['03'] = { formatted: fmtInt(plants), calling: gardenCalls(now) };
     } catch { out['03'] = { formatted: '—', calling: false }; }
 
     /* 04 MAKADI — nightly rate. Calls NEEDS-YOU ONLY on the real

@@ -65,7 +65,7 @@ import EnvoyPanel from './components/panels/EnvoyPanel';
 import DelegatePanel from './components/panels/DelegatePanel';
 import { startWatchtower } from './lib/kai/watchtower';
 import { seedSpine, installSeedDevHooks, migrateMoney } from './lib/kai/seed';
-import { seedCodex } from './lib/kai/garden';
+import { seedCodex, installGardenDevHooks } from './lib/kai/garden';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
 import { installBackupDevHooks } from './lib/kai/backup';
@@ -334,7 +334,7 @@ export default function App() {
      (debt 59k/89k, makadi 45/0 nights/lock replaced, garden 85,
      cash 15k) + logs the 15 canonical events. window.__kaiSeed()
      forces a re-seed for dev. */
-  useEffect(() => { installSeedDevHooks(); installBackupDevHooks(); seedSpine(); migrateMoney(); seedCodex(); }, []);
+  useEffect(() => { installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); seedCodex(); }, []);
 
   /* Spine sync (§8.1) — foreground + debounced. No-op until the
      operator enables it in Settings and the server has Upstash wired. */

@@ -18,6 +18,7 @@ import { computeRunway, costInDays, paydayCushion, runwayBriefing } from './kai/
 import { ledgerBriefing } from './kai/ledger';
 import { escapeLine } from './kai/escape';
 import { toEgp, monthlyIncomeEgp } from './kai/money';
+import { waterBriefingLine } from './kai/garden';
 import { parseDeadlineCommand, addDeadline, deadlineBriefing } from './kai/deadlines';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -319,6 +320,13 @@ export function briefing(): string {
   } else {
     top.forEach((c, i) => lines.push(`${i + 1}. ${c.text}.`));
   }
+
+  /* Der Gärtner — today's watering plan (§10.3). Quiet when no plant
+     has a schedule yet. */
+  try {
+    const w = waterBriefingLine();
+    if (w) lines.push(w);
+  } catch { /* defensive */ }
 
   /* Tollgate — runway + payday cushion. Quiet when no burn signal. */
   try {
