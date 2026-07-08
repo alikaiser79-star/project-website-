@@ -27,6 +27,7 @@ import {
   type LockConfig,
 } from '../lib/lock';
 import { downloadBackup, importBackupFile } from '../lib/kai/backup';
+import { runIntegrity, backfillCcy, alignDebtToSpine, type IntegrityCheck } from '../lib/kai/integrity';
 import {
   isSyncEnabled, getSyncKey, enableSync, disableSync, syncNow, syncConfigured,
   getSyncStatus, onSyncStatus, type SyncStatus,
@@ -299,6 +300,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
                 </p>
               </Section>
 
+              <Section icon={<ShieldCheck size={12} />} title="Integrity">
+                <IntegritySection />
+              </Section>
+
               <Section icon={<RotateCcw size={12} />} title="Danger zone">
                 <button
                   onClick={resetAll}
@@ -316,6 +321,53 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function IntegritySection() {
+  const [checks, setChecks] = useState<IntegrityCheck[]>(() => runIntegrity());
+  const refresh = () => setChecks(runIntegrity());
+  const failing = checks.filter(c => c.status !== 'ok').length;
+
+  function fix(c: IntegrityCheck) {
+    if (!c.fix) return;
+    if (c.fix.kind === 'backfill_ccy') { const n = backfillCcy(c.fix.eventIds || []); toast.ok(`Tagged ${n} event(s) with a currency.`, 'INTEGRITY', 3000); }
+    else if (c.fix.kind === 'align_debt') { alignDebtToSpine(); toast.ok('Debt balance aligned to the Spine.', 'INTEGRITY', 3000); }
+    refresh();
+  }
+
+  return (
+    <div className="space-y-2 text-[11px]">
+      <div className="flex items-center justify-between">
+        <span className={failing ? 'text-danger/90' : 'text-emerald-300/90'}>
+          {failing ? `${failing} discrepanc${failing === 1 ? 'y' : 'ies'}` : 'All checks reconcile'}
+        </span>
+        <button onClick={refresh} className="flex items-center gap-1.5 px-2 py-1 border border-amber/30 text-amber/90 rounded text-[10px] tracking-[0.14em] uppercase">
+          <RefreshCw size={11} /> Re-run
+        </button>
+      </div>
+      {checks.map((c) => (
+        <div key={c.id} className={'int-card ' + (c.status === 'ok' ? 'ok' : 'bad')}>
+          <div className="int-head">
+            <span className="int-dot" style={{ background: c.status === 'ok' ? '#7AE6A8' : '#E0503A' }} />
+            <span className="int-title">{c.title}</span>
+          </div>
+          <div className="int-detail">{c.detail}</div>
+          {c.events && c.events.length > 0 && (
+            <div className="int-events">
+              {c.events.slice(0, 6).map((e) => (
+                <span key={e.id} className="int-ev">{e.domain}.{e.type}{typeof e.value === 'number' ? ` ${e.value}` : ''}{e.ccy ? ` ${e.ccy}` : ''}</span>
+              ))}
+            </div>
+          )}
+          {c.fix && (
+            <button className="int-fix" onClick={() => fix(c)}>
+              {c.fix.kind === 'backfill_ccy' ? 'Tag currency (EGP / USD)' : 'Align to Spine'}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 

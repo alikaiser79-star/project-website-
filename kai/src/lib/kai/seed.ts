@@ -32,6 +32,7 @@
 import { loadState, saveState } from '../store';
 import { addExpense } from '../expenses';
 import { logEvent } from './events';
+import { read, write, emit } from './store';
 
 const SEED_FLAG = 'kai.seeded.v3';
 
@@ -117,6 +118,28 @@ export function migrateMoney(): void {
       saveState(s);
       logEvent({ domain: 'makadi', type: 'rate_changed', value: rate, ccy: 'USD', meta: { correction: 'currency-fix', afterTax: true }, source: 'auto' });
     }
+  } catch { /* ignore — boot must never throw here */ }
+
+  /* §13.2 — backfill currency onto legacy money events that predate the
+     money discipline (e.g. expense_logged before ccy was first-class),
+     so the Integrity audit reads zero discrepancies on real data without
+     a manual reconcile. Tagging only — values are never touched. */
+  try {
+    const KEY = 'kai.events';
+    const list = read<any[]>(KEY, []);
+    const rateCcy = (loadState().makadi?.rateCcy ?? 'USD');
+    let changed = false;
+    for (const e of list) {
+      if (e.ccy || typeof e.value !== 'number') continue;
+      const money =
+        e.domain === 'debt' || e.domain === 'income' || e.domain === 'expense' || e.domain === 'money'
+        || (e.domain === 'makadi' && (e.type === 'rate_changed' || e.type === 'arrears_paid'))
+        || (e.domain === 'system' && e.type === 'cash_on_hand');
+      if (!money) continue;
+      e.ccy = (e.domain === 'makadi' && e.type === 'rate_changed') ? rateCcy : 'EGP';
+      changed = true;
+    }
+    if (changed) { write(KEY, list); emit(); }
   } catch { /* ignore — boot must never throw here */ }
 }
 

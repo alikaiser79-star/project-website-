@@ -7,7 +7,7 @@
    ============================================================ */
 
 import { loadState, saveState } from './store';
-import type { Expense, ExpenseCategory } from '../types';
+import type { Expense, ExpenseCategory, Currency } from '../types';
 import { logEvent } from './kai/events';
 
 export const CATEGORIES: ExpenseCategory[] = [
@@ -39,6 +39,10 @@ export function addExpense(e: Omit<Expense, 'id'>): Expense {
   logEvent({
     domain: 'expense', type: 'expense_logged',
     value: next.total,
+    /* Money discipline (§10.2/§13.2) — carry the currency as a
+       first-class field, not just in meta, so the integrity audit and
+       any cross-currency math read it directly. */
+    ccy: (['EGP', 'USD', 'EUR'].includes(next.currency) ? next.currency : 'EGP') as Currency,
     meta: { merchant: next.merchant, category: next.category, currency: next.currency },
     source: 'user',
   });
