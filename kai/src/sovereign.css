@@ -190,6 +190,108 @@ body { font-variant-numeric: tabular-nums; }
   color: rgba(255, 200, 140, 0.9); font-size: 10px; padding: 3px 4px; outline: none;
 }
 
+/* ── GARTEN CODEX (§10.1) ─────────────────────────────────── */
+.garten-card {
+  display: flex; flex-direction: column; text-align: left;
+  background: rgba(122, 230, 168, 0.03); border: 1px solid rgba(122, 230, 168, 0.14);
+  border-radius: 10px; padding: 8px; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.garten-card:hover { border-color: rgba(122, 230, 168, 0.5); background: rgba(122, 230, 168, 0.07); transform: translateY(-1px); }
+.garten-thumb {
+  position: relative; aspect-ratio: 1 / 1; border-radius: 7px; overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, rgba(122,230,168,0.08), rgba(6,10,8,0.6));
+  display: flex; align-items: center; justify-content: center; margin-bottom: 7px;
+}
+.garten-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.garten-dot { width: 8px; height: 8px; border-radius: 99px; display: inline-block; box-shadow: 0 0 6px currentColor; }
+.garten-thumb .garten-dot { position: absolute; top: 6px; right: 6px; box-shadow: 0 0 6px rgba(0,0,0,0.6); }
+.garten-name { font-size: 12px; color: rgba(232, 224, 214, 0.95); font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.garten-sub { font-family: ui-monospace, monospace; font-size: 10px; color: rgba(150, 200, 170, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.garten-sub2 { font-family: ui-monospace, monospace; font-size: 9.5px; color: rgba(150, 160, 155, 0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.garten-scrim {
+  position: fixed; inset: 0; z-index: 520; background: rgba(3, 5, 4, 0.62); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 14px; animation: ask-kai-fade 0.2s ease both;
+}
+.garten-sheet {
+  width: min(520px, 96vw); max-height: 90vh; overflow-y: auto;
+  background: linear-gradient(180deg, rgba(12, 18, 14, 0.99), rgba(7, 11, 9, 0.99));
+  border: 1px solid rgba(122, 230, 168, 0.2); border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); padding: 14px; animation: share-rise 0.24s ease both;
+}
+.garten-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.garten-dot-lg { width: 11px; height: 11px; border-radius: 99px; display: inline-block; box-shadow: 0 0 8px currentColor; }
+.garten-title-input { background: none; border: none; border-bottom: 1px solid transparent; color: rgba(232,224,214,0.98); font-size: 15px; font-weight: 600; outline: none; padding: 2px 0; }
+.garten-title-input:focus { border-bottom-color: rgba(122, 230, 168, 0.5); }
+.garten-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; }
+.garten-strip-empty { font-family: ui-monospace, monospace; font-size: 10px; color: rgba(150,160,155,0.5); padding: 14px 8px; }
+.garten-strip-cell { flex: 0 0 auto; width: 68px; height: 68px; border-radius: 7px; overflow: hidden; border: 1px solid rgba(122,230,168,0.15); }
+.garten-strip-cell img { width: 100%; height: 100%; object-fit: cover; }
+.garten-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.garten-f > span { display: block; font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(150, 160, 155, 0.6); margin-bottom: 3px; }
+.garten-f input, .garten-f textarea {
+  width: 100%; background: transparent; border: 1px solid rgba(122, 230, 168, 0.18); border-radius: 6px;
+  color: rgba(232, 224, 214, 0.95); font-size: 12px; padding: 5px 7px; outline: none; resize: vertical;
+}
+.garten-f input:focus, .garten-f textarea:focus { border-color: rgba(122, 230, 168, 0.6); }
+.garten-water { display: inline-flex; align-items: center; gap: 3px; border: 1px solid rgba(120,200,255,0.35); color: rgba(120,200,255,0.9); border-radius: 6px; font-size: 10px; padding: 3px 7px; }
+.garten-careplan { margin-top: 10px; border: 1px solid rgba(122,230,168,0.18); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: rgba(210,224,214,0.9); line-height: 1.5; white-space: pre-wrap; }
+.garten-careplan-h { font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.18em; color: rgba(122,230,168,0.7); margin-bottom: 4px; }
+.garten-health-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.garten-health-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,0.1); border-radius: 99px; padding: 4px 10px; font-size: 11px; color: rgba(200,200,195,0.7); }
+.garten-health-chip.on { background: rgba(255,255,255,0.03); }
+.garten-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.garten-del { display: inline-flex; align-items: center; gap: 4px; color: rgba(224,80,58,0.85); border: 1px solid rgba(224,80,58,0.3); border-radius: 6px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 10px; }
+.garten-save { background: rgba(122,230,168,0.12); border: 1px solid rgba(122,230,168,0.5); color: rgba(160,235,190,0.95); border-radius: 6px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; padding: 6px 16px; }
+.garten-water-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 14px; padding: 9px 11px;
+  border: 1px solid rgba(120,200,255,0.18); border-radius: 9px; background: rgba(120,200,255,0.04); }
+.garten-water-lead { display: inline-flex; align-items: center; gap: 5px; font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(140,205,255,0.8); }
+.garten-water-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(120,200,255,0.35); color: rgba(180,220,255,0.92);
+  border-radius: 99px; font-size: 11px; padding: 4px 10px; }
+.garten-water-chip:hover { border-color: rgba(120,200,255,0.7); background: rgba(120,200,255,0.08); }
+
+.garten-showkai { width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px; margin-bottom: 12px;
+  background: rgba(122,230,168,0.08); border: 1px solid rgba(122,230,168,0.4); color: rgba(160,235,190,0.95);
+  border-radius: 9px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; padding: 10px; }
+.garten-showkai:hover { border-color: rgba(122,230,168,0.7); background: rgba(122,230,168,0.13); }
+
+/* ── THE EYE (§10.2) — camera capture + diagnosis ─────────── */
+.eye-scrim { position: fixed; inset: 0; z-index: 540; background: rgba(2,4,3,0.72); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 12px; animation: ask-kai-fade 0.2s ease both; }
+.eye-sheet { width: min(500px, 96vw); max-height: 92vh; overflow-y: auto;
+  background: linear-gradient(180deg, rgba(10,16,12,0.99), rgba(6,10,8,0.99));
+  border: 1px solid rgba(122,230,168,0.22); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.65);
+  padding: 14px; animation: share-rise 0.24s ease both; }
+.eye-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.eye-title { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.14em; color: rgba(160,235,190,0.95); }
+.eye-view { position: relative; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden;
+  background: radial-gradient(circle at 50% 45%, rgba(122,230,168,0.06), rgba(4,7,5,0.9)); display: flex; align-items: center; justify-content: center; }
+.eye-video { width: 100%; height: 100%; object-fit: cover; display: none; }
+.eye-video.on { display: block; }
+.eye-file { display: flex; flex-direction: column; align-items: center; gap: 8px; color: rgba(150,180,165,0.7); font-size: 12px; cursor: pointer; padding: 20px; }
+.eye-strip { display: flex; gap: 6px; margin-top: 10px; }
+.eye-thumb { width: 56px; height: 56px; border-radius: 7px; overflow: hidden; border: 1px solid rgba(122,230,168,0.25); }
+.eye-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.eye-thumb-more { width: 56px; height: 56px; border-radius: 7px; border: 1px dashed rgba(122,230,168,0.2); display: flex; align-items: center; justify-content: center; font-size: 10px; color: rgba(150,180,165,0.5); }
+.eye-controls { display: flex; gap: 8px; margin-top: 12px; }
+.eye-snap { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+  border: 1px solid rgba(122,230,168,0.35); color: rgba(160,235,190,0.9); border-radius: 8px; padding: 9px; font-size: 12px; }
+.eye-diagnose { flex: 1; background: rgba(122,230,168,0.14); border: 1px solid rgba(122,230,168,0.55); color: rgba(170,240,200,0.98);
+  border-radius: 8px; padding: 9px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.eye-diagnose:disabled, .eye-snap:disabled { opacity: 0.4; }
+.eye-err { margin-top: 10px; font-size: 12px; color: rgba(255,140,110,0.9); }
+.eye-result { margin-top: 12px; border-top: 1px solid rgba(122,230,168,0.14); padding-top: 12px; display: flex; flex-direction: column; gap: 9px; }
+.eye-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: start; }
+.eye-k { font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.14em; color: rgba(122,230,168,0.65); padding-top: 2px; }
+.eye-v { font-size: 13px; color: rgba(224,232,226,0.92); line-height: 1.45; }
+.eye-v .eye-dot { width: 8px; height: 8px; border-radius: 99px; display: inline-block; margin: 0 4px 0 10px; box-shadow: 0 0 5px currentColor; }
+.eye-move { color: rgba(255,213,145,0.95); }
+.eye-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.eye-again { display: inline-flex; align-items: center; gap: 5px; color: rgba(150,180,165,0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-size: 11px; padding: 6px 10px; }
+.eye-save { display: inline-flex; align-items: center; gap: 6px; background: rgba(122,230,168,0.14); border: 1px solid rgba(122,230,168,0.5); color: rgba(170,240,200,0.98); border-radius: 6px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 7px 16px; }
+.eye-save:disabled { opacity: 0.5; }
+
 /* ── ASK KAI drawer ──────────────────────────────────────── */
 .ask-kai-scrim {
   position: fixed; inset: 0; z-index: 500;

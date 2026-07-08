@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, Sun, Moon, Wind, Cloud, CloudRain, CloudFog, CloudLightning, CloudSnow } from 'lucide-react';
 import { fetchWeather, fetchMarkets, WeatherSnap, MarketTick } from '../lib/external';
 import { operator } from '../kaiConfig';
+import { cacheTempC } from '../lib/kai/garden';
 import FocusTile from './FocusTile';
 import NewsTicker from './NewsTicker';
 import MapTile from './MapTile';
@@ -43,7 +44,7 @@ export default function IntelStrip({ delay = 0 }: { delay?: number }) {
   useEffect(() => {
     let alive = true;
     const loadW = () => fetchWeather(operator.lat, operator.lon)
-      .then(s => { if (alive) { setW(s); setWErr(null); } })
+      .then(s => { if (alive) { setW(s); setWErr(null); } try { cacheTempC(s.tempC); } catch { /* ignore */ } })
       .catch(e => alive && setWErr(e.message));
     const loadM = () => fetchMarkets()
       .then(s => { if (alive) { setM(s); setMErr(null); } })
