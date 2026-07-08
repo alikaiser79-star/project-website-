@@ -46,6 +46,7 @@ import SystemPulse from './components/SystemPulse';
 import AskKaiDrawer from './components/AskKaiDrawer';
 import LektionPanel from './components/panels/LektionPanel';
 import AnalystPanel from './components/panels/AnalystPanel';
+import { runAnomalyWatch } from './lib/kai/anomaly';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
 import ScribePanel from './components/panels/ScribePanel';
 import EnvoyPanel from './components/panels/EnvoyPanel';
@@ -537,6 +538,10 @@ export default function App() {
 
     // Record today's snapshot for trend lines (idempotent per ISO day)
     recordSnapshot();
+
+    // Anomaly Watch (7.4) — stats run client-side; Claude is called
+    // only if a fresh trigger fires. No timer, no polling.
+    runAnomalyWatch().catch(() => {});
 
     // Warm the calendar cache so the briefing + Agenda have data
     // ready instead of waiting for the first AgendaTile mount.

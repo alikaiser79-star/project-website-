@@ -211,6 +211,17 @@ export function getCommandSignals(): Record<string, OrganSignal> {
     }
   }
 
+  /* Anomaly Watch (7.4): a recent anomaly event makes its organ call.
+     Kept out of the anomaly module to avoid an import cycle. */
+  try {
+    const ORGAN_OF: Record<string, string> = { debt: '02', makadi: '04', expense: '07', commitment: '09', system: '11' };
+    const recent = getEvents({ domain: 'anomaly', since: now - 7 * DAY });
+    for (const e of recent) {
+      const organ = ORGAN_OF[String(e.meta?.of ?? '')];
+      if (organ && out[organ]) out[organ] = { ...out[organ], calling: true };
+    }
+  } catch { /* ignore */ }
+
   return out;
 }
 
