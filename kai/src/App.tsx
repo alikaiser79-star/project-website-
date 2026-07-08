@@ -49,6 +49,7 @@ import AnalystPanel from './components/panels/AnalystPanel';
 import { runAnomalyWatch } from './lib/kai/anomaly';
 import MissionPanel from './components/panels/MissionPanel';
 import LeadsPanel from './components/panels/LeadsPanel';
+import EscapeVelocityPanel from './components/panels/EscapeVelocityPanel';
 import Debrief from './components/Debrief';
 import { shouldShowDebrief, ensureDebrief, markDebriefShown, type Debrief as DebriefData } from './lib/kai/debrief';
 import WatchtowerPanel from './components/panels/WatchtowerPanel';
@@ -736,6 +737,7 @@ export default function App() {
             {/* MONEY */}
             {view === 'money' && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+                <EscapeVelocityPanel delay={0.06} />
                 <AnalystPanel delay={0.08} />
                 <TollgatePanel delay={0.10} />
                 <IncomePanel delay={0.15} />

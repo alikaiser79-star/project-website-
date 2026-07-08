@@ -16,6 +16,7 @@ import { queueCount } from './content';
 import { mirrorBriefing } from './kai/commitments';
 import { computeRunway, costInDays, paydayCushion, runwayBriefing } from './kai/runway';
 import { ledgerBriefing } from './kai/ledger';
+import { escapeLine } from './kai/escape';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -318,6 +319,9 @@ export function briefing(): string {
   try {
     for (const m of ledgerBriefing()) lines.push(m);
   } catch { /* defensive */ }
+
+  /* Escape Velocity — THE number, in every briefing. */
+  try { lines.push(escapeLine()); } catch { /* defensive */ }
 
   lines.push(`What's the first move?`);
   /* Hard cap — Tollgate + Mirror + Ledger all feed in now. */
