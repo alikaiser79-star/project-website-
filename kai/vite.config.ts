@@ -35,6 +35,10 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
         navigateFallback: 'index.html',
+        /* §14.2 — the SW imports the Web Push handler (push +
+           notificationclick). Kept as a separate plain-JS script so the
+           generated SW's precache/offline/update behaviour is untouched. */
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,

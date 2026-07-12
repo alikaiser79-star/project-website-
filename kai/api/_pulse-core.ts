@@ -22,10 +22,57 @@ export interface PulseEvent {
   source: string;
 }
 
+export interface PushMsg { title: string; body: string; tag: string; priority: number; }
+
 export interface PulseResult {
   newEvents: Omit<PulseEvent, 'id'>[];   // route stamps ids
   dispatch: string | null;               // one line for the morning push, or null
+  pushes: PushMsg[];                     // §14.2 — ranked push candidates (route caps at 3/day)
   summary: { escalations: number; anomalies: number };
+}
+
+const HOUR = 3_600_000;
+const CASH_CRITICAL = 5_000;             // EGP — cash_on_hand below this is an alarm
+
+/* §14.2 — true-alarm interrupts + the morning dispatch, ranked. The
+   route sends the top N within the day's 3-push cap. Alarms (priority 3)
+   beat the morning summary (priority 2); silence sends nothing. */
+export function pulsePushes(events: PulseEvent[], now: number, dispatch: string | null): PushMsg[] {
+  const out: PushMsg[] = [];
+
+  /* ALARM — cash on hand critical (latest cash_on_hand < threshold). */
+  const cash = events.filter((e) => e.domain === 'system' && e.type === 'cash_on_hand').sort((a, b) => a.ts - b.ts).slice(-1)[0];
+  if (cash && typeof cash.value === 'number' && cash.value > 0 && cash.value < CASH_CRITICAL) {
+    out.push({ title: 'KAI · ALARM', body: `Cash on hand critical: ${Math.round(cash.value).toLocaleString()} EGP`, tag: 'cash-critical', priority: 3 });
+  }
+
+  /* ALARM — a deadline (or committed money metric) < 48h away. */
+  const deadlines = events.filter((e) => e.domain === 'deadline' && e.type === 'set');
+  const commitDeadlines = events.filter((e) => e.domain === 'commitment' && e.type === 'commitment_made' && typeof e.meta?.deadline === 'number');
+  for (const d of [...deadlines, ...commitDeadlines]) {
+    const date = Number(d.meta?.date ?? d.meta?.deadline);
+    const text = String(d.meta?.text || 'a commitment');
+    if (!isFinite(date)) continue;
+    const hrs = (date - now) / HOUR;
+    if (hrs > 0 && hrs <= 48) out.push({ title: 'KAI · ALARM', body: `${text} — due in ${Math.round(hrs)}h`, tag: 'due-' + (d.meta?.id || text), priority: 3 });
+  }
+
+  /* ALARM — a booking inquiry unanswered > 2h (fed by the Gmail watcher,
+     §14.3). Answered when a later leads/booking_replied for the same
+     thread exists. Forward-compatible: silent until the watcher feeds it. */
+  const inquiries = events.filter((e) => e.domain === 'leads' && e.type === 'booking_inquiry');
+  for (const q of inquiries) {
+    const thread = String(q.meta?.thread || q.id);
+    const answered = events.some((e) => e.domain === 'leads' && e.type === 'booking_replied' && String(e.meta?.thread) === thread);
+    if (!answered && now - q.ts > 2 * HOUR) out.push({ title: 'KAI · ALARM', body: `Booking inquiry still unanswered (${Math.round((now - q.ts) / HOUR)}h)`, tag: 'inquiry-' + thread, priority: 3 });
+  }
+
+  /* MORNING dispatch — the day's one line, if anything needs him. */
+  if (dispatch) out.push({ title: 'KAI', body: dispatch, tag: 'morning', priority: 2 });
+
+  /* dedupe by tag, highest priority first, cap the raw list. */
+  const seen = new Set<string>();
+  return out.sort((a, b) => b.priority - a.priority).filter((p) => (seen.has(p.tag) ? false : (seen.add(p.tag), true))).slice(0, 3);
 }
 
 type Tier = 'calling' | 'dominant' | 'overdue';
@@ -98,5 +145,5 @@ export function runPulseCore(events: PulseEvent[], now: number): PulseResult {
     dispatch = String(newEvents.find((e) => e.domain === 'anomaly')?.meta?.detail || null) || null;
   }
 
-  return { newEvents, dispatch, summary: { escalations: escalations.length, anomalies } };
+  return { newEvents, dispatch, pushes: pulsePushes(events, now, dispatch), summary: { escalations: escalations.length, anomalies } };
 }

@@ -62,7 +62,9 @@ export function addCommitment(input: CommitmentInput): Commitment {
   save(list);
   logEvent({
     domain: 'commitment', type: 'commitment_made',
-    meta: { id: c.id, text: c.text }, source: 'ai',
+    /* deadline in meta so the server pulse (§14.2) can raise a <48h
+       alarm without the commitments store (only events are synced). */
+    meta: { id: c.id, text: c.text, deadline: c.deadline }, source: 'ai',
   });
   return c;
 }
