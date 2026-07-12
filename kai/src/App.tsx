@@ -47,6 +47,7 @@ import { retrieveEvents } from './lib/kai/retrieval';
 import { weeklyDrifts } from './lib/kai/patterns';
 import { tokenTotals } from './lib/kai/tokens';
 import WarChestSession from './components/WarChestSession';
+import NightLedger from './components/NightLedger';
 import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
@@ -850,6 +851,7 @@ export default function App() {
       {warChestOpen && <WarChestSession onClose={() => setWarChestOpen(false)} />}
       <InstallPrompt />
       {isMobile && <PullToRefresh />}
+      <NightLedger />
       <SettingsDrawer
         open={setOpen}
         onClose={() => { setSetOpen(false); setFocusSettingsSection(null); }}
