@@ -1,39 +1,48 @@
 /* ============================================================
    /api/pulse — DER SCHATTEN heartbeat + THE VOICE (§14.1/§14.2).
-   Node serverless (web-push is Node-only). Function #8 (under cap).
+   EDGE runtime (function #8) — same proven runtime as every other KAI
+   function. §14.2 send is done Edge-native with WebCrypto (see
+   _webpush.ts), so no Node-only dependency is needed.
 
    A daily Vercel cron (vercel.json, 07:30 Cairo) runs the PURE pulse
-   core against each registered operator's synced Spine (Upstash),
-   writes results back as Spine events, stores the day's dispatch, and
-   — §14.2 — SPEAKS: sends up to 3 push notifications (morning dispatch +
-   true-alarm interrupts) to the device's subscription. Hard cap 3/day.
+   core against each registered operator's synced Spine (Upstash), writes
+   results back as Spine events, stores the day's dispatch, and SPEAKS:
+   up to 3 push notifications/day (morning dispatch + true-alarm
+   interrupts). Silence is valid.
 
-   Env:
-     KV_REST_API_URL / KV_REST_API_TOKEN   Upstash (from §8)
-     CRON_SECRET                            gates the cron GET
-     VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY   Web Push signing (§14.2)
-     VAPID_SUBJECT                          mailto: (optional)
-
-   No Upstash / no VAPID → the pulse still writes events; push is simply
-   skipped. The morning state always reaches every device via §8 sync +
-   the Night Ledger regardless.
+   Env: KV_REST_API_* (Upstash), CRON_SECRET (gates the cron),
+   VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT (push). No
+   Upstash → dormant + 503. No VAPID → compute + store still run; push
+   is skipped and the state reaches devices via §8 sync + Night Ledger.
    ============================================================ */
 
-import webpush from 'web-push';
 import { runPulseCore, type PulseEvent } from './_pulse-core';
+import { sendPush, type Vapid, type PushSubscription } from './_webpush';
+
+export const config = { runtime: 'edge' };
 
 const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const CRON_SECRET = process.env.CRON_SECRET;
-const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:ali@kai.local';
+const VAPID: Vapid | null = (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY)
+  ? { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY, subject: process.env.VAPID_SUBJECT || 'mailto:ali@kai.local' }
+  : null;
 const TTL = 60 * 60 * 24 * 180;
 const REG_KEY = 'kai:pulse:reg';
 const MAX_PUSH_PER_DAY = 3;
 
-const pushReady = !!(VAPID_PUBLIC && VAPID_PRIVATE);
-if (pushReady) { try { webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC!, VAPID_PRIVATE!); } catch { /* ignore bad keys at boot */ } }
+function j(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      'content-type': 'application/json',
+      'access-control-allow-origin': '*',
+      'access-control-allow-headers': 'content-type,x-kai-sync-key',
+      'access-control-allow-methods': 'GET,POST,OPTIONS',
+      'cache-control': 'no-store',
+    },
+  });
+}
 
 async function redis(cmd: (string | number)[]): Promise<any> {
   const r = await fetch(REDIS_URL!, {
@@ -59,7 +68,6 @@ function pairsToEvents(flat: any): PulseEvent[] {
   return out;
 }
 
-/* Run + speak for one namespace. Returns { dispatch, sent }. */
 async function pulseNamespace(ns: string, now: number): Promise<{ dispatch: string | null; sent: number }> {
   const evKey = `spine:ev:${ns}`;
   const events = pairsToEvents(await redis(['HGETALL', evKey]));
@@ -76,11 +84,10 @@ async function pulseNamespace(ns: string, now: number): Promise<{ dispatch: stri
 
   /* §14.2 — SPEAK, within the 3/day hard cap. */
   let sent = 0;
-  if (pushReady && pushes.length) {
-    let cfg: any = null;
-    try { const raw = await redis(['GET', `kai:pulse:cfg:${ns}`]); if (raw) cfg = JSON.parse(raw); } catch { /* ignore */ }
-    const sub = cfg?.subscription;
-    if (sub) {
+  if (VAPID && pushes.length) {
+    let sub: PushSubscription | null = null;
+    try { const raw = await redis(['GET', `kai:pulse:cfg:${ns}`]); if (raw) sub = JSON.parse(raw).subscription || null; } catch { /* ignore */ }
+    if (sub && sub.endpoint) {
       const dateKey = new Date(now).toISOString().slice(0, 10);
       const sentKey = `kai:pulse:sent:${ns}:${dateKey}`;
       const already = Number(await redis(['GET', sentKey])) || 0;
@@ -88,53 +95,46 @@ async function pulseNamespace(ns: string, now: number): Promise<{ dispatch: stri
       for (const p of pushes) {
         if (budget <= 0) break;
         try {
-          await webpush.sendNotification(sub, JSON.stringify({ title: p.title, body: p.body, tag: p.tag }));
-          await redis(['INCR', sentKey]); await redis(['EXPIRE', sentKey, 60 * 60 * 48]);
-          budget--; sent++;
-        } catch { /* expired/invalid subscription — skip */ }
+          const status = await sendPush(sub, JSON.stringify({ title: p.title, body: p.body, tag: p.tag }), VAPID, now);
+          if (status >= 200 && status < 300) { await redis(['INCR', sentKey]); await redis(['EXPIRE', sentKey, 60 * 60 * 48]); budget--; sent++; }
+        } catch { /* transient send failure — skip */ }
       }
     }
   }
   return { dispatch, sent };
 }
 
-function send(res: any, status: number, data: unknown) {
-  res.statusCode = status;
-  res.setHeader('content-type', 'application/json');
-  res.setHeader('cache-control', 'no-store');
-  res.end(JSON.stringify(data));
-}
+export default async function handler(req: Request): Promise<Response> {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type,x-kai-sync-key', 'access-control-allow-methods': 'GET,POST,OPTIONS' } });
+  }
 
-export default async function handler(req: any, res: any): Promise<void> {
-  const method = req.method || 'GET';
-  if (method === 'OPTIONS') { res.statusCode = 204; res.end(); return; }
-
-  if (!REDIS_URL || !REDIS_TOKEN) { send(res, method === 'GET' ? 200 : 503, { ok: true, configured: false, note: 'pulse dormant — no Upstash wired' }); return; }
+  if (!REDIS_URL || !REDIS_TOKEN) {
+    return j({ ok: true, configured: false, note: 'pulse dormant — no Upstash wired' }, req.method === 'GET' ? 200 : 503);
+  }
 
   /* ── POST register ── */
-  if (method === 'POST') {
-    const key = String(req.headers['x-kai-sync-key'] || '');
-    if (key.length < 16) { send(res, 401, { error: 'no_key' }); return; }
+  if (req.method === 'POST') {
+    const key = req.headers.get('x-kai-sync-key') || '';
+    if (key.length < 16) return j({ error: 'no_key' }, 401);
     const ns = await nsFromKey(key);
-    let body: any = req.body;
-    if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
-    body = body || {};
+    let body: any = {};
+    try { body = await req.json(); } catch { /* ignore */ }
     try {
       await redis(['SADD', REG_KEY, ns]);
-      await redis(['SET', `kai:pulse:cfg:${ns}`, JSON.stringify({ tz: body.tz || 'Africa/Cairo', subscription: body.subscription || null, watches: Array.isArray(body.watches) ? body.watches.slice(0, 3) : [], ts: Date.now() })]);
+      await redis(['SET', `kai:pulse:cfg:${ns}`, JSON.stringify({ tz: body?.tz || 'Africa/Cairo', subscription: body?.subscription || null, watches: Array.isArray(body?.watches) ? body.watches.slice(0, 3) : [], ts: Date.now() })]);
       await redis(['EXPIRE', `kai:pulse:cfg:${ns}`, TTL]);
-      send(res, 200, { ok: true, registered: true, push: pushReady });
-    } catch (e: any) { send(res, 502, { error: 'register_failed', detail: String(e?.message || e).slice(0, 120) }); }
-    return;
+      return j({ ok: true, registered: true, push: !!VAPID });
+    } catch (e: any) { return j({ error: 'register_failed', detail: String(e?.message || e).slice(0, 120) }, 502); }
   }
 
   /* ── GET cron / health ── */
-  if (method === 'GET') {
-    const url = new URL(req.url || '/', 'http://x');
-    if (url.searchParams.get('health') != null) { send(res, 200, { ok: true, configured: true, push: pushReady }); return; }
+  if (req.method === 'GET') {
+    const url = new URL(req.url);
+    if (url.searchParams.get('health') != null) return j({ ok: true, configured: true, push: !!VAPID });
     if (CRON_SECRET) {
-      const auth = String(req.headers['authorization'] || '');
-      if (auth !== `Bearer ${CRON_SECRET}`) { send(res, 401, { error: 'unauthorized' }); return; }
+      const auth = req.headers.get('authorization') || '';
+      if (auth !== `Bearer ${CRON_SECRET}`) return j({ error: 'unauthorized' }, 401);
     }
     const now = Date.now();
     try {
@@ -143,10 +143,11 @@ export default async function handler(req: any, res: any): Promise<void> {
       for (const ns of namespaces) {
         try { const r = await pulseNamespace(ns, now); if (r.dispatch) dispatched++; pushed += r.sent; } catch { /* one ns failing shouldn't abort */ }
       }
-      send(res, 200, { ok: true, ran: namespaces.length, dispatched, pushed, push: pushReady, at: now });
-    } catch (e: any) { send(res, 502, { error: 'pulse_error', detail: String(e?.message || e).slice(0, 120) }); }
-    return;
+      return j({ ok: true, ran: namespaces.length, dispatched, pushed, push: !!VAPID, at: now });
+    } catch (e: any) {
+      return j({ error: 'pulse_error', detail: String(e?.message || e).slice(0, 120) }, 502);
+    }
   }
 
-  send(res, 405, { error: 'method_not_allowed' });
+  return j({ error: 'method_not_allowed' }, 405);
 }
