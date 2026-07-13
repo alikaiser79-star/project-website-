@@ -6,6 +6,7 @@ import { runBuiltin } from '../lib/commands';
 import { askClaude, askClaudeStream } from '../lib/claude';
 import { extractCommitment } from '../lib/kai/ai';
 import { addCommitment } from '../lib/kai/commitments';
+import { counsel } from '../lib/kai/counsel';
 import { toast } from '../hooks/useToasts';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
@@ -88,6 +89,20 @@ export default function CommandBar({ open, onClose, settings }: Props) {
         setHistory(h => h.slice(0, -1));
       } catch { /* fall through */ }
       finally { setThinking(false); }
+    }
+
+    /* THE COUNSEL (§15) — "/counsel" reads the whole Spine and returns
+       ONE ruling. Async, so it's handled before the sync built-ins. */
+    if (/^\/?counsel\b/i.test(text)) {
+      setThinking(true);
+      pushTurn(text, '');
+      try {
+        const r = await counsel();
+        replaceLast(r.lines.join('\n'));
+      } catch (e: any) {
+        replaceLast(e?.message === 'NO_API_KEY' ? 'The Counsel needs a server key to rule.' : 'The Counsel is unavailable right now.');
+      } finally { setThinking(false); }
+      return;
     }
 
     const built = runBuiltin(text);

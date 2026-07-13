@@ -5,16 +5,25 @@
    ============================================================ */
 
 import { useEffect, useState } from 'react';
-import { Moon, X } from 'lucide-react';
+import { Moon, X, Scale } from 'lucide-react';
 import { nightLedger, markSeen, shouldShowNightLedger } from '../lib/kai/nightLedger';
+import { maybeAutoCounsel } from '../lib/kai/counsel';
 
 export default function NightLedger() {
   const [report, setReport] = useState<{ lines: string[] } | null>(null);
+  const [verdict, setVerdict] = useState<string | null>(null);
 
   useEffect(() => {
     /* wait past the boot so it doesn't fight the entrance. */
     const t = setTimeout(() => {
-      try { if (shouldShowNightLedger()) setReport(nightLedger()); } catch { /* ignore */ }
+      try {
+        if (shouldShowNightLedger()) {
+          setReport(nightLedger());
+          /* §15 auto-trigger — a worthy night earns ONE ruling. Best-effort;
+             silent if there's no key or nothing warrants it. */
+          maybeAutoCounsel().then((r) => { if (r?.verdict) setVerdict(r.verdict); }).catch(() => {});
+        }
+      } catch { /* ignore */ }
     }, 3200);
     return () => clearTimeout(t);
   }, []);
@@ -32,6 +41,9 @@ export default function NightLedger() {
       <ul className="night-lines">
         {report.lines.map((l, i) => <li key={i}>{l}</li>)}
       </ul>
+      {verdict && (
+        <div className="night-verdict"><Scale size={11} /> <span>{verdict}</span></div>
+      )}
     </div>
   );
 }
