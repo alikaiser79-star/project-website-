@@ -146,7 +146,15 @@ async function watchSweep(key: string, body: any): Promise<Response> {
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'POST,OPTIONS' } });
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' } });
+
+  /* §19 health — GET /api/agent/search?health reports which keys the
+     Radar needs are present. Booleans only; never leaks a value. */
+  if (req.method === 'GET') {
+    const anthropic = !!process.env.ANTHROPIC_API_KEY;
+    const tavily = !!process.env.TAVILY_API_KEY;
+    return j({ ok: true, anthropic, tavily, ready: anthropic && tavily });
+  }
   if (req.method !== 'POST') return j({ error: 'method_not_allowed' }, 405);
 
   const key = process.env.ANTHROPIC_API_KEY;

@@ -45,6 +45,18 @@ export const radarSearchFn: SearchFn = async (query, extractRule) => {
   return { summary: String(d.summary || 'Checked.'), sourceUrl: d.sourceUrl || undefined, changed: !!d.changed, big: !!d.big };
 };
 
+/* Which server keys the Radar needs are present — booleans only. Lets the
+   panel warn "no web search key" without the operator curling anything. */
+export interface RadarHealth { anthropic: boolean; tavily: boolean; ready: boolean; }
+export async function radarHealth(): Promise<RadarHealth | null> {
+  try {
+    const r = await fetch('/api/agent/search?health');
+    if (!r.ok) return null;
+    const d = await r.json();
+    return { anthropic: !!d.anthropic, tavily: !!d.tavily, ready: !!d.ready };
+  } catch { return null; }
+}
+
 function lastSweepAt(): number { try { return Number(localStorage.getItem(LAST_SWEEP)) || 0; } catch { return 0; } }
 function markSwept(now: number) { try { localStorage.setItem(LAST_SWEEP, String(now)); } catch { /* ignore */ } }
 
