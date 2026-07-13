@@ -6,6 +6,8 @@ import { runBuiltin } from '../lib/commands';
 import { askClaude, askClaudeStream } from '../lib/claude';
 import { extractCommitment } from '../lib/kai/ai';
 import { addCommitment } from '../lib/kai/commitments';
+import { counsel } from '../lib/kai/counsel';
+import { findTarget, draftOutreach } from '../lib/kai/campaign';
 import { toast } from '../hooks/useToasts';
 import { sfx } from '../lib/sound';
 import { voice } from '../lib/speech';
@@ -88,6 +90,39 @@ export default function CommandBar({ open, onClose, settings }: Props) {
         setHistory(h => h.slice(0, -1));
       } catch { /* fall through */ }
       finally { setThinking(false); }
+    }
+
+    /* THE COUNSEL (§15) — "/counsel" reads the whole Spine and returns
+       ONE ruling. Async, so it's handled before the sync built-ins. */
+    if (/^\/?counsel\b/i.test(text)) {
+      setThinking(true);
+      pushTurn(text, '');
+      try {
+        const r = await counsel();
+        replaceLast(r.lines.join('\n'));
+      } catch (e: any) {
+        replaceLast(e?.message === 'NO_API_KEY' ? 'The Counsel needs a server key to rule.' : 'The Counsel is unavailable right now.');
+      } finally { setThinking(false); }
+      return;
+    }
+
+    /* DER FELDZUG (§18) — "draft outreach for <target>" writes a
+       personalised email in the target's language and queues it at the
+       Gate. Async, so handled before the sync built-ins. */
+    const draftM = text.match(/^draft\s+(?:outreach|email|a\s+draft)\s+(?:for|to)\s+(.+)$/i);
+    if (draftM) {
+      const t = findTarget(draftM[1]);
+      if (!t) { pushTurn(text, `No target matches “${draftM[1].trim()}”. Add it in the Feldzug panel first.`); return; }
+      setThinking(true);
+      pushTurn(text, '');
+      try {
+        const r = await draftOutreach(t.id);
+        replaceLast(r.ok
+          ? `Drafted outreach to ${t.name} in ${t.lang.toUpperCase()} — queued at the Gate. Approve to send.`
+          : r.reason === 'no_key' ? 'The draft engine needs a server key.' : 'Draft failed — try again.');
+      } catch { replaceLast('Draft failed — try again.'); }
+      finally { setThinking(false); }
+      return;
     }
 
     const built = runBuiltin(text);

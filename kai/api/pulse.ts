@@ -113,13 +113,28 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ ok: true, configured: false, note: 'pulse dormant — no Upstash wired' }, req.method === 'GET' ? 200 : 503);
   }
 
-  /* ── POST register ── */
+  /* ── POST register / test ── */
   if (req.method === 'POST') {
     const key = req.headers.get('x-kai-sync-key') || '';
     if (key.length < 16) return j({ error: 'no_key' }, 401);
     const ns = await nsFromKey(key);
     let body: any = {};
     try { body = await req.json(); } catch { /* ignore */ }
+
+    /* §14.2 — one-tap test push: send an immediate notification to the
+       registered subscription so the operator can VERIFY delivery on
+       device (bypasses the daily cap; it's a manual check). */
+    if (body?.action === 'test') {
+      if (!VAPID) return j({ ok: false, reason: 'no_vapid' });
+      let sub: PushSubscription | null = null;
+      try { const raw = await redis(['GET', `kai:pulse:cfg:${ns}`]); if (raw) sub = JSON.parse(raw).subscription || null; } catch { /* ignore */ }
+      if (!sub || !sub.endpoint) return j({ ok: false, reason: 'no_subscription' });
+      try {
+        const status = await sendPush(sub, JSON.stringify({ title: 'KAI', body: 'Test dispatch — Der Schatten can reach you. ✅', tag: 'test' }), VAPID);
+        return j({ ok: status >= 200 && status < 300, status });
+      } catch (e: any) { return j({ ok: false, reason: 'send_failed', detail: String(e?.message || e).slice(0, 120) }); }
+    }
+
     try {
       await redis(['SADD', REG_KEY, ns]);
       await redis(['SET', `kai:pulse:cfg:${ns}`, JSON.stringify({ tz: body?.tz || 'Africa/Cairo', subscription: body?.subscription || null, watches: Array.isArray(body?.watches) ? body.watches.slice(0, 3) : [], ts: Date.now() })]);

@@ -4,6 +4,7 @@ import InboxPanel from '../panels/InboxPanel';
 import SitePanel from '../panels/SitePanel';
 import WatchtowerPanel from '../panels/WatchtowerPanel';
 import EnvoyPanel from '../panels/EnvoyPanel';
+import FeldzugPanel from '../panels/FeldzugPanel';
 import DelegatePanel from '../panels/DelegatePanel';
 import VaultPanel from '../panels/VaultPanel';
 
@@ -15,6 +16,7 @@ export default function CommsView() {
       <SitePanel delay={0.25} />
       <WatchtowerPanel delay={0.30} />
       <EnvoyPanel delay={0.35} />
+      <FeldzugPanel delay={0.38} />
       <DelegatePanel delay={0.40} />
       <VaultPanel delay={0.45} />
     </div>

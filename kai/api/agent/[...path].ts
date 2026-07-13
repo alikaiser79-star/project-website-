@@ -23,6 +23,7 @@
 export const config = { runtime: 'edge' };
 
 const MODEL = 'claude-sonnet-4-6';
+const MODEL_CHEAP = 'claude-haiku-4-5-20251001';
 const MAX_STEPS = 12;
 const DEFAULT_TOKEN_BUDGET = 120_000;
 const FETCH_CAP = 12_000;      // chars of extracted page text
@@ -94,6 +95,56 @@ function readSpine(query: string, spine: any): string {
   } catch { return 'read_spine: snapshot unavailable.'; }
 }
 
+/* ── §19 THE SWEEP — one watch = one search + one cheap summarize.
+   Stateless, read-only. The client posts a watch's query, its extract
+   rule, and its prior finding; we run ONE web_search (the one-search-cap)
+   and ONE Haiku call that distils the result against the extract rule and
+   decides whether it CHANGED vs the prior (and whether it's BIG). Returns
+   { summary, sourceUrl, changed, big } — never proposes or sends. */
+async function watchSweep(key: string, body: any): Promise<Response> {
+  const query = String(body?.query || '').slice(0, 400);
+  if (!query) return j({ error: 'no_query' }, 400);
+  const extractRule = String(body?.extractRule || 'the single most decision-relevant fact').slice(0, 400);
+  const alertRule = String(body?.alertRule || '').slice(0, 200);
+  const prior = String(body?.prior || '').slice(0, 400);
+
+  const results = await webSearch(query);
+  const firstUrl = (results.match(/https?:\/\/[^\s]+/) || [])[0] || undefined;
+
+  const sys =
+    `You distil ONE web-search result into a single radar finding for Ali Kaiser. ` +
+    `Extract exactly: ${extractRule}. ` +
+    (alertRule ? `A finding is BIG only if: ${alertRule}. ` : `Mark BIG only for a genuinely decision-forcing move. `) +
+    `Compare against the PRIOR finding to decide if it CHANGED. Be terse and evidence-based — ` +
+    `no source in the results → say "no source". Reply ONLY with minified JSON: ` +
+    `{"summary":"<=140 chars","sourceUrl":"<url or empty>","changed":true|false,"big":true|false}.`;
+  const user = `PRIOR: ${prior || '(none)'}\n\nSEARCH RESULTS:\n${results.slice(0, 6000)}`;
+
+  let out = { summary: 'Checked — no readable result.', sourceUrl: firstUrl, changed: false, big: false };
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: MODEL_CHEAP, max_tokens: 300, system: sys, messages: [{ role: 'user', content: user }] }),
+    });
+    if (r.ok) {
+      const d: any = await r.json();
+      const text = (d?.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('');
+      const m = text.match(/\{[\s\S]*\}/);
+      if (m) {
+        const p = JSON.parse(m[0]);
+        out = {
+          summary: String(p.summary || out.summary).slice(0, 160),
+          sourceUrl: (p.sourceUrl && String(p.sourceUrl)) || firstUrl,
+          changed: !!p.changed,
+          big: !!p.big,
+        };
+      }
+    }
+  } catch { /* fall back to the default finding */ }
+  return j(out);
+}
+
 export default async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'POST,OPTIONS' } });
   if (req.method !== 'POST') return j({ error: 'method_not_allowed' }, 405);
@@ -103,6 +154,9 @@ export default async function handler(req: Request): Promise<Response> {
 
   let body: any;
   try { body = await req.json(); } catch { return j({ error: 'bad_body' }, 400); }
+
+  /* §19 sweep route: /api/agent/search */
+  if (new URL(req.url).pathname.endsWith('/search')) return watchSweep(key, body);
   const mission = body?.mission;
   const spine = body?.spine || {};
   if (!mission || typeof mission.goal !== 'string') return j({ error: 'no_mission' }, 400);
