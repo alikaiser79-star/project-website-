@@ -100,21 +100,27 @@ export function getCommandSignals(): Record<string, OrganSignal> {
       out['03'] = { formatted: fmtInt(plants), calling: gardenCalls(now) };
     } catch { out['03'] = { formatted: '—', calling: false }; }
 
-    /* 04 MAKADI — nightly rate. Calls NEEDS-YOU ONLY on the real
-       signal: 0 nights booked (latest nights_booked event, else
-       occupancy30d === 0). The fixLock default was removed as a
-       trigger — the lock was replaced, and a maintenance flag is
-       not a "needs you now" signal. */
+    /* 04 MAKADI — nightly rate. The signal now tracks the REAL lifecycle:
+         • a confirmed booking (booking_confirmed, or nights_booked > 0) →
+           the organ QUIETS. The listing is working; nothing needs Ali.
+         • listed-but-unbooked (listing_upgraded present, no booking yet) →
+           a GENTLE call (intensity 0.7): "live, waiting for the first guest",
+           not the urgent crimson of a broken thing.
+         • not even listed yet → a full call (legacy state).
+       (The fixLock default was removed earlier — a maintenance flag is not
+       a "needs you now" signal.) */
     try {
       const rate = s.makadi?.nightlyRate ?? 0;
       const rateCcy = (s.makadi?.rateCcy ?? 'USD') as Currency;
-      const lastNights = getEvents({ domain: 'makadi', type: 'nights_booked', since: now - 30 * DAY }).slice(-1)[0];
-      const nightsZero = lastNights
-        ? (lastNights.value ?? 0) === 0
-        : (s.makadi?.occupancy30d ?? 1) === 0;
+      const booked =
+        getEvents({ domain: 'makadi', type: 'booking_confirmed' }).length > 0 ||
+        getEvents({ domain: 'makadi', type: 'nights_booked' }).some((e) => (e.value ?? 0) > 0) ||
+        (s.makadi?.occupancy30d ?? 0) > 0;
+      const listed = getEvents({ domain: 'makadi', type: 'listing_upgraded' }).length > 0;
       out['04'] = {
         formatted: fmtMoney(rate, rateCcy),          // e.g. "34 USD" — never a naked number
-        calling: nightsZero,
+        calling: !booked,                            // quiets the moment a booking lands
+        intensity: booked ? 1 : listed ? 0.7 : 1,    // gentle while listed-but-unbooked
       };
     } catch { out['04'] = { formatted: '—', calling: false }; }
 

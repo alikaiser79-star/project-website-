@@ -27,6 +27,7 @@ import {
 } from './watches';
 import { askClaude } from '../claude';
 import { scanInbox } from './mailwatch';
+import { scanBookings } from './bookingwatch';
 
 const LAST_SWEEP = 'kai.radar.lastSweep';
 const LAST_RECO = 'kai.radar.lastReco';       // YYYY-MM-DD — recommend at most once/day
@@ -73,7 +74,9 @@ export async function sweepNow(force = false, now = Date.now()): Promise<SweepRe
   let findings: Awaited<ReturnType<typeof runSweep>> = [];
   try { findings = await runSweep(radarSearchFn, now); }
   catch { /* whole-sweep failure shouldn't throw into the UI */ }
-  /* §14.3 — the Gmail lead-watcher runs on the same beat (own throttle). */
+  /* §14.3 — the Gmail watchers run on the same beat (own throttles). The
+     booking-watcher is the priority one: it can fire the first-booking push. */
+  try { await scanBookings(false, now); } catch { /* Gmail may not be wired */ }
   try { await scanInbox(false, now); } catch { /* Gmail may not be wired */ }
   markSwept(now);
 

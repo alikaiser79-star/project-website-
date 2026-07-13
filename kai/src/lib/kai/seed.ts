@@ -32,9 +32,11 @@
 import { loadState, saveState } from '../store';
 import { addExpense } from '../expenses';
 import { logEvent } from './events';
+import { markKeptByMatch } from './commitments';
 import { read, write, emit } from './store';
 
 const SEED_FLAG = 'kai.seeded.v3';
+const LISTING_FLAG = 'kai.makadi.listingUpgraded.v1';
 
 export interface SeedResult { ran: boolean; reason?: string; events?: number; }
 
@@ -141,6 +143,37 @@ export function migrateMoney(): void {
     }
     if (changed) { write(KEY, list); emit(); }
   } catch { /* ignore — boot must never throw here */ }
+}
+
+/* ── §14.3 status update — THE MAKADI LISTING IS LIVE ──────────
+   The renovated listing went live 2026-07-14 (new golden-hour photo set,
+   priced against scouted comps, peak season). Run-once (guarded by
+   LISTING_FLAG): log the win to the Spine, and RECOVER the July-12 listing
+   commitment — force it KEPT with this event as evidence, since the Mirror's
+   auto-resolver can't revive a commitment it already marked broken. The
+   "first booking by Aug 1" commitment is deliberately left untouched: it
+   stays armed, watching for a real makadi booking event. Idempotent. */
+export function migrateMakadiListing(now: number = Date.now()): void {
+  try { if (localStorage.getItem(LISTING_FLAG) === '1') return; } catch { return; }
+  try {
+    const ev = logEvent({
+      domain: 'makadi', type: 'listing_upgraded', value: 1,
+      meta: { photos: 'new set', cover: 'golden hour', date: '2026-07-14' },
+      source: 'user', ts: now,
+    });
+
+    /* Recover ONLY the listing commitment — makadi domain, listing-shaped
+       text, and explicitly NOT a booking commitment (that one stays armed). */
+    markKeptByMatch((c) => {
+      const t = (c.text || '').toLowerCase();
+      const makadi = c.metric?.domain === 'makadi' || /makadi/.test(t);
+      const listing = /(list|photo|relist|upload|go[- ]?live|publish|renovat)/.test(t);
+      const booking = /book/.test(t);
+      return makadi && listing && !booking;
+    }, ev.id, now);
+
+    try { localStorage.setItem(LISTING_FLAG, '1'); } catch { /* ignore */ }
+  } catch { /* boot must never throw here */ }
 }
 
 /* Dev console hooks:

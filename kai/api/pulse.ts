@@ -135,6 +135,24 @@ export default async function handler(req: Request): Promise<Response> {
       } catch (e: any) { return j({ ok: false, reason: 'send_failed', detail: String(e?.message || e).slice(0, 120) }); }
     }
 
+    /* §14.3 — immediate custom push. The client fires this the instant a
+       real event worth a push lands (the first Makadi booking). Bypasses the
+       daily cap — a confirmed booking is always worth one. Content is clamped
+       and only reaches THIS namespace's own subscription (sync-key gated). */
+    if (body?.action === 'push') {
+      if (!VAPID) return j({ ok: false, reason: 'no_vapid' });
+      let sub: PushSubscription | null = null;
+      try { const raw = await redis(['GET', `kai:pulse:cfg:${ns}`]); if (raw) sub = JSON.parse(raw).subscription || null; } catch { /* ignore */ }
+      if (!sub || !sub.endpoint) return j({ ok: false, reason: 'no_subscription' });
+      const title = String(body.title || 'KAI').slice(0, 80);
+      const text = String(body.body || '').slice(0, 180);
+      const tag = String(body.tag || 'kai').slice(0, 60);
+      try {
+        const status = await sendPush(sub, JSON.stringify({ title, body: text, tag }), VAPID);
+        return j({ ok: status >= 200 && status < 300, status });
+      } catch (e: any) { return j({ ok: false, reason: 'send_failed', detail: String(e?.message || e).slice(0, 120) }); }
+    }
+
     try {
       await redis(['SADD', REG_KEY, ns]);
       await redis(['SET', `kai:pulse:cfg:${ns}`, JSON.stringify({ tz: body?.tz || 'Africa/Cairo', subscription: body?.subscription || null, watches: Array.isArray(body?.watches) ? body.watches.slice(0, 3) : [], ts: Date.now() })]);
