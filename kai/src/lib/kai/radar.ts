@@ -26,6 +26,7 @@ import {
   recentFindings, sweepSummary, listWatches,
 } from './watches';
 import { askClaude } from '../claude';
+import { scanInbox } from './mailwatch';
 
 const LAST_SWEEP = 'kai.radar.lastSweep';
 const LAST_RECO = 'kai.radar.lastReco';       // YYYY-MM-DD — recommend at most once/day
@@ -60,6 +61,8 @@ export async function sweepNow(force = false, now = Date.now()): Promise<SweepRe
   let findings: Awaited<ReturnType<typeof runSweep>> = [];
   try { findings = await runSweep(radarSearchFn, now); }
   catch { /* whole-sweep failure shouldn't throw into the UI */ }
+  /* §14.3 — the Gmail lead-watcher runs on the same beat (own throttle). */
+  try { await scanInbox(false, now); } catch { /* Gmail may not be wired */ }
   markSwept(now);
 
   let recommended = 0;
