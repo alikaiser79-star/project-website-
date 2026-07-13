@@ -58,3 +58,19 @@ export async function enableShadow(): Promise<{ ok: boolean; reason?: string }> 
 }
 
 export function disableShadow(): void { try { localStorage.setItem(KEY, '0'); } catch { /* ignore */ } }
+
+/* §14.2 — fire an immediate test push to this device's subscription so
+   delivery can be verified without waiting for the daily pulse. */
+export async function sendTestPush(): Promise<{ ok: boolean; reason?: string }> {
+  const key = getSyncKey();
+  if (!key) return { ok: false, reason: 'sync-off' };
+  try {
+    const r = await fetch('/api/pulse', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-kai-sync-key': key },
+      body: JSON.stringify({ action: 'test' }),
+    });
+    const d = await r.json().catch(() => ({}));
+    return { ok: !!d.ok, reason: d.reason };
+  } catch { return { ok: false, reason: 'offline' }; }
+}

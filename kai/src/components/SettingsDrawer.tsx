@@ -33,7 +33,7 @@ import {
   isSyncEnabled, getSyncKey, enableSync, disableSync, syncNow, syncConfigured,
   getSyncStatus, onSyncStatus, type SyncStatus,
 } from '../lib/kai/sync';
-import { shadowEnabled, pulseConfigured, enableShadow, disableShadow } from '../lib/kai/shadow';
+import { shadowEnabled, pulseConfigured, enableShadow, disableShadow, sendTestPush } from '../lib/kai/shadow';
 
 const ACCENTS: { id: Accent; label: string; hex: string }[] = [
   { id: 'amber',   label: 'Amber',   hex: '#FFB300' },
@@ -402,6 +402,17 @@ function ShadowSection() {
     } finally { setBusy(false); }
   }
 
+  async function testPush() {
+    setBusy(true);
+    try {
+      const r = await sendTestPush();
+      if (r.ok) toast.ok('Test push sent — check your notifications.', 'SCHATTEN', 4000);
+      else if (r.reason === 'no_vapid') toast.err('Push keys not wired on the server (VAPID).');
+      else if (r.reason === 'no_subscription') toast.err('No subscription yet — turn Der Schatten on and allow notifications.');
+      else toast.err('Test push failed to send.');
+    } finally { setBusy(false); }
+  }
+
   return (
     <div className="space-y-2 text-[11px]">
       {ready === false ? (
@@ -425,6 +436,12 @@ function ShadowSection() {
             overnight and writes them to the Spine, so the morning state is ready on any device. One
             quiet dispatch at 07:30 Cairo when something needs you — silence otherwise. Needs Spine sync on.
           </p>
+          {enabled && (
+            <button onClick={testPush} disabled={busy}
+              className="w-full flex items-center justify-center gap-1.5 px-2 py-2 border border-amber/40 text-amber/90 hover:border-amber rounded text-[10px] tracking-[0.14em] uppercase disabled:opacity-50">
+              <Moon size={11} /> {busy ? '…' : 'Send test push'}
+            </button>
+          )}
         </>
       )}
     </div>
