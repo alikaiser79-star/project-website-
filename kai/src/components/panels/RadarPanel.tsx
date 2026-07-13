@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import { Radar, Loader2, Plus } from 'lucide-react';
 import { useKaiVersion } from '../../lib/kai/mirror';
 import { listWatches, addWatch, recentFindings, type WatchCadence } from '../../lib/kai/watches';
-import { sweepNow, openRecommendations, radarLine } from '../../lib/kai/radar';
+import { sweepNow, openRecommendations, radarLine, radarHealth, type RadarHealth } from '../../lib/kai/radar';
 
 const CADENCES: WatchCadence[] = ['daily', 'weekly', 'monthly'];
 
@@ -22,6 +22,7 @@ export default function RadarPanel({ delay = 0 }: { delay?: number }) {
   const [name, setName] = useState('');
   const [query, setQuery] = useState('');
   const [cadence, setCadence] = useState<WatchCadence>('weekly');
+  const [health, setHealth] = useState<RadarHealth | null>(null);
 
   const watches = listWatches();
   const recos = openRecommendations();
@@ -33,8 +34,14 @@ export default function RadarPanel({ delay = 0 }: { delay?: number }) {
     let live = true;
     setSweeping(true);
     sweepNow().catch(() => {}).finally(() => { if (live) setSweeping(false); });
+    radarHealth().then((h) => { if (live) setHealth(h); }).catch(() => {});
     return () => { live = false; };
   }, []);
+
+  /* keys missing → tell the operator exactly which one, no curl needed. */
+  const missing = health && !health.ready
+    ? [!health.anthropic && 'ANTHROPIC_API_KEY', !health.tavily && 'TAVILY_API_KEY'].filter(Boolean).join(' + ')
+    : null;
 
   async function forceSweep() {
     setSweeping(true);
@@ -71,6 +78,11 @@ export default function RadarPanel({ delay = 0 }: { delay?: number }) {
         </button>
       </div>
 
+      {missing && (
+        <div className="font-mono text-[10px] text-amber/70 mb-3 leading-snug">
+          Radar idle — set {missing} in Vercel, then redeploy.
+        </div>
+      )}
       {line && <div className="font-mono text-[10px] text-steel/60 mb-3">{line}</div>}
 
       {/* recommendations — surfaced, not fired */}
