@@ -17,7 +17,8 @@ export type Domain =
   | 'income' | 'debt' | 'garden' | 'makadi' | 'instagram'
   | 'priorities' | 'expense' | 'habit' | 'content'
   | 'commitment' | 'people' | 'system' | 'anomaly'
-  | 'agent' | 'leads' | 'deadline' | 'money';
+  | 'agent' | 'leads' | 'deadline' | 'money'
+  | 'radar' | 'campaign' | 'counsel';
 
 export type EventSource = 'user' | 'voice' | 'receipt' | 'braindump' | 'ai' | 'auto';
 
