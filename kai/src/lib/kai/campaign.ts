@@ -40,6 +40,7 @@ export interface Target {
   status: TargetStatus;
   lastTouch?: number;      // ms — last time we drafted/sent to them
   notes?: string;
+  lastDraft?: { subject: string; body: string; at: number };   // last generated draft (kept even when unsent)
 }
 
 export function listTargets(): Target[] { return read<Target[]>(KEY, []); }
@@ -89,7 +90,7 @@ const STORY =
   'cultural events, and a genuine local partner who shows up and follows through.\n' +
   '- Voice: warm but direct, no corporate fluff, no over-promising. Short paragraphs. One clear ask.';
 
-export interface DraftResult { ok: boolean; reason?: string; subject?: string; }
+export interface DraftResult { ok: boolean; reason?: string; subject?: string; noRecipient?: boolean; }
 
 export async function draftOutreach(targetId: string): Promise<DraftResult> {
   const t = listTargets().find((x) => x.id === targetId);
@@ -116,11 +117,21 @@ export async function draftOutreach(targetId: string): Promise<DraftResult> {
   }
   if (!body) return { ok: false, reason: 'empty' };
 
+  /* Keep the draft on the target either way — a heavy generation isn't
+     wasted just because a recipient hasn't been added yet. */
+  const now = Date.now();
+  updateTarget(t.id, { lastDraft: { subject, body, at: now }, lastTouch: now });
+
+  /* No recipient → don't queue a doomed Gate action (send would 400).
+     The draft is saved; the operator adds an email, then re-drafts to
+     queue it. */
+  if (!t.email) return { ok: true, subject, noRecipient: true };
+
   /* THE GATE — queue, never send. The email leaves only on Ali's tap. */
   proposeAction('email_send', `Outreach → ${t.name} (${t.lang})`, {
-    to: t.email || '', subject, body, targetId: t.id,
+    to: t.email, subject, body, targetId: t.id,
   });
-  updateTarget(t.id, { lastTouch: Date.now(), status: t.status === 'scouted' ? 'contacted' : t.status });
+  updateTarget(t.id, { status: t.status === 'scouted' ? 'contacted' : t.status });
   try { logEvent({ domain: 'campaign', type: 'draft_queued', meta: { id: t.id, name: t.name, lang: t.lang }, source: 'ai' }); } catch { /* ignore */ }
   return { ok: true, subject };
 }

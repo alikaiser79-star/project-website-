@@ -47,6 +47,7 @@ export default async function handler(req: any, res: any) {
       }
       return {
         id,
+        threadId: full.data.threadId || id,   // conversation key — dedups the watcher per thread, not per message
         from:    headers.From    || '',
         subject: headers.Subject || '',
         date:    headers.Date    || '',

@@ -24,6 +24,7 @@ const LANGS: TargetLang[] = ['en', 'de', 'ru', 'ar'];
 export default function FeldzugPanel({ delay = 0 }: { delay?: number }) {
   useKaiVersion();
   const [drafting, setDrafting] = useState<string | null>(null);
+  const [openDraft, setOpenDraft] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,7 +44,8 @@ export default function FeldzugPanel({ delay = 0 }: { delay?: number }) {
     setDrafting(t.id);
     try {
       const r = await draftOutreach(t.id);
-      if (r.ok) toast.ok(`Draft for ${t.name} queued at the Gate — approve to send.`, 'FELDZUG', 3200);
+      if (r.ok && r.noRecipient) { toast.warn(`Draft for ${t.name} ready — add an email to send it.`, 'FELDZUG', 3600); setOpenDraft(t.id); }
+      else if (r.ok) { toast.ok(`Draft for ${t.name} queued at the Gate — approve to send.`, 'FELDZUG', 3200); setOpenDraft(t.id); }
       else toast.err(r.reason === 'no_key' ? 'Needs a server key to draft.' : 'Draft failed.', 'FELDZUG', 3000);
     } catch { toast.err('Draft failed.', 'FELDZUG', 3000); }
     setDrafting(null);
@@ -102,6 +104,20 @@ export default function FeldzugPanel({ delay = 0 }: { delay?: number }) {
               </button>
             </div>
             {t.offer && <div className="font-mono text-[10px] text-steel/50 mt-0.5 truncate">{t.offer}</div>}
+            <div className="flex items-center gap-2 mt-0.5">
+              {!t.email && <span className="font-mono text-[9px] text-amber/60">no email — add to send</span>}
+              {t.lastDraft && (
+                <button onClick={() => setOpenDraft(openDraft === t.id ? null : t.id)} className="font-mono text-[9px] tracking-[0.1em] uppercase text-steel/50 hover:text-amber">
+                  {openDraft === t.id ? 'hide draft' : 'view draft'}
+                </button>
+              )}
+            </div>
+            {openDraft === t.id && t.lastDraft && (
+              <div className="mt-1.5 border-t border-white/[0.06] pt-1.5">
+                <div className="font-mono text-[10px] text-bone/80">{t.lastDraft.subject}</div>
+                <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[10px] text-steel/70 leading-snug">{t.lastDraft.body}</pre>
+              </div>
+            )}
           </div>
         ))}
       </div>
