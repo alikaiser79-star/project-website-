@@ -117,9 +117,12 @@ export default function CommandBar({ open, onClose, settings }: Props) {
       pushTurn(text, '');
       try {
         const r = await draftOutreach(t.id);
-        replaceLast(r.ok
-          ? `Drafted outreach to ${t.name} in ${t.lang.toUpperCase()} — queued at the Gate. Approve to send.`
-          : r.reason === 'no_key' ? 'The draft engine needs a server key.' : 'Draft failed — try again.');
+        replaceLast(
+          r.ok && r.noRecipient
+            ? `Drafted outreach to ${t.name} in ${t.lang.toUpperCase()}. No email on file — add one in the Feldzug panel, then it queues at the Gate.`
+            : r.ok
+              ? `Drafted outreach to ${t.name} in ${t.lang.toUpperCase()} — queued at the Gate. Approve to send.`
+              : r.reason === 'no_key' ? 'The draft engine needs a server key.' : 'Draft failed — try again.');
       } catch { replaceLast('Draft failed — try again.'); }
       finally { setThinking(false); }
       return;
