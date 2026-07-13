@@ -17,6 +17,27 @@
 
 import { gmailClient, explain } from './_client.js';
 
+/* RFC 2047 encoded-word for a non-ASCII header value (subjects in
+   German/Russian/Arabic — anything Der Feldzug drafts). Chunks by whole
+   characters so each word encodes an integral number of characters and
+   stays within the 75-char header limit; ASCII passes through untouched. */
+function encodeHeader(value: string): string {
+  if (/^[\x00-\x7F]*$/.test(value)) return value;
+  const chars = Array.from(value);          // surrogate-safe
+  const words: string[] = [];
+  let chunk = '';
+  const flush = () => { if (chunk) { words.push('=?UTF-8?B?' + Buffer.from(chunk, 'utf-8').toString('base64') + '?='); chunk = ''; } };
+  for (const ch of chars) {
+    /* keep each encoded-word ≤ 75 chars: base64 of the chunk's bytes
+       must stay ≤ 63 (10 for "=?UTF-8?B?" + 2 for "?=" = 12 overhead). */
+    const nextBytes = Buffer.byteLength(chunk + ch, 'utf-8');
+    if (Math.ceil(nextBytes / 3) * 4 > 63) flush();
+    chunk += ch;
+  }
+  flush();
+  return words.join('\r\n ');               // folding whitespace between words
+}
+
 export default async function handler(req: any, res: any) {
   res.setHeader('Content-Type', 'application/json');
 
@@ -44,7 +65,7 @@ export default async function handler(req: any, res: any) {
        Gmail API expects. */
     const lines = [
       `To: ${to}`,
-      `Subject: ${subject}`,
+      `Subject: ${encodeHeader(subject)}`,
       'MIME-Version: 1.0',
       'Content-Type: text/plain; charset=utf-8',
       '',
