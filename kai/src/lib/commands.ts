@@ -22,6 +22,7 @@ import { waterBriefingLine } from './kai/garden';
 import { parseDeadlineCommand, addDeadline, deadlineBriefing } from './kai/deadlines';
 import { warChestBrief } from './kai/warchest';
 import { weeklyDrifts } from './kai/patterns';
+import { addWatch } from './kai/watches';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -148,6 +149,19 @@ export function runBuiltin(cmd: string): CmdResult | null {
       addDeadline(dl.text, dl.date);
       const when = new Date(dl.date).toLocaleDateString(operator.locale, { weekday: 'short', day: '2-digit', month: 'short' });
       return `Deadline set — ${dl.text}, ${when}. The sentinel is watching.`;
+    }
+  }
+
+  /* Das Radar (§19) — "watch <name> for <what>, weekly" adds a custom
+     watch to the sweep. Cadence optional (defaults weekly). */
+  {
+    const wm = cmd.match(/^watch\s+(.+?)\s+for\s+(.+?)(?:[,;]?\s*(daily|weekly|monthly))?\s*$/i);
+    if (wm) {
+      const name = wm[1].trim();
+      const what = wm[2].trim();
+      const cadence = (wm[3]?.toLowerCase() as 'daily' | 'weekly' | 'monthly') || 'weekly';
+      const w = addWatch({ name, query: `${name}: ${what}`, extractRule: what, cadence, domain: 'custom' });
+      return `Watching “${w.name}” — ${cadence}. It joins the next sweep; findings land on the Radar.`;
     }
   }
 

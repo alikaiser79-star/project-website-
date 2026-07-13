@@ -1,6 +1,7 @@
 /* OPERATIONS view (§13.1 route-split chunk). */
 import DeadlinesPanel from '../panels/DeadlinesPanel';
 import MissionPanel from '../panels/MissionPanel';
+import RadarPanel from '../panels/RadarPanel';
 import LeadsPanel from '../panels/LeadsPanel';
 import GardenPanel from '../panels/GardenPanel';
 import MakadiPanel from '../panels/MakadiPanel';
@@ -13,6 +14,7 @@ export default function OpsView() {
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
       <DeadlinesPanel delay={0.05} />
       <MissionPanel delay={0.06} />
+      <RadarPanel delay={0.07} />
       <LeadsPanel delay={0.08} />
       <GardenPanel delay={0.10} />
       <MakadiPanel delay={0.15} />
