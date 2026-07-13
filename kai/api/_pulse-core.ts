@@ -57,14 +57,28 @@ export function pulsePushes(events: PulseEvent[], now: number, dispatch: string 
     if (hrs > 0 && hrs <= 48) out.push({ title: 'KAI · ALARM', body: `${text} — due in ${Math.round(hrs)}h`, tag: 'due-' + (d.meta?.id || text), priority: 3 });
   }
 
-  /* ALARM — a booking inquiry unanswered > 2h (fed by the Gmail watcher,
-     §14.3). Answered when a later leads/booking_replied for the same
-     thread exists. Forward-compatible: silent until the watcher feeds it. */
-  const inquiries = events.filter((e) => e.domain === 'leads' && e.type === 'booking_inquiry');
+  /* CELEBRATION — a confirmed Makadi booking (the booking-watcher, §14.3).
+     The client fires this the instant it detects the email; this is the
+     pulse-side FALLBACK for when the app wasn't open. Only recent (<24h)
+     confirmations, deduped by thread tag, so old bookings never re-notify. */
+  const confirmed = events.filter((e) => e.domain === 'makadi' && e.type === 'booking_confirmed');
+  for (const b of confirmed) {
+    if (now - b.ts >= 24 * HOUR) continue;
+    const thread = String(b.meta?.thread || b.id);
+    const guest = String(b.meta?.guest || 'A guest');
+    const when = b.meta?.dates ? ` — ${b.meta.dates}` : '';
+    out.push({ title: 'KAI · BOOKING', body: `${guest} booked Makadi${when}. First light. 🌅`, tag: 'booking-' + thread, priority: 3 });
+  }
+
+  /* ALARM — a booking inquiry unanswered > 2h (the Gmail booking-watcher,
+     §14.3; domains leads OR makadi). Answered when a later booking_replied
+     for the same thread exists. Nudges for up to 48h, then goes quiet. */
+  const inquiries = events.filter((e) => (e.domain === 'leads' || e.domain === 'makadi') && e.type === 'booking_inquiry');
   for (const q of inquiries) {
     const thread = String(q.meta?.thread || q.id);
-    const answered = events.some((e) => e.domain === 'leads' && e.type === 'booking_replied' && String(e.meta?.thread) === thread);
-    if (!answered && now - q.ts > 2 * HOUR) out.push({ title: 'KAI · ALARM', body: `Booking inquiry still unanswered (${Math.round((now - q.ts) / HOUR)}h)`, tag: 'inquiry-' + thread, priority: 3 });
+    const answered = events.some((e) => (e.domain === 'leads' || e.domain === 'makadi') && e.type === 'booking_replied' && String(e.meta?.thread) === thread);
+    const age = now - q.ts;
+    if (!answered && age > 2 * HOUR && age < 48 * HOUR) out.push({ title: 'KAI · ALARM', body: `Booking inquiry still unanswered (${Math.round(age / HOUR)}h)`, tag: 'inquiry-' + thread, priority: 3 });
   }
 
   /* MORNING dispatch — the day's one line, if anything needs him. */

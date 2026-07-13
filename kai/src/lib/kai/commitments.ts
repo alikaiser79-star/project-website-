@@ -116,6 +116,37 @@ export function resolveCommitments(now: number = Date.now()): Commitment[] {
   return list;
 }
 
+/* Force-resolve matching OPEN or BROKEN commitments to KEPT with explicit
+   evidence. Used when a real-world win recovers a commitment the automatic
+   resolver can't reach — e.g. a commitment already marked BROKEN, or one
+   whose metric event never fired because the win came in off-Spine. Returns
+   how many were recovered. Emits commitment_kept (meta.recovered) per hit. */
+export function markKeptByMatch(
+  match: (c: Commitment) => boolean,
+  evidenceEventId: string,
+  now: number = Date.now(),
+): number {
+  const list = getCommitments();
+  let n = 0;
+  for (const c of list) {
+    if (c.status === 'kept') continue;
+    if (!match(c)) continue;
+    c.status = 'kept';
+    c.resolvedAt = now;
+    c.evidenceEventId = evidenceEventId;
+    n++;
+    try {
+      logEvent({
+        domain: 'commitment', type: 'commitment_kept',
+        value: 1, meta: { id: c.id, text: c.text, recovered: true },
+        source: 'auto', ts: now,
+      });
+    } catch { /* ignore */ }
+  }
+  if (n) save(list);
+  return n;
+}
+
 export interface MirrorScore { kept: number; broken: number; total: number; score: number | null; }
 
 export function mirrorScore(now: number = Date.now(), windowDays = 30): MirrorScore {

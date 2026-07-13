@@ -42,6 +42,7 @@ function mulberry32(seed: number): () => number {
 export interface OrganSignal {
   formatted: string;            // display value, e.g. "$12,480"
   calling: boolean;             // domain says "needs you"
+  intensity?: number;           // 0..1 call strength (default 1). <1 = a gentle call.
 }
 
 export type SignalProvider = () => Record<string, OrganSignal>;
@@ -92,6 +93,7 @@ interface OrganState {
   status: 'idle' | 'calling';
   ackFlash: number;
   callStart: number;
+  intensity: number;            // 0..1 call strength; 1 = urgent (default), <1 = gentle
   _lvs?: string;
   _lvc?: string;
   _lfc?: boolean;
@@ -230,7 +232,7 @@ export class CommandCore {
     /* seed organ states */
     for (const [id] of PANEL_DEFS) {
       this.organs[id] = {
-        status: 'idle', ackFlash: 0, callStart: 0,
+        status: 'idle', ackFlash: 0, callStart: 0, intensity: 1,
         label: this.organsDom[id]?.label ?? id,
       };
     }
@@ -608,10 +610,11 @@ export class CommandCore {
     for (const id in this.organs) {
       if (this.organs[id].status !== 'calling') continue;
       const art = this.arteryByPanel[id]; if (!art) continue;
+      const k = this.organs[id].intensity ?? 1;          // gentle call → softer, thinner throb
       const beat = 0.5 + 0.5 * Math.sin(now * 4);
       const p = art.pts;
-      ctx.strokeStyle = `rgba(255,${60 + 30 * beat | 0},48,${0.35 + 0.4 * beat})`;
-      ctx.lineWidth = 2.4 + 2 * beat;
+      ctx.strokeStyle = `rgba(255,${60 + 30 * beat | 0},48,${(0.35 + 0.4 * beat) * k})`;
+      ctx.lineWidth = (2.4 + 2 * beat) * (0.6 + 0.4 * k);
       ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
       for (let i = 1; i < p.length; i++) ctx.lineTo(p[i].x, p[i].y);
       ctx.stroke();
@@ -764,6 +767,9 @@ export class CommandCore {
       const s = signals[id];
       const o = this.organs[id];
       const wantsCall = !!s?.calling;
+      /* carry the call strength every tick so a signal can soften an
+         already-active call (e.g. Makadi: listed-but-unbooked = gentle). */
+      o.intensity = typeof s?.intensity === 'number' ? Math.max(0, Math.min(1, s.intensity)) : 1;
       if (wantsCall && o.status === 'idle') {
         o.status = 'calling';
         o.callStart = this.last;

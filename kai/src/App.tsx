@@ -24,6 +24,7 @@ import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
 import { startMirror } from './lib/kai/mirror';
+import { scanBookings } from './lib/kai/bookingwatch';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import MobileCommand from './components/MobileCommand';
 import { useIsMobile } from './hooks/useIsMobile';
@@ -38,7 +39,7 @@ import DayRitual from './components/DayRitual';
 import { shouldDayCompile, shouldShutdown } from './lib/kai/protocol';
 import NightWatch from './components/NightWatch';
 import { startWatchtower } from './lib/kai/watchtower';
-import { seedSpine, installSeedDevHooks, migrateMoney } from './lib/kai/seed';
+import { seedSpine, installSeedDevHooks, migrateMoney, migrateMakadiListing } from './lib/kai/seed';
 import { seedCodex, installGardenDevHooks } from './lib/kai/garden';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
@@ -319,12 +320,25 @@ export default function App() {
      and safe to call any time. */
   useEffect(() => startMirror(), []);
 
+  /* §14.3 — the Makadi booking-watcher runs eagerly: on open and every
+     time the app returns to the foreground (throttled inside scanBookings).
+     This is the path that fires the first-booking push the moment it lands,
+     rather than waiting for the Ops-view sweep or the nightly pulse. */
+  useEffect(() => {
+    const scan = () => { void scanBookings().catch(() => {}); };
+    scan();
+    const onVis = () => { if (document.visibilityState === 'visible') scan(); };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', scan);
+    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('focus', scan); };
+  }, []);
+
   /* Spine seed — run once (guarded). Writes Ali's real July state
      (debt 59k/89k, makadi 45/0 nights/lock replaced, garden 85,
      cash 15k) + logs the 15 canonical events. window.__kaiSeed()
      forces a re-seed for dev. */
   useEffect(() => {
-    installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); seedCodex();
+    installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); migrateMakadiListing(); seedCodex();
     /* §13.3 verification hooks (retrieval / patterns / tokens) */
     try {
       (window as any).__kaiRetrieve = (q: string) => retrieveEvents(q);

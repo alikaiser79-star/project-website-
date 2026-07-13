@@ -74,3 +74,19 @@ export async function sendTestPush(): Promise<{ ok: boolean; reason?: string }> 
     return { ok: !!d.ok, reason: d.reason };
   } catch { return { ok: false, reason: 'offline' }; }
 }
+
+/* §14.3 — fire an immediate real push (the booking-watcher uses this for
+   the first-booking moment). Requires sync on + a subscription registered. */
+export async function announcePush(title: string, body: string, tag: string): Promise<{ ok: boolean; reason?: string }> {
+  const key = getSyncKey();
+  if (!key) return { ok: false, reason: 'sync-off' };
+  try {
+    const r = await fetch('/api/pulse', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-kai-sync-key': key },
+      body: JSON.stringify({ action: 'push', title, body, tag }),
+    });
+    const d = await r.json().catch(() => ({}));
+    return { ok: !!d.ok, reason: d.reason };
+  } catch { return { ok: false, reason: 'offline' }; }
+}
