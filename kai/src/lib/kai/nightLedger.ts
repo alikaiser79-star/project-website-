@@ -7,6 +7,7 @@
    ============================================================ */
 
 import { getEvents } from './events';
+import { staleTargets } from './campaign';
 
 const DAY = 86_400_000;
 const SEEN = 'kai.nightledger.seen';
@@ -36,6 +37,9 @@ export function nightLedger(now = Date.now()): NightReport {
   for (const e of anom.slice(-1)) lines.push(String(e.meta?.detail || 'Anomaly detected'));
   for (const e of bigFindings.slice(-1)) lines.push(`Radar: ${String(e.meta?.summary || 'a big move')}`);
   for (const e of recos.slice(-1)) lines.push(`Radar suggests: ${String(e.meta?.title || 'a move')}`);
+  /* §18 Feldzug — targets contacted but gone cold need a follow-up. */
+  const stale = (() => { try { return staleTargets(now); } catch { return []; } })();
+  if (stale.length) lines.push(`Feldzug: ${stale.length} target${stale.length === 1 ? '' : 's'} going cold — ${stale.slice(0, 2).map((t) => t.name).join(', ')}`);
 
   const pulseRan = pulses.length > 0;
   if (pulseRan && !lines.length) lines.push('Nothing moved overnight.');
