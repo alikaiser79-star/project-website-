@@ -25,6 +25,7 @@ import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
 import { startMirror } from './lib/kai/mirror';
 import { scanBookings } from './lib/kai/bookingwatch';
+import { makadiDiag } from './lib/kai/commandSignals';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import MobileCommand from './components/MobileCommand';
 import { useIsMobile } from './hooks/useIsMobile';
@@ -344,6 +345,7 @@ export default function App() {
       (window as any).__kaiRetrieve = (q: string) => retrieveEvents(q);
       (window as any).__kaiDrifts = () => weeklyDrifts();
       (window as any).__kaiTokens = () => tokenTotals(30);
+      (window as any).__kaiMakadi = () => { const r = makadiDiag(); console.info('[KAI makadi]', r); return r; };
     } catch { /* ignore */ }
   }, []);
 
