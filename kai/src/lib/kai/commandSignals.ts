@@ -260,7 +260,9 @@ export function makadiDiag(now: number = Date.now()) {
     .filter((c) => /makadi|list|book/i.test(c.text) || c.metric?.domain === 'makadi')
     .map((c) => ({ text: c.text, status: c.status, event: c.metric?.event, resolvedAt: c.resolvedAt }));
   return {
-    suspect1_migrationRan: flag === '1',
+    suspect1_migrationRan: g('listing_upgraded').length > 0,   // truth = the EVENT persisted, not the legacy flag
+    legacyFlag: flag,                                          // if '1' but no event → the sync-clobber this fix heals
+    migration_confirmations: getEvents({ domain: 'system', type: 'listing_migration' }).map((e) => e.meta),
     listing_upgraded_events: g('listing_upgraded').length,
     booking_confirmed_events: g('booking_confirmed').length,
     nights_booked_values: g('nights_booked').map((e) => e.value),

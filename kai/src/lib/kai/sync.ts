@@ -108,10 +108,7 @@ export async function syncNow(): Promise<void> {
   inFlight = true;
   setStatus('syncing');
   try {
-    /* 1. EVENTS — pull remote, union by id into local. */
-    const local = read<KaiEvent[]>(EVENTS_KEY, []);
-    const localIds = new Set(local.map((e) => e.id));
-
+    /* 1. EVENTS — pull remote, union by id into the CURRENT local store. */
     const pullRes = await api('pull');
     if (pullRes.status === 503) { setStatus('off'); inFlight = false; return; }   // server not configured
     if (pullRes.status === 401) throw new Error('bad key');
@@ -119,16 +116,23 @@ export async function syncNow(): Promise<void> {
     const remote: KaiEvent[] = (await pullRes.json()).events || [];
     const remoteIds = new Set(remote.map((e) => e.id));
 
-    let merged = local;
-    const fresh = remote.filter((e) => e && e.id && !localIds.has(e.id));
+    /* Re-READ local AFTER the pull. Anything logEvent()'d during the await
+       (e.g. a boot-time migration) is in storage but NOT in the `local`
+       snapshot above; unioning against the CURRENT store instead of the
+       stale snapshot means a concurrent append is never clobbered by the
+       merge write. */
+    const localNow = read<KaiEvent[]>(EVENTS_KEY, []);
+    const curIds = new Set(localNow.map((e) => e.id));
+    const fresh = remote.filter((e) => e && e.id && !curIds.has(e.id));
+    let merged = localNow;
     if (fresh.length) {
-      merged = [...local, ...fresh].sort((a, b) => a.ts - b.ts);
+      merged = [...localNow, ...fresh].sort((a, b) => a.ts - b.ts);
       if (merged.length > 2000) merged = merged.slice(merged.length - 2000);
       write(EVENTS_KEY, merged);
       emit();                                   // wake every Spine-reading panel
     }
 
-    /* 2. PUSH — send events the server is missing. */
+    /* 2. PUSH — send events the server is missing (incl. concurrent appends). */
     const missing = merged.filter((e) => !remoteIds.has(e.id));
     if (missing.length) {
       const pushRes = await api('push', { method: 'POST', body: JSON.stringify({ events: missing }) });
