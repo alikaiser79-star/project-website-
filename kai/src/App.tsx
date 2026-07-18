@@ -24,7 +24,7 @@ import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
 import { startMirror } from './lib/kai/mirror';
-import { scanBookings } from './lib/kai/bookingwatch';
+import { scanBookings, getBookingTelemetry } from './lib/kai/bookingwatch';
 import { makadiDiag } from './lib/kai/commandSignals';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import MobileCommand from './components/MobileCommand';
@@ -346,6 +346,8 @@ export default function App() {
       (window as any).__kaiDrifts = () => weeklyDrifts();
       (window as any).__kaiTokens = () => tokenTotals(30);
       (window as any).__kaiMakadi = () => { const r = makadiDiag(); console.info('[KAI makadi]', r); return r; };
+      (window as any).__kaiBookingLog = () => { const r = getBookingTelemetry(); console.info('[KAI booking scans]', r); return r; };
+      (window as any).__kaiScanBookings = () => scanBookings(true).then((r) => { console.info('[KAI booking scan NOW]', r); return r; });
     } catch { /* ignore */ }
   }, []);
 

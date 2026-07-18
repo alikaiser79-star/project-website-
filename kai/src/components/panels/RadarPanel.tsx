@@ -12,8 +12,19 @@ import { Radar, Loader2, Plus } from 'lucide-react';
 import { useKaiVersion } from '../../lib/kai/mirror';
 import { listWatches, addWatch, recentFindings, type WatchCadence } from '../../lib/kai/watches';
 import { sweepNow, openRecommendations, radarLine, radarHealth, type RadarHealth } from '../../lib/kai/radar';
+import { lastBookingScan } from '../../lib/kai/bookingwatch';
 
 const CADENCES: WatchCadence[] = ['daily', 'weekly', 'monthly'];
+
+/* Reasons that mean the booking-watcher is BROKEN, not merely quiet. */
+const BOOKING_BAD = new Set(['no_api_key', 'classify_error', 'classify_empty', 'gmail_auth', 'gmail_unavailable', 'gmail_error']);
+function rel(ts: number): string {
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.round(s / 60) + 'm ago';
+  if (s < 86400) return Math.round(s / 3600) + 'h ago';
+  return Math.round(s / 86400) + 'd ago';
+}
 
 export default function RadarPanel({ delay = 0 }: { delay?: number }) {
   useKaiVersion();
@@ -27,6 +38,7 @@ export default function RadarPanel({ delay = 0 }: { delay?: number }) {
   const watches = listWatches();
   const recos = openRecommendations();
   const findings = recentFindings(2);
+  const bScan = lastBookingScan();
   const line = radarLine();
 
   /* warm the radar on first mount — sweepNow throttles itself. */
@@ -84,6 +96,15 @@ export default function RadarPanel({ delay = 0 }: { delay?: number }) {
         </div>
       )}
       {line && <div className="font-mono text-[10px] text-steel/60 mb-3">{line}</div>}
+
+      {/* §14.3 booking-watcher telemetry — no invisible operations */}
+      {bScan && (
+        <div className={'font-mono text-[10px] mb-3 leading-snug ' + (BOOKING_BAD.has(bScan.reason) ? 'text-danger/80' : 'text-steel/55')}>
+          {BOOKING_BAD.has(bScan.reason) ? '⚠ ' : ''}Booking scan {rel(bScan.ts)} · {bScan.reason}
+          {bScan.confirmed ? ` · ${bScan.confirmed} confirmed` : ''}
+          {bScan.reason === 'no_api_key' ? ' — set ANTHROPIC_API_KEY' : ''}
+        </div>
+      )}
 
       {/* recommendations — surfaced, not fired */}
       {recos.length > 0 && (
