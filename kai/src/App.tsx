@@ -24,7 +24,8 @@ import { useIdle } from './hooks/useIdle';
 import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
 import { startMirror } from './lib/kai/mirror';
-import { scanBookings } from './lib/kai/bookingwatch';
+import { scanBookings, getBookingTelemetry } from './lib/kai/bookingwatch';
+import { makadiDiag } from './lib/kai/commandSignals';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import MobileCommand from './components/MobileCommand';
 import { useIsMobile } from './hooks/useIsMobile';
@@ -39,7 +40,7 @@ import DayRitual from './components/DayRitual';
 import { shouldDayCompile, shouldShutdown } from './lib/kai/protocol';
 import NightWatch from './components/NightWatch';
 import { startWatchtower } from './lib/kai/watchtower';
-import { seedSpine, installSeedDevHooks, migrateMoney, migrateMakadiListing } from './lib/kai/seed';
+import { seedSpine, installSeedDevHooks, migrateMoney, migrateMakadiListing, recordWithdrawnInquiry } from './lib/kai/seed';
 import { seedCodex, installGardenDevHooks } from './lib/kai/garden';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
@@ -338,12 +339,15 @@ export default function App() {
      cash 15k) + logs the 15 canonical events. window.__kaiSeed()
      forces a re-seed for dev. */
   useEffect(() => {
-    installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); migrateMakadiListing(); seedCodex();
+    installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); migrateMakadiListing(); recordWithdrawnInquiry(); seedCodex();
     /* §13.3 verification hooks (retrieval / patterns / tokens) */
     try {
       (window as any).__kaiRetrieve = (q: string) => retrieveEvents(q);
       (window as any).__kaiDrifts = () => weeklyDrifts();
       (window as any).__kaiTokens = () => tokenTotals(30);
+      (window as any).__kaiMakadi = () => { const r = makadiDiag(); console.info('[KAI makadi]', r); return r; };
+      (window as any).__kaiBookingLog = () => { const r = getBookingTelemetry(); console.info('[KAI booking scans]', r); return r; };
+      (window as any).__kaiScanBookings = () => scanBookings(true).then((r) => { console.info('[KAI booking scan NOW]', r); return r; });
     } catch { /* ignore */ }
   }, []);
 

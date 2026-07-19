@@ -31,8 +31,8 @@
 
 import { loadState, saveState } from '../store';
 import { addExpense } from '../expenses';
-import { logEvent } from './events';
-import { markKeptByMatch } from './commitments';
+import { logEvent, getEvents } from './events';
+import { markKeptByMatch, getCommitments } from './commitments';
 import { read, write, emit } from './store';
 
 const SEED_FLAG = 'kai.seeded.v3';
@@ -154,8 +154,16 @@ export function migrateMoney(): void {
    "first booking by Aug 1" commitment is deliberately left untouched: it
    stays armed, watching for a real makadi booking event. Idempotent. */
 export function migrateMakadiListing(now: number = Date.now()): void {
-  try { if (localStorage.getItem(LISTING_FLAG) === '1') return; } catch { return; }
   try {
+    /* SELF-HEALING GUARD — gate on the EVENT actually being present in the
+       Spine, NOT a one-shot localStorage flag. The old flag could be set
+       synchronously while its event was clobbered by a concurrent sync
+       write (sync captured the pre-migration snapshot, then overwrote), so
+       the flag stranded the device in the unlisted state forever. Keying on
+       the event means: if it didn't stick, the next load re-logs it until
+       it does. Idempotent once the event persists. */
+    if (getEvents({ domain: 'makadi', type: 'listing_upgraded' }).length > 0) return;
+
     const ev = logEvent({
       domain: 'makadi', type: 'listing_upgraded', value: 1,
       meta: { photos: 'new set', cover: 'golden hour', date: '2026-07-14' },
@@ -164,15 +172,53 @@ export function migrateMakadiListing(now: number = Date.now()): void {
 
     /* Recover ONLY the listing commitment — makadi domain, listing-shaped
        text, and explicitly NOT a booking commitment (that one stays armed). */
-    markKeptByMatch((c) => {
+    const recovered = markKeptByMatch((c) => {
       const t = (c.text || '').toLowerCase();
       const makadi = c.metric?.domain === 'makadi' || /makadi/.test(t);
-      const listing = /(list|photo|relist|upload|go[- ]?live|publish|renovat)/.test(t);
+      const listing = /(list|photo|relist|upload|go[- ]?live|\blive\b|publish|renovat|ready)/.test(t);
       const booking = /book/.test(t);
       return makadi && listing && !booking;
     }, ev.id, now);
 
-    try { localStorage.setItem(LISTING_FLAG, '1'); } catch { /* ignore */ }
+    /* VISIBLE CONFIRMATION — so "did the migration run?" is never a guess.
+       Reports how many commitments it recovered AND every makadi/listing/
+       booking commitment it saw (status + text), so a NON-match is
+       diagnosable straight from the Spine (read via window.__kaiMakadi()). */
+    const seen = getCommitments()
+      .filter((c) => /makadi|list|book/i.test(c.text || '') || c.metric?.domain === 'makadi')
+      .map((c) => `${c.status}: ${(c.text || '').slice(0, 60)}`);
+    try {
+      logEvent({
+        domain: 'system', type: 'listing_migration', value: 1,
+        meta: { evId: ev.id, recovered, commitmentsSeen: seen, note: 'makadi listing_upgraded seeded' },
+        source: 'auto', ts: now,
+      });
+    } catch { /* confirmation is best-effort */ }
+
+    try { localStorage.setItem(LISTING_FLAG, '1'); } catch { /* legacy bookkeeping only */ }
+  } catch { /* boot must never throw here */ }
+}
+
+/* ── TRUTH RECORD (BUG SWEEP §1) — the withdrawn inquiry ────────
+   On 2026-07-18 a real Airbnb inquiry arrived (guest "Hatem", Modern Stay
+   | Pool & Balcony Fun, Jul 19–24) and was WITHDRAWN by the guest the same
+   day ("all plans gone away"). It was NOT a confirmed booking. The Spine
+   records exactly what happened — an inquiry and its withdrawal — and
+   nothing more. We log booking_replied for the same thread so the pulse
+   treats it as resolved and never nags. Self-healing guard on the event
+   (survives a sync clobber). This is the honest alternative to the
+   fabricated booking_confirmed we correctly refused to write. */
+export function recordWithdrawnInquiry(now: number = Date.now()): void {
+  try {
+    const thread = 'gmail-19f7457f6e2c0fa1';
+    if (getEvents({ domain: 'makadi', type: 'booking_inquiry' }).some((e) => e.meta?.thread === thread)) return;
+    logEvent({
+      domain: 'makadi', type: 'booking_inquiry',
+      meta: { thread, guest: 'Hatem', dates: 'Jul 19–24, 2026', listing: 'Modern Stay | Pool & Balcony Fun',
+        subject: 'Inquiry for Modern Stay | Pool & Balcony Fun for Jul 19 – 24, 2026', source: 'gmail', status: 'withdrawn' },
+      source: 'user', ts: now,
+    });
+    logEvent({ domain: 'makadi', type: 'booking_replied', meta: { thread, reason: 'withdrawn_by_guest' }, source: 'user', ts: now });
   } catch { /* boot must never throw here */ }
 }
 

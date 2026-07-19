@@ -754,6 +754,9 @@ export class CommandCore {
 
   /* ── Organ events (real-signal driven) ────────────────── */
 
+  private _callingWeight(): number {
+    let w = 0; for (const k in this.organs) if (this.organs[k].status === 'calling') w += (this.organs[k].intensity ?? 1); return w;
+  }
   private _callingCount(): number {
     let n = 0; for (const k in this.organs) if (this.organs[k].status === 'calling') n++; return n;
   }
@@ -773,8 +776,8 @@ export class CommandCore {
       if (wantsCall && o.status === 'idle') {
         o.status = 'calling';
         o.callStart = this.last;
-        this._spawnArc(id, 'in', '#d6402e');
-        this._alertSound();
+        this._spawnArc(id, 'in', o.intensity < 0.75 ? '#e08a5a' : '#d6402e');
+        if (o.intensity >= 0.75) this._alertSound();   // a gentle call arrives quietly
       } else if (!wantsCall && o.status === 'calling') {
         /* signal resolved itself externally */
         o.status = 'idle';
@@ -858,11 +861,12 @@ export class CommandCore {
       this.callTimer = now + 1.0;     /* signals re-checked every ~1 s */
     }
     const callingN = this._callingCount();
+    const callWeight = this._callingWeight();   // gentle calls contribute < 1 to arousal
 
     /* arousal driven entirely by REAL calls (no random storm). */
     this.storm = callingN >= 3 ? 1 : 0;
     let tgt = this.storm ? 0.7 : 0;
-    tgt += Math.min(this.storm ? 0.3 : 0.85, callingN * (this.storm ? 0.1 : 0.3));
+    tgt += Math.min(this.storm ? 0.3 : 0.85, callWeight * (this.storm ? 0.1 : 0.3));
     this.targetArousal = Math.min(1, tgt);
     /* Slow ~3s glide between calm and alert. base^3 ≈ 0.05 → about
        three seconds to close 95% of the gap, so state changes read as
@@ -942,7 +946,7 @@ export class CommandCore {
        (panel→heart) at ~3-4/s; idle organs reset their accumulator. */
     for (const id in this.organs) {
       if (this.organs[id].status === 'calling') {
-        const acc = (this.sparkAcc[id] || 0) + dt * 3.5;
+        const acc = (this.sparkAcc[id] || 0) + dt * 3.5 * (this.organs[id].intensity ?? 1);
         let n = acc | 0;
         this.sparkAcc[id] = acc - n;
         const art = this.arteryByPanel[id];
@@ -1259,7 +1263,10 @@ export class CommandCore {
       const c = this.charge[id] || 0;
       o.ackFlash *= Math.pow(0.05, dt);
       const calling = o.status === 'calling';
-      const callPulse = calling ? 0.5 + 0.5 * Math.sin(now * 7) : 0;
+      /* a gentle call (intensity < 1) throbs softer: scale the pulse that
+         drives redMix, glow energy and scale, so listed-but-unbooked reads
+         as a quiet ember, not the full crimson scream. */
+      const callPulse = calling ? (0.5 + 0.5 * Math.sin(now * 7)) * (o.intensity ?? 1) : 0;
       const hv = (this.hover[id] || 0) * 0.22;
       const redMix = Math.max(ar, callPulse * 0.9);
       const e = Math.min(1.2, c + callPulse * 0.85 + o.ackFlash + hv);

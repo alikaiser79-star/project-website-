@@ -246,6 +246,33 @@ export function getCommandSignals(): Record<string, OrganSignal> {
   return out;
 }
 
+/* ── DIAGNOSTIC (window.__kaiMakadi) ───────────────────────────
+   Evidence for the "Makadi organ won't go gentle" investigation, read
+   straight off THIS device's live Spine. Reports, in order of the three
+   suspects: (1) did migrateMakadiListing run — flag + the event;
+   (2) what the signal derives for organ 04 (incl. intensity);
+   (3) the Mirror state of any Makadi listing / booking commitment. */
+export function makadiDiag(now: number = Date.now()) {
+  const g = (type: string) => getEvents({ domain: 'makadi', type });
+  let flag: string | null = null;
+  try { flag = localStorage.getItem('kai.makadi.listingUpgraded.v1'); } catch { /* ignore */ }
+  const commitments = getCommitments()
+    .filter((c) => /makadi|list|book/i.test(c.text) || c.metric?.domain === 'makadi')
+    .map((c) => ({ text: c.text, status: c.status, event: c.metric?.event, resolvedAt: c.resolvedAt }));
+  return {
+    suspect1_migrationRan: g('listing_upgraded').length > 0,   // truth = the EVENT persisted, not the legacy flag
+    legacyFlag: flag,                                          // if '1' but no event → the sync-clobber this fix heals
+    migration_confirmations: getEvents({ domain: 'system', type: 'listing_migration' }).map((e) => e.meta),
+    listing_upgraded_events: g('listing_upgraded').length,
+    booking_confirmed_events: g('booking_confirmed').length,
+    nights_booked_values: g('nights_booked').map((e) => e.value),
+    occupancy30d: (() => { try { return loadState().makadi?.occupancy30d; } catch { return undefined; } })(),
+    suspect2_organ04_signal: getCommandSignals()['04'],   // ← intensity should be 0.7 when listed-but-unbooked
+    mirror_makadi_commitments: commitments,
+    at: new Date(now).toISOString(),
+  };
+}
+
 /* Ack action per organ — opens the source panel via the existing
    ping-panel action bus, which auto-switches view first. */
 export const ACK_ROUTE: Record<string, string> = {
