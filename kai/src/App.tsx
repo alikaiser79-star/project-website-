@@ -40,7 +40,7 @@ import DayRitual from './components/DayRitual';
 import { shouldDayCompile, shouldShutdown } from './lib/kai/protocol';
 import NightWatch from './components/NightWatch';
 import { startWatchtower } from './lib/kai/watchtower';
-import { seedSpine, installSeedDevHooks, migrateMoney, migrateMakadiListing } from './lib/kai/seed';
+import { seedSpine, installSeedDevHooks, migrateMoney, migrateMakadiListing, recordWithdrawnInquiry } from './lib/kai/seed';
 import { seedCodex, installGardenDevHooks } from './lib/kai/garden';
 import ConfirmationFloating from './lib/kai/ConfirmationFloating';
 import { startSync } from './lib/kai/sync';
@@ -339,7 +339,7 @@ export default function App() {
      cash 15k) + logs the 15 canonical events. window.__kaiSeed()
      forces a re-seed for dev. */
   useEffect(() => {
-    installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); migrateMakadiListing(); seedCodex();
+    installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); migrateMakadiListing(); recordWithdrawnInquiry(); seedCodex();
     /* §13.3 verification hooks (retrieval / patterns / tokens) */
     try {
       (window as any).__kaiRetrieve = (q: string) => retrieveEvents(q);

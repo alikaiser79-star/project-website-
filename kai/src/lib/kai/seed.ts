@@ -199,6 +199,29 @@ export function migrateMakadiListing(now: number = Date.now()): void {
   } catch { /* boot must never throw here */ }
 }
 
+/* ── TRUTH RECORD (BUG SWEEP §1) — the withdrawn inquiry ────────
+   On 2026-07-18 a real Airbnb inquiry arrived (guest "Hatem", Modern Stay
+   | Pool & Balcony Fun, Jul 19–24) and was WITHDRAWN by the guest the same
+   day ("all plans gone away"). It was NOT a confirmed booking. The Spine
+   records exactly what happened — an inquiry and its withdrawal — and
+   nothing more. We log booking_replied for the same thread so the pulse
+   treats it as resolved and never nags. Self-healing guard on the event
+   (survives a sync clobber). This is the honest alternative to the
+   fabricated booking_confirmed we correctly refused to write. */
+export function recordWithdrawnInquiry(now: number = Date.now()): void {
+  try {
+    const thread = 'gmail-19f7457f6e2c0fa1';
+    if (getEvents({ domain: 'makadi', type: 'booking_inquiry' }).some((e) => e.meta?.thread === thread)) return;
+    logEvent({
+      domain: 'makadi', type: 'booking_inquiry',
+      meta: { thread, guest: 'Hatem', dates: 'Jul 19–24, 2026', listing: 'Modern Stay | Pool & Balcony Fun',
+        subject: 'Inquiry for Modern Stay | Pool & Balcony Fun for Jul 19 – 24, 2026', source: 'gmail', status: 'withdrawn' },
+      source: 'user', ts: now,
+    });
+    logEvent({ domain: 'makadi', type: 'booking_replied', meta: { thread, reason: 'withdrawn_by_guest' }, source: 'user', ts: now });
+  } catch { /* boot must never throw here */ }
+}
+
 /* Dev console hooks:
    window.__kaiSeed()   → force re-seed
    window.__kaiUnseed() → clear the flag (re-seeds next boot) */
