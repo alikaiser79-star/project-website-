@@ -4,6 +4,9 @@
 import list from './_list.js';
 import publish from './_publish.js';
 import health from './_health.js';
+
+/* SWEEP (B) spike — explicit Node runtime (see gmail/[...path].ts). */
+export const config = { runtime: 'nodejs20.x' };
 import deriveToken from './_derive-token.js';
 
 export default async function handler(req: any, res: any) {

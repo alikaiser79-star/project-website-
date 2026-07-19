@@ -4,6 +4,9 @@
 
 import commit from './_commit.js';
 import deploy from './_deploy.js';
+
+/* SWEEP (B) spike — explicit Node runtime (see gmail/[...path].ts). */
+export const config = { runtime: 'nodejs20.x' };
 import deploys from './_deploys.js';
 
 export default async function handler(req: any, res: any) {

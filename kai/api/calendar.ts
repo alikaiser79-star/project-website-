@@ -14,6 +14,11 @@
    expanded.
    ============================================================ */
 
+/* SWEEP (B) spike — explicit Node runtime (see gmail/[...path].ts).
+   calendar.ts is light (native fetch, no heavy deps) so it likely already
+   deploys; pinned here only for spike uniformity. */
+export const config = { runtime: 'nodejs20.x' };
+
 const DAY_MS = 86_400_000;
 const HORIZON_MS = 120 * DAY_MS;
 const TTL_OK_MS  = 5 * 60 * 1000;

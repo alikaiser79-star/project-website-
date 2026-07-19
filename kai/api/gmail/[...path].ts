@@ -13,6 +13,12 @@
 import list from './_list.js';
 import send from './_send.js';
 
+/* SWEEP (B) spike — explicit Node runtime. The Edge functions declare
+   runtime:'edge' and deploy fine; the Node functions declared nothing and
+   404 in prod. Declaring the runtime explicitly is the cheapest test of
+   whether Vercel simply wasn't registering these. */
+export const config = { runtime: 'nodejs20.x' };
+
 export default async function handler(req: any, res: any) {
   const slug = req.query?.path;
   const action = Array.isArray(slug) ? String(slug[0] || '') : String(slug || '');
