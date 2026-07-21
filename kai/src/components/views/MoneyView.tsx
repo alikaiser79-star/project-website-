@@ -6,6 +6,7 @@ import IncomePanel from '../panels/IncomePanel';
 import DebtPanel from '../panels/DebtPanel';
 import ExpensesPanel from '../panels/ExpensesPanel';
 import LedgerOfWinsPanel from '../panels/LedgerOfWinsPanel';
+import MakadiProfitPanel from '../panels/MakadiProfitPanel';
 
 export default function MoneyView() {
   return (
@@ -13,6 +14,7 @@ export default function MoneyView() {
       <EscapeVelocityPanel delay={0.06} />
       <AnalystPanel delay={0.08} />
       <TollgatePanel delay={0.10} />
+      <MakadiProfitPanel delay={0.13} />
       <IncomePanel delay={0.15} />
       <DebtPanel delay={0.20} />
       <ExpensesPanel delay={0.25} />
