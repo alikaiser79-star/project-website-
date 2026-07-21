@@ -23,6 +23,7 @@ import { parseDeadlineCommand, addDeadline, deadlineBriefing } from './kai/deadl
 import { warChestBrief } from './kai/warchest';
 import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
+import { doctrineText } from './kai/doctrine';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -163,6 +164,11 @@ export function runBuiltin(cmd: string): CmdResult | null {
       const w = addWatch({ name, query: `${name}: ${what}`, extractRule: what, cadence, domain: 'custom' });
       return `Watching “${w.name}” — ${cadence}. It joins the next sweep; findings land on the Radar.`;
     }
+  }
+
+  /* The Doctrine — KAI states its constitution (who it is, the five laws). */
+  if (/^doctrine$|^constitution$|^who are you$|^what are you$|^دستور$|^عقيدة$/.test(q)) {
+    return doctrineText();
   }
 
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
