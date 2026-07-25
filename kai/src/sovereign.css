@@ -109,6 +109,49 @@
 @keyframes greet-in  { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes greet-out { to { opacity: 0; transform: translateY(-8px); } }
 
+/* ── §22.1 EARS — push-to-talk button + live transcript ───────── */
+.ptt-wrap {
+  position: fixed; z-index: 340;
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);   /* clear the bottom nav */
+  display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+}
+.ptt-btn {
+  width: 56px; height: 56px; border-radius: 99px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 30% 25%, rgba(255, 200, 100, 0.22), rgba(20, 14, 6, 0.96));
+  border: 1px solid rgba(255, 195, 90, 0.5); color: rgba(255, 214, 140, 0.98);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 180, 70, 0.12);
+  cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+.ptt-btn:active { transform: scale(0.94); }
+.ptt-btn.is-live {
+  border-color: rgba(255, 120, 90, 0.9); color: rgba(255, 235, 220, 1);
+  animation: ptt-pulse 1.2s ease-in-out infinite;
+}
+.ptt-btn.is-fallback { opacity: 0.92; }
+@keyframes ptt-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(255, 90, 60, 0.10), 0 0 18px rgba(255, 90, 60, 0.30); }
+  50%      { box-shadow: 0 0 0 9px rgba(255, 90, 60, 0.16), 0 0 30px rgba(255, 90, 60, 0.50); }
+}
+.ptt-bubble {
+  max-width: min(72vw, 320px); padding: 9px 13px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(16, 11, 5, 0.96), rgba(9, 6, 3, 0.96));
+  border: 1px solid rgba(255, 190, 90, 0.24); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: flex; align-items: center; gap: 9px;
+  font-family: ui-monospace, monospace; font-size: 12.5px; color: rgba(255, 214, 150, 0.96); line-height: 1.4;
+  animation: share-rise 0.24s ease both;
+}
+.ptt-bubble.ptt-err { color: rgba(255, 140, 120, 0.92); border-color: rgba(255, 110, 90, 0.3); }
+.ptt-text { min-width: 0; }
+.ptt-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; flex-shrink: 0; }
+.ptt-eq i { width: 3px; background: rgba(255, 120, 90, 0.9); border-radius: 2px; animation: ptt-eq 0.9s ease-in-out infinite; }
+.ptt-eq i:nth-child(1) { height: 6px;  animation-delay: 0s; }
+.ptt-eq i:nth-child(2) { height: 12px; animation-delay: 0.15s; }
+.ptt-eq i:nth-child(3) { height: 8px;  animation-delay: 0.3s; }
+@keyframes ptt-eq { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1); } }
+
 /* ── WAR CHEST (§9) — victory gold, session, ledger ───────── */
 /* Organ card GOLD pulse when a money milestone lands (not crimson —
    this is a win). Overrides the crimson calling treatment. */
