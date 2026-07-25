@@ -148,16 +148,33 @@ export function runPulseCore(events: PulseEvent[], now: number): PulseResult {
   /* ── the pulse ran — a heartbeat marker, always ──────────── */
   newEvents.push({ ts: now, domain: 'system', type: 'pulse', value: newEvents.length, meta: { escalations: escalations.length, anomalies }, source: 'auto' });
 
-  /* ── the dispatch: one line, most urgent, or silence ─────── */
+  /* ── the dispatch: KAI's ONE line — the single most important thing, in
+     his voice, or silence. Not a briefing. One sentence. Ranked. ──── */
   let dispatch: string | null = null;
   const worst = escalations.sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier])[0];
-  if (worst) {
-    dispatch = worst.tier === 'overdue' ? `OVERDUE: ${worst.text}`
-      : worst.tier === 'dominant' ? `Tomorrow: ${worst.text}`
-      : `${worst.days}d out: ${worst.text}`;
+  const cashEv = events.filter((e) => e.domain === 'system' && e.type === 'cash_on_hand').sort((a, b) => a.ts - b.ts).slice(-1)[0];
+  const cashVal = cashEv && typeof cashEv.value === 'number' ? cashEv.value : null;
+  const repliedThreads = new Set(events.filter((e) => (e.domain === 'makadi' || e.domain === 'leads') && e.type === 'booking_replied').map((e) => String(e.meta?.thread)));
+  const openInquiry = events.filter((e) => (e.domain === 'makadi' || e.domain === 'leads') && e.type === 'booking_inquiry'
+    && !repliedThreads.has(String(e.meta?.thread)) && now - e.ts > 2 * HOUR && now - e.ts < 48 * HOUR).sort((a, b) => a.ts - b.ts)[0];
+  const recentBooking = events.filter((e) => e.domain === 'makadi' && e.type === 'booking_confirmed' && now - e.ts < 24 * HOUR).sort((a, b) => a.ts - b.ts).slice(-1)[0];
+
+  if (cashVal !== null && cashVal > 0 && cashVal < CASH_CRITICAL) {
+    dispatch = `Cash is down to ${Math.round(cashVal).toLocaleString()} EGP — that's the one thing today.`;
+  } else if (worst && worst.tier === 'overdue') {
+    dispatch = `${worst.text} is overdue — clear it before anything else.`;
+  } else if (openInquiry) {
+    dispatch = `A booking inquiry has been waiting ${Math.round((now - openInquiry.ts) / HOUR)}h. Answer it.`;
+  } else if (recentBooking) {
+    dispatch = `${String(recentBooking.meta?.guest || 'A guest')} booked Makadi. First light — now go get the next one.`;
+  } else if (worst && worst.tier === 'dominant') {
+    dispatch = `${worst.text} is due tomorrow.`;
   } else if (anomalies > 0) {
-    dispatch = String(newEvents.find((e) => e.domain === 'anomaly')?.meta?.detail || null) || null;
+    dispatch = `${String(newEvents.find((e) => e.domain === 'anomaly')?.meta?.detail || 'Something moved')} — worth a look.`;
+  } else if (worst) {
+    dispatch = `${worst.days} days out: ${worst.text}.`;
   }
+  /* else → null: nothing matters enough to push. Silence. */
 
   return { newEvents, dispatch, pushes: pulsePushes(events, now, dispatch), summary: { escalations: escalations.length, anomalies } };
 }

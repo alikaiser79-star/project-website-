@@ -17,6 +17,7 @@ import { getCommitments } from './commitments';
 import { loadState } from '../store';
 import { debt as DEBT } from '../../kaiConfig';
 import { toEgp } from './money';
+import { makadiProfit } from './makadiProfit';
 import type { Currency } from '../../types';
 
 const DAY = 86_400_000;
@@ -26,7 +27,7 @@ const ACK_KEY = 'kai.warchest.acked';
 /* Debt thresholds, crossed going DOWN. */
 const THRESHOLDS = [50_000, 40_000, 30_000, 20_000, 10_000, 0];
 
-export type MilestoneKind = 'debt_threshold' | 'debt_cleared' | 'commitment_kept' | 'income_added';
+export type MilestoneKind = 'debt_threshold' | 'debt_cleared' | 'commitment_kept' | 'income_added' | 'makadi_breakeven';
 
 export interface Milestone {
   id: string;                 // stable dedupe key
@@ -137,10 +138,27 @@ function scanIncomeMilestones(_now: number): Milestone[] {
   return out;
 }
 
+/* Makadi break-even — the apartment has paid for itself (earned ≥ invested).
+   A real threshold crossing, from the Profit Line's pure Spine arithmetic. */
+function scanMakadiBreakEven(now: number): Milestone[] {
+  const out: Milestone[] = [];
+  if (new Set(firedKeys()).has('makadi.breakeven')) return out;
+  const p = makadiProfit(now);
+  if (p.brokeEven && p.spent > 0) {
+    out.push({
+      id: 'makadi.breakeven', kind: 'makadi_breakeven', label: 'Makadi PAID FOR ITSELF',
+      freedEgp: Math.round(p.net), ccy: 'EGP',
+      detail: `${Math.round(p.spent).toLocaleString()} EGP invested — now +${Math.round(p.net).toLocaleString()} EGP clear across ${p.nightsBooked} nights. Every night from here is profit.`,
+      ts: now,
+    });
+  }
+  return out;
+}
+
 /* Fire any new milestones to the Spine and return the full pending set
    (fired, not yet acknowledged). Idempotent via the fired-keys store. */
 export function scanMilestones(now = Date.now()): Milestone[] {
-  const found = [...scanDebtMilestones(now), ...scanCommitmentMilestones(now), ...scanIncomeMilestones(now)];
+  const found = [...scanDebtMilestones(now), ...scanCommitmentMilestones(now), ...scanIncomeMilestones(now), ...scanMakadiBreakEven(now)];
   for (const m of found) {
     markFired(m.id);
     try {
