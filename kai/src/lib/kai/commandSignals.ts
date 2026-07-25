@@ -112,13 +112,16 @@ export function getCommandSignals(): Record<string, OrganSignal> {
     try {
       const rate = s.makadi?.nightlyRate ?? 0;
       const rateCcy = (s.makadi?.rateCcy ?? 'USD') as Currency;
-      const booked =
-        getEvents({ domain: 'makadi', type: 'booking_confirmed' }).length > 0 ||
-        getEvents({ domain: 'makadi', type: 'nights_booked' }).some((e) => (e.value ?? 0) > 0) ||
-        (s.makadi?.occupancy30d ?? 0) > 0;
+      const confirmed = getEvents({ domain: 'makadi', type: 'booking_confirmed' });
+      const nights = getEvents({ domain: 'makadi', type: 'nights_booked' })
+        .reduce((m, e) => Math.max(m, e.value ?? 0), 0);
+      const booked = confirmed.length > 0 || nights > 0 || (s.makadi?.occupancy30d ?? 0) > 0;
       const listed = getEvents({ domain: 'makadi', type: 'listing_upgraded' }).length > 0;
       out['04'] = {
-        formatted: fmtMoney(rate, rateCcy),          // e.g. "34 USD" — never a naked number
+        /* Once booked, show the TRUTH that quieted it — nights on the books —
+           not a static listing rate that reads as "stale". Falls back to the
+           nightly rate while still unbooked. */
+        formatted: booked && nights > 0 ? fmtInt(nights, ' NIGHTS') : fmtMoney(rate, rateCcy),
         calling: !booked,                            // quiets the moment a booking lands
         intensity: booked ? 1 : listed ? 0.7 : 1,    // gentle while listed-but-unbooked
       };
