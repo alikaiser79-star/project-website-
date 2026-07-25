@@ -54,6 +54,7 @@ import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
 import InstallPrompt from './components/InstallPrompt';
+import PushToTalk from './components/PushToTalk';
 import PullToRefresh from './components/PullToRefresh';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
@@ -869,6 +870,7 @@ export default function App() {
       {warChestOpen && <WarChestSession onClose={() => setWarChestOpen(false)} />}
       <InstallPrompt />
       {isMobile && <PullToRefresh />}
+      {booted && !(lockCfg.enabled && !unlocked) && <PushToTalk />}
       <NightLedger />
       <SettingsDrawer
         open={setOpen}
