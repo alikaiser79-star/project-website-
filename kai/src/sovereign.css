@@ -109,6 +109,44 @@
 @keyframes greet-in  { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes greet-out { to { opacity: 0; transform: translateY(-8px); } }
 
+/* ── DER JÄGER — the Hunter drawer ─────────────────────────────── */
+.hunter-scrim { position: fixed; inset: 0; z-index: 500; background: rgba(3, 3, 2, 0.55); backdrop-filter: blur(2px); display: flex; justify-content: flex-end; animation: ask-kai-fade 0.2s ease both; }
+.hunter {
+  width: min(470px, 95vw); height: 100%; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(9, 13, 11, 0.98), rgba(5, 7, 6, 0.98));
+  border-left: 1px solid rgba(120, 220, 150, 0.2); box-shadow: -20px 0 60px -20px rgba(0, 0, 0, 0.8);
+  font-family: 'JetBrains Mono', ui-monospace, monospace; color: #d6ead9;
+  padding-top: env(safe-area-inset-top, 0px);
+  animation: ask-kai-slide 0.26s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.hunter-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px; border-bottom: 1px solid rgba(120, 220, 150, 0.14); }
+.hunter-title { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; letter-spacing: 3px; color: rgba(150, 230, 175, 0.82); }
+.hunter-x { background: none; border: none; color: rgba(150, 230, 175, 0.5); font-size: 14px; cursor: pointer; }
+.hunter-body { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; }
+.hunter-ledger { font-size: 12px; line-height: 1.5; color: rgba(150, 235, 180, 0.9); background: rgba(120, 220, 150, 0.07); border: 1px solid rgba(120, 220, 150, 0.2); border-radius: 10px; padding: 10px 13px; }
+.hunter-empty { font-size: 12px; color: rgba(190, 210, 195, 0.5); padding: 10px 2px; line-height: 1.5; }
+
+.hunter-opp { border: 1px solid rgba(120, 220, 150, 0.16); border-radius: 11px; overflow: hidden; background: rgba(255, 255, 255, 0.015); }
+.hunter-opp.k-inquiry { border-color: rgba(255, 180, 90, 0.32); }
+.hunter-opp.k-pricing { border-color: rgba(120, 200, 255, 0.3); }
+.hunter-opp-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 13px; background: none; border: none; cursor: pointer; text-align: left; color: inherit; }
+.hunter-opp-main { flex: 1; min-width: 0; }
+.hunter-opp-title { font-size: 12.5px; color: #e6f0e8; line-height: 1.35; }
+.hunter-opp-money { font-size: 10.5px; margin-top: 3px; color: rgba(190, 210, 195, 0.6); }
+.hunter-opp-money b { color: rgba(150, 235, 180, 0.98); font-size: 12px; }
+.hunter-chev { flex: none; color: rgba(150, 230, 175, 0.5); transition: transform 0.2s ease; }
+.hunter-chev.up { transform: rotate(180deg); }
+.hunter-opp-detail { padding: 0 13px 12px; display: flex; flex-direction: column; gap: 9px; }
+.hunter-rationale { font-size: 11.5px; line-height: 1.55; color: rgba(210, 224, 214, 0.82); }
+.hunter-draft { background: rgba(0, 0, 0, 0.32); border: 1px solid rgba(120, 220, 150, 0.14); border-radius: 8px; padding: 9px 11px; }
+.hunter-drafting { font-size: 11px; color: rgba(150, 230, 175, 0.6); }
+.hunter-subj { font-size: 11px; color: rgba(150, 235, 180, 0.75); margin-bottom: 5px; letter-spacing: 0.3px; }
+.hunter-msg { font-size: 12px; line-height: 1.55; color: #dfeae1; white-space: pre-wrap; }
+.hunter-actions { display: flex; gap: 8px; align-items: center; }
+.hunter-approve { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px; border-radius: 8px; cursor: pointer; background: rgba(120, 220, 150, 0.16); border: 1px solid rgba(120, 220, 150, 0.4); color: rgba(200, 245, 215, 0.98); font-size: 12px; letter-spacing: 0.5px; }
+.hunter-copy { display: inline-flex; align-items: center; gap: 5px; padding: 9px 11px; border-radius: 8px; cursor: pointer; background: none; border: 1px solid rgba(120, 220, 150, 0.25); color: rgba(180, 225, 195, 0.85); font-size: 11px; }
+.hunter-dismiss { display: inline-flex; align-items: center; gap: 5px; padding: 9px 11px; border-radius: 8px; cursor: pointer; background: none; border: 1px solid rgba(255, 130, 110, 0.25); color: rgba(255, 160, 140, 0.75); font-size: 11px; }
+
 /* ── MAKADI PROFIT LINE — the month's headline on Command ──────── */
 .makadi-line {
   position: fixed; z-index: 6;                    /* above the organism canvas/HUD, below transient overlays */

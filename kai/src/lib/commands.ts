@@ -184,6 +184,12 @@ export function runBuiltin(cmd: string): CmdResult | null {
     return 'Closing the books on the week…';
   }
 
+  /* DER JÄGER — the Hunter: the ranked opportunity ledger, money attached. */
+  if (/^hunt$|^hunter$|^jäger$|^jager$|^der jäger$|^الصياد$|^opportunities$/i.test(q)) {
+    emitAction({ type: 'open-hunter' });
+    return 'Der Jäger — hunting revenue moves.';
+  }
+
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
     return briefing();
   }

@@ -10,7 +10,8 @@ export type KaiAction =
   | { type: 'open-brain-dump'; prefill?: string }
   | { type: 'open-receipt'; draft?: unknown }      // pre-filled ReceiptConfirm draft
   | { type: 'open-plan' }                           // summon The Morning Plan
-  | { type: 'open-reckon' };                        // summon The Weekly Reckoning
+  | { type: 'open-reckon' }                         // summon The Weekly Reckoning
+  | { type: 'open-hunter' };                        // summon Der Jäger (the Hunter)
 
 type Listener = (a: KaiAction) => void;
 const listeners = new Set<Listener>();

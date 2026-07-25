@@ -62,6 +62,8 @@ import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
 import InstallPrompt from './components/InstallPrompt';
 import MakadiProfitLine from './components/MakadiProfitLine';
+import HunterDrawer from './components/HunterDrawer';
+import { runHunt, hunterLedger } from './lib/kai/hunter';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -143,6 +145,7 @@ export default function App() {
   const [greeting, setGreeting] = useState<string | null>(null);
   const [morningPlan, setMorningPlan] = useState<PlanData | null>(null);
   const [reckoning, setReckoning] = useState<ReckoningData | null>(null);
+  const [hunterOpen, setHunterOpen] = useState(false);
   const [oneThingOpen, setOneThingOpen] = useState(false);
   const [dayRitual, setDayRitual] = useState<'compile' | 'shutdown' | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -648,6 +651,18 @@ export default function App() {
     // only if a fresh trigger fires. No timer, no polling.
     runAnomalyWatch().catch(() => {});
 
+    /* DER JÄGER (Q3.4) — the Hunter runs daily (deterministic, no LLM until
+       Ali opens a draft). Logs opportunities to the Spine; surfaces the
+       single highest EGP/min move so a real earner never sits unseen. */
+    try {
+      const opps = runHunt();
+      const top = opps[0];
+      if (top && top.expectedEgp >= 1000) {
+        toast.ok(`${top.title} · +${Math.round(top.expectedEgp).toLocaleString('en-GB')} EGP`, 'DER JÄGER', 7000);
+      }
+      (window as any).__kaiHunt = () => { const r = runHunt(); console.info('[KAI hunt]', r, hunterLedger()); return r; };
+    } catch { /* boot-safe */ }
+
     /* THE WEEKLY RECKONING — the Sunday accounting (upgrade of the Debrief),
        once per week on first open. On non-mobile, after the boot settles.
        When it's dismissed, the day's Morning Plan follows (Sunday sequence). */
@@ -698,6 +713,8 @@ export default function App() {
         ensureMorningPlan().then(setMorningPlan).catch(() => {});
       } else if (a.type === 'open-reckon') {
         ensureReckoning().then(setReckoning).catch(() => {});
+      } else if (a.type === 'open-hunter') {
+        setHunterOpen(true);
       } else if (a.type === 'ping-panel') {
         /* Switch to the view that owns this panel first, then flash
            it (after the view transition mounts the element). */
@@ -912,6 +929,7 @@ export default function App() {
         />
       )}
       {warChestOpen && <WarChestSession onClose={() => setWarChestOpen(false)} />}
+      <HunterDrawer open={hunterOpen} onClose={() => setHunterOpen(false)} />
       <InstallPrompt />
       {booted && !(lockCfg.enabled && !unlocked) && <KaiEye />}
       {isMobile && <PullToRefresh />}
