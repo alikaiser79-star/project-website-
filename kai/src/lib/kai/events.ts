@@ -11,6 +11,7 @@
    ============================================================ */
 
 import { read, write, writeSafe, uid, emit } from './store';
+import { reclaimStorage } from './reclaim';
 import type { Currency } from '../../types';
 
 export type Domain =
@@ -64,9 +65,25 @@ export function logEvent(e: Omit<KaiEvent, 'id' | 'ts'> & { ts?: number }): KaiE
      and retry, progressively harder, so the append ALWAYS persists as
      long as any space at all is reclaimable. */
   if (!writeSafe(KEY, all)) {
+    /* Stage 1 — trim our own tail (helps only if kai.events is the bloat). */
+    let saved = false;
     for (const keep of [1200, 600, 250, 80, 20]) {
       const pruned = all.slice(Math.max(0, all.length - keep));
-      if (writeSafe(KEY, pruned)) { all = pruned; break; }
+      if (writeSafe(KEY, pruned)) { all = pruned; saved = true; break; }
+    }
+    /* Stage 2 — still stuck means the space is held by OTHER keys (snapshot
+       history in the state blob, watcher caches). Reclaim globally, then
+       retry the full array, trimming again only if it's still tight. This
+       is what lets a NEW append (the confirmed bookings) land on a device
+       whose origin filled up after the older events were written. */
+    if (!saved) {
+      reclaimStorage();
+      if (!writeSafe(KEY, all)) {
+        for (const keep of [1200, 600, 250, 80, 20]) {
+          const pruned = all.slice(Math.max(0, all.length - keep));
+          if (writeSafe(KEY, pruned)) { all = pruned; break; }
+        }
+      }
     }
   }
   emit();
