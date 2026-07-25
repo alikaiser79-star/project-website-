@@ -46,7 +46,7 @@ catch(e){ bad('type errors:'); process.stdout.write((e.stdout?.toString()||e.mes
 head('4. esbuild compile (every api/ route)');
 {
   for (const r of walk(join(ROOT,'api'),p=>/\.ts$/.test(p))) {
-    try { execSync(`npx esbuild "${r}" --bundle --platform=node --target=node18 --format=cjs --outfile=/tmp/pf-esb.js --external:googleapis`,{cwd:ROOT,stdio:'pipe'}); ok(relative(ROOT,r)); }
+    try { execSync(`npx esbuild "${r}" --bundle --platform=node --target=node18 --format=cjs --outfile=/tmp/pf-esb.js`,{cwd:ROOT,stdio:'pipe'}); ok(relative(ROOT,r)); }
     catch(e){ bad(relative(ROOT,r)+' — '+((e.stderr?.toString()||e.message).split('\n').find(l=>/error/i.test(l))||'')); }
   }
 }
