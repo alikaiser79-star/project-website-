@@ -184,6 +184,14 @@ export function runBuiltin(cmd: string): CmdResult | null {
     return 'Closing the books on the week…';
   }
 
+  /* DER ZWILLING — the Twin: the behavioral model + drift. Bare command
+     opens the read; "counsel <decision>" runs a ruling on that decision. */
+  if (/^twin$|^zwilling$|^der zwilling$|^the twin$|^زوجي$|^التوأم$|^counsel$|^counsel .+/i.test(q)) {
+    const decision = cmd.trim().replace(/^\s*counsel\s+/i, '').trim();
+    emitAction({ type: 'open-twin', question: /^counsel\s+/i.test(cmd.trim()) && decision ? decision : undefined });
+    return 'Der Zwilling — reading your record.';
+  }
+
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
     return briefing();
   }
