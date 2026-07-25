@@ -62,6 +62,8 @@ import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
 import InstallPrompt from './components/InstallPrompt';
 import MakadiProfitLine from './components/MakadiProfitLine';
+import EveningPrompt from './components/EveningPrompt';
+import { shouldAskEvening, markEveningAsked, runRecurring } from './lib/kai/intake';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -143,6 +145,7 @@ export default function App() {
   const [greeting, setGreeting] = useState<string | null>(null);
   const [morningPlan, setMorningPlan] = useState<PlanData | null>(null);
   const [reckoning, setReckoning] = useState<ReckoningData | null>(null);
+  const [eveningPrompt, setEveningPrompt] = useState(false);
   const [oneThingOpen, setOneThingOpen] = useState(false);
   const [dayRitual, setDayRitual] = useState<'compile' | 'shutdown' | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -648,6 +651,12 @@ export default function App() {
     // only if a fresh trigger fires. No timer, no polling.
     runAnomalyWatch().catch(() => {});
 
+    /* DER EINGANG (Intake) — recurring fixed items propose themselves to the
+       Gate when due (one-tap confirm), and after 21:00 with nothing logged
+       today, ask once. Both are cheap, deduped, and silent when not needed. */
+    try { runRecurring(); } catch { /* boot-safe */ }
+    try { if (shouldAskEvening()) setEveningPrompt(true); } catch { /* boot-safe */ }
+
     /* THE WEEKLY RECKONING — the Sunday accounting (upgrade of the Debrief),
        once per week on first open. On non-mobile, after the boot settles.
        When it's dismissed, the day's Morning Plan follows (Sunday sequence). */
@@ -912,6 +921,12 @@ export default function App() {
         />
       )}
       {warChestOpen && <WarChestSession onClose={() => setWarChestOpen(false)} />}
+      {eveningPrompt && booted && !(lockCfg.enabled && !unlocked) && (
+        <EveningPrompt
+          onLog={() => { markEveningAsked(); setEveningPrompt(false); setView('money'); }}
+          onDismiss={() => { markEveningAsked(); setEveningPrompt(false); }}
+        />
+      )}
       <InstallPrompt />
       {booted && !(lockCfg.enabled && !unlocked) && <KaiEye />}
       {isMobile && <PullToRefresh />}

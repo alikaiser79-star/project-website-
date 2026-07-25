@@ -27,6 +27,7 @@ const KIND_LABEL: Record<PendingKind, string> = {
   site_commit: 'commit to site',
   site_deploy: 'deploy site',
   sms_send:    'send message',
+  log_batch:   'log to Spine',
 };
 const KIND_COLOR: Record<PendingKind, string> = {
   email_send:  '#5FE3FF',
@@ -34,6 +35,7 @@ const KIND_COLOR: Record<PendingKind, string> = {
   site_commit: '#FFB300',
   site_deploy: '#FF6B6B',
   sms_send:    '#7AE6A8',
+  log_batch:   '#FFCA80',
 };
 
 export default function ConfirmationGate() {

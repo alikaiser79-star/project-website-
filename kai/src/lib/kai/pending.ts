@@ -18,7 +18,7 @@ import { read, write, uid, emit } from './store';
 import { logEvent } from './events';
 import { match as delegateMatch, recordFire as delegateRecord } from './delegate';
 
-export type PendingKind = 'email_send' | 'ig_publish' | 'site_commit' | 'site_deploy' | 'sms_send';
+export type PendingKind = 'email_send' | 'ig_publish' | 'site_commit' | 'site_deploy' | 'sms_send' | 'log_batch';
 
 export interface PendingAction {
   id: string;
@@ -135,6 +135,19 @@ const EXECUTORS: Record<PendingKind, (p: any) => Promise<void>> = {
       meta: { to: p?.to, channel: p?.channel || 'sms' },
       source: 'ai',
     });
+  },
+  /* DER EINGANG — a batch of intake entries (bulk paste / recurring),
+     logged LOCALLY on approval. No network; the Gate is the one-tap
+     confirm that nothing invented slips into the Spine. */
+  log_batch: async (p) => {
+    const { applyIntakeEntry } = await import('./intake');
+    const entries = Array.isArray(p?.entries) ? p.entries : [];
+    for (const e of entries) { try { applyIntakeEntry(e); } catch { /* skip one bad row */ } }
+    if (Array.isArray(p?.recurringIds) && p.recurringIds.length) {
+      const { markRecurringFired } = await import('./intake');
+      markRecurringFired(p.recurringIds);
+    }
+    logEvent({ domain: 'system', type: 'intake_batch', value: entries.length, meta: { count: entries.length, note: p?.note }, source: 'user' });
   },
 };
 

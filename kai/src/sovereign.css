@@ -109,6 +109,74 @@
 @keyframes greet-in  { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes greet-out { to { opacity: 0; transform: translateY(-8px); } }
 
+/* ── DER EINGANG — quick log bar (sticky bottom of Money) ──────── */
+.quicklog {
+  position: sticky; z-index: 40;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+  margin-top: 8px;
+  background: linear-gradient(180deg, rgba(10, 12, 16, 0.7), rgba(8, 10, 14, 0.92) 40%);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 190, 100, 0.18); border-radius: 12px;
+  padding: 8px; box-shadow: 0 8px 26px -10px rgba(0, 0, 0, 0.7);
+}
+.quicklog-row { display: flex; gap: 7px; align-items: center; }
+.quicklog-input {
+  flex: 1; min-width: 0; background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 190, 100, 0.2); border-radius: 8px;
+  padding: 10px 12px; color: #f3ddbd; font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 13px; outline: none;
+}
+.quicklog-input:focus { border-color: rgba(255, 200, 110, 0.5); }
+.quicklog-paste, .quicklog-go {
+  flex: none; border-radius: 8px; cursor: pointer;
+  background: rgba(255, 190, 90, 0.12); border: 1px solid rgba(255, 190, 90, 0.3); color: #ffcaa0;
+}
+.quicklog-paste { width: 40px; height: 40px; display: grid; place-items: center; }
+.quicklog-go { padding: 0 16px; height: 40px; font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; }
+.quicklog-go:disabled { opacity: 0.35; cursor: default; }
+.quicklog-hint { font-family: ui-monospace, monospace; font-size: 11px; margin: 6px 2px 2px; letter-spacing: 0.3px; }
+.quicklog-hint.ok { color: rgba(255, 205, 130, 0.85); }
+.quicklog-hint.bad { color: rgba(255, 150, 120, 0.7); }
+
+/* bulk paste sheet */
+.bulk-scrim { position: fixed; inset: 0; z-index: 520; background: rgba(4, 3, 2, 0.62); backdrop-filter: blur(3px); display: flex; align-items: flex-end; justify-content: center; animation: ask-kai-fade 0.2s ease both; }
+.bulk { width: min(480px, 96vw); max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+  background: linear-gradient(180deg, rgba(14, 11, 7, 0.98), rgba(7, 5, 4, 0.98));
+  border: 1px solid rgba(255, 190, 100, 0.22); border-radius: 16px 16px 0 0; padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  font-family: 'JetBrains Mono', ui-monospace, monospace; color: #f0c078; animation: kai-eye-rise 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both; }
+.bulk-head { display: flex; align-items: center; justify-content: space-between; }
+.bulk-title { font-size: 11px; letter-spacing: 3px; color: rgba(240, 192, 120, 0.75); }
+.bulk-x { background: none; border: none; color: rgba(240, 192, 120, 0.5); cursor: pointer; }
+.bulk-text { width: 100%; resize: vertical; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 190, 100, 0.2); border-radius: 8px; padding: 10px 12px; color: #f3ddbd; font-family: inherit; font-size: 12.5px; line-height: 1.5; outline: none; }
+.bulk-parse, .bulk-send, .bulk-reparse { border-radius: 8px; cursor: pointer; font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 1px; padding: 10px 14px; }
+.bulk-parse { background: rgba(255, 190, 90, 0.14); border: 1px solid rgba(255, 190, 90, 0.3); color: #ffcaa0; }
+.bulk-parse:disabled { opacity: 0.35; cursor: default; }
+.bulk-rows { display: flex; flex-direction: column; gap: 5px; max-height: 34vh; overflow-y: auto; }
+.bulk-empty { font-size: 12px; color: rgba(255, 150, 120, 0.7); padding: 6px 2px; }
+.bulk-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 190, 100, 0.12); }
+.bulk-row.in { border-color: rgba(120, 220, 150, 0.28); }
+.bulk-sum { font-size: 12.5px; color: #f3ddbd; }
+.bulk-drop { background: none; border: none; color: rgba(255, 150, 120, 0.6); cursor: pointer; font-size: 12px; }
+.bulk-actions { display: flex; gap: 8px; justify-content: space-between; }
+.bulk-reparse { background: none; border: 1px solid rgba(255, 190, 100, 0.25); color: rgba(240, 192, 120, 0.8); }
+.bulk-send { flex: 1; background: rgba(255, 190, 90, 0.16); border: 1px solid rgba(255, 195, 90, 0.4); color: #ffcaa0; }
+.bulk-send:disabled { opacity: 0.35; cursor: default; }
+
+/* evening prompt banner */
+.evening {
+  position: fixed; z-index: 470; left: 0; right: 0; margin-inline: auto;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
+  width: max-content; max-width: 92vw;
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px 9px 14px; border-radius: 99px;
+  background: linear-gradient(180deg, rgba(14, 16, 26, 0.96), rgba(9, 10, 18, 0.96));
+  border: 1px solid rgba(150, 170, 230, 0.3); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+  font-family: ui-monospace, monospace; animation: greet-in 0.5s cubic-bezier(0.25,0.46,0.45,0.94) both;
+}
+.evening-icon { color: rgba(160, 180, 235, 0.8); flex: none; }
+.evening-text { font-size: 12.5px; color: rgba(220, 225, 240, 0.92); }
+.evening-log { flex: none; padding: 6px 12px; border-radius: 99px; cursor: pointer; background: rgba(150, 170, 230, 0.18); border: 1px solid rgba(150, 170, 230, 0.4); color: rgba(225, 230, 245, 0.98); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+.evening-x { flex: none; background: none; border: none; color: rgba(180, 190, 210, 0.5); cursor: pointer; padding: 2px; }
+
 /* ── MAKADI PROFIT LINE — the month's headline on Command ──────── */
 .makadi-line {
   position: fixed; z-index: 6;                    /* above the organism canvas/HUD, below transient overlays */
