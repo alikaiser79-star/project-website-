@@ -27,9 +27,19 @@ export function read<T>(key: string, fallback: T): T {
 }
 
 export function write<T>(key: string, value: T): void {
+  writeSafe(key, value);
+}
+
+/* Like write(), but reports whether the value actually persisted. A silent
+   localStorage failure (QuotaExceededError on a phone with a full origin, a
+   locked-down iframe, private-mode caps) used to vanish here with no trace —
+   which is exactly how a Spine append can be "written" yet be gone on the
+   next read. Callers that must know (logEvent) use this and self-heal. */
+export function writeSafe<T>(key: string, value: T): boolean {
   const s = ls();
-  if (!s) return;
-  try { s.setItem(key, JSON.stringify(value)); } catch { /* quota — fail quiet */ }
+  if (!s) return false;
+  try { s.setItem(key, JSON.stringify(value)); return true; }
+  catch { return false; }   // quota / security — the caller decides what to do
 }
 
 export function uid(): string {

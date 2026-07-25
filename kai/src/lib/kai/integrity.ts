@@ -7,8 +7,9 @@
    ============================================================ */
 
 import { getEvents, type KaiEvent } from './events';
-import { read, write, emit } from './store';
+import { read, write, writeSafe, emit } from './store';
 import { loadState, saveState } from '../store';
+import { recordRealBookings } from './seed';
 import { monthlyIncomeEgp } from './money';
 import { escapeState } from './escape';
 import type { Currency } from '../../types';
@@ -22,7 +23,7 @@ export interface IntegrityCheck {
   status: IntegrityStatus;
   detail: string;
   events?: KaiEvent[];                 // the exact events involved
-  fix?: { kind: 'backfill_ccy' | 'align_debt'; eventIds?: string[] };
+  fix?: { kind: 'backfill_ccy' | 'align_debt' | 'record_bookings'; eventIds?: string[] };
 }
 
 /* A money-valued event that should carry a currency tag. */
@@ -91,10 +92,50 @@ export function runIntegrity(now = Date.now()): IntegrityCheck[] {
     }
   } catch { /* ignore */ }
 
+  /* 5. Real Makadi bookings present in the Spine. The recording runs at
+     boot (guarded + self-healing), but if a storage failure ever swallows
+     it, the organ stays loud and the Profit Line reads empty — with no
+     other visible clue. This check makes that state legible on-device and
+     gives a one-tap repair (force re-record + verify). */
+  try {
+    const bc = getEvents({ domain: 'makadi', type: 'booking_confirmed' });
+    const airbnb = bc.some((e) => e.meta?.ref === 'real-booking-hatem-jul27');
+    const direct = bc.some((e) => e.meta?.ref === 'real-booking-direct-jul26');
+    if (airbnb && direct) {
+      checks.push({ id: 'bookings', title: 'Real bookings in the Spine', status: 'ok',
+        detail: 'Both confirmed Makadi bookings (Hatem $103.34, direct 1,500 EGP) are recorded — organ 04 is quiet.' });
+    } else {
+      checks.push({ id: 'bookings', title: 'Real bookings in the Spine', status: 'fail',
+        detail: `The confirmed Makadi bookings are missing from this device's Spine (${bc.length} booking event(s) found). Organ 04 will stay loud and the Profit Line reads empty until they're recorded.`,
+        events: bc.slice(0, 6), fix: { kind: 'record_bookings' } });
+    }
+  } catch { /* ignore */ }
+
+  /* 6. Storage headroom — the silent killer. If localStorage can't take a
+     small canary write, EVERY Spine append is failing quietly and nothing
+     new can persist. Surface it so "why won't it save?" has an answer. */
+  try {
+    const canary = '__kai_probe__';
+    const ok = writeSafe(canary, { t: now });
+    try { localStorage.removeItem(canary); } catch { /* ignore */ }
+    checks.push(ok
+      ? { id: 'storage', title: 'Storage headroom', status: 'ok', detail: 'Device storage accepts writes — the Spine can persist.' }
+      : { id: 'storage', title: 'Storage headroom', status: 'fail',
+          detail: 'This device rejected a test write (storage full or blocked). New events are being pruned to fit; if this persists, free space by clearing old data.' });
+  } catch { /* ignore */ }
+
   return checks;
 }
 
 /* ── reconcile ────────────────────────────────────────────── */
+
+/* Force-record the real Makadi bookings and verify they persisted. Returns
+   the confirmed booking_confirmed count. Idempotent (per-ref guarded), so
+   tapping repair twice never duplicates. */
+export function recordBookingsFix(): { persisted: boolean; count: number } {
+  const r = recordRealBookings(Date.now(), true);
+  return { persisted: r.persisted, count: r.count };
+}
 
 /* Backfill a currency onto money events that lack one. Tagging, not a
    value change — makadi rate events default to their stored rateCcy,

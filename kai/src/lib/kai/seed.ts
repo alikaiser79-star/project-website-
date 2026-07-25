@@ -232,41 +232,72 @@ export function recordWithdrawnInquiry(now: number = Date.now()): void {
    quiets the Makadi organ (the truth changing, not a bug), and the
    "first booking by Aug 1" commitment resolves KEPT with these as evidence.
    Self-healing guard on the booking ref (survives a sync clobber). */
-export function recordRealBookings(now: number = Date.now()): void {
+export interface BookingRecordResult { ran: boolean; persisted: boolean; count: number; reason?: string; }
+
+export function recordRealBookings(now: number = Date.now(), force = false): BookingRecordResult {
   try {
     const REF = 'real-booking-hatem-jul27';
-    if (getEvents({ domain: 'makadi', type: 'booking_confirmed' }).some((e) => e.meta?.ref === REF)) return;
+    const present = () => getEvents({ domain: 'makadi', type: 'booking_confirmed' });
+    if (!force && present().some((e) => e.meta?.ref === REF)) {
+      return { ran: false, persisted: true, count: present().length, reason: 'already-present' };
+    }
 
-    const airbnb = logEvent({
-      domain: 'makadi', type: 'booking_confirmed', value: 103.34, ccy: 'USD',
-      meta: { ref: REF, guest: 'Hatem', dates: 'Jul 27–30, 2026', nights: 3, source: 'airbnb', amount: '$103.34' },
-      source: 'user', ts: now,
-    });
-    logEvent({
-      domain: 'makadi', type: 'booking_confirmed', value: 1500, ccy: 'EGP',
-      meta: { ref: 'real-booking-direct-jul26', guest: 'Direct booking', dates: 'Jul 26, 2026', nights: 1, source: 'direct', amount: '1,500 EGP' },
-      source: 'user', ts: now,
-    });
+    /* Per-ref idempotence — safe under force re-run (the repair button):
+       only write a booking whose ref isn't already in the Spine, so a
+       forced heal fills gaps without ever duplicating. */
+    const has = (ref: string) => present().some((e) => e.meta?.ref === ref);
+
+    let airbnbId = present().find((e) => e.meta?.ref === REF)?.id;
+    if (!has(REF)) {
+      airbnbId = logEvent({
+        domain: 'makadi', type: 'booking_confirmed', value: 103.34, ccy: 'USD',
+        meta: { ref: REF, guest: 'Hatem', dates: 'Jul 27–30, 2026', nights: 3, source: 'airbnb', amount: '$103.34' },
+        source: 'user', ts: now,
+      }).id;
+    }
+    if (!has('real-booking-direct-jul26')) {
+      logEvent({
+        domain: 'makadi', type: 'booking_confirmed', value: 1500, ccy: 'EGP',
+        meta: { ref: 'real-booking-direct-jul26', guest: 'Direct booking', dates: 'Jul 26, 2026', nights: 1, source: 'direct', amount: '1,500 EGP' },
+        source: 'user', ts: now,
+      });
+    }
     /* Total booked nights — a count, no currency. Quiets the organ. */
-    logEvent({ domain: 'makadi', type: 'nights_booked', value: 4, meta: { ref: 'real-bookings-jul', source: 'confirmed' }, source: 'user', ts: now });
+    if (!getEvents({ domain: 'makadi', type: 'nights_booked' }).some((e) => e.meta?.ref === 'real-bookings-jul')) {
+      logEvent({ domain: 'makadi', type: 'nights_booked', value: 4, meta: { ref: 'real-bookings-jul', source: 'confirmed' }, source: 'user', ts: now });
+    }
 
     /* Resolve the "first booking" commitment KEPT — makadi + booking-shaped
        text, explicitly NOT the listing commitment. Evidence: the Airbnb event. */
-    const recovered = markKeptByMatch((c) => {
-      const t = (c.text || '').toLowerCase();
-      const makadi = c.metric?.domain === 'makadi' || /makadi/.test(t);
-      return makadi && /book/.test(t);
-    }, airbnb.id, now);
+    let recovered = 0;
+    if (airbnbId) {
+      recovered = markKeptByMatch((c) => {
+        const t = (c.text || '').toLowerCase();
+        const makadi = c.metric?.domain === 'makadi' || /makadi/.test(t);
+        return makadi && /book/.test(t);
+      }, airbnbId, now);
+    }
 
-    /* Visible confirmation in the Spine. */
+    /* VERIFY the writes actually persisted (the whole point of this pass):
+       re-read the Spine and confirm both bookings survived. On a storage-
+       starved device logEvent now prunes+retries, so this should hold — but
+       we report the truth either way so a real failure is visible, never
+       silently assumed. */
+    const count = present().length;
+    const persisted = has(REF) && has('real-booking-direct-jul26');
+
     try {
       logEvent({
         domain: 'system', type: 'booking_recorded', value: 4,
-        meta: { recovered, bookings: ['Airbnb Hatem $103.34 (3n)', 'Direct 1,500 EGP (1n)'], nights: 4, note: 'first real Makadi bookings' },
+        meta: { recovered, persisted, forced: force, bookings: ['Airbnb Hatem $103.34 (3n)', 'Direct 1,500 EGP (1n)'], nights: 4, note: 'first real Makadi bookings' },
         source: 'user', ts: now,
       });
     } catch { /* best-effort */ }
-  } catch { /* boot must never throw here */ }
+
+    return { ran: true, persisted, count };
+  } catch (err) {
+    return { ran: false, persisted: false, count: 0, reason: String((err as any)?.message || err) };
+  }
 }
 
 /* Dev console hooks:

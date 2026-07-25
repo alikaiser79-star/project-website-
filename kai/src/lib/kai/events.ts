@@ -10,7 +10,7 @@
    is a hard guarantee.
    ============================================================ */
 
-import { read, write, uid, emit } from './store';
+import { read, write, writeSafe, uid, emit } from './store';
 import type { Currency } from '../../types';
 
 export type Domain =
@@ -50,10 +50,25 @@ export function logEvent(e: Omit<KaiEvent, 'id' | 'ts'> & { ts?: number }): KaiE
     meta: e.meta,
     source: e.source,
   };
-  const all = read<KaiEvent[]>(KEY, []);
+  let all = read<KaiEvent[]>(KEY, []);
   all.push(ev);
-  if (all.length > CAP) all.splice(0, all.length - CAP);
-  write(KEY, all);
+  if (all.length > CAP) all = all.slice(all.length - CAP);
+
+  /* Persist — and PROVE it landed. On a real device the origin's
+     localStorage can be full (a fat Spine + typed state + history +
+     token logs), and setItem then throws QuotaExceededError. The old
+     code swallowed that silently, so a booking could be "logged" yet be
+     absent on the next read — an invisible, permanent failure that no
+     amount of re-running the guard could heal. Now: if the write fails,
+     prune the OLDEST events (the newest, incl. this one, are what matter)
+     and retry, progressively harder, so the append ALWAYS persists as
+     long as any space at all is reclaimable. */
+  if (!writeSafe(KEY, all)) {
+    for (const keep of [1200, 600, 250, 80, 20]) {
+      const pruned = all.slice(Math.max(0, all.length - keep));
+      if (writeSafe(KEY, pruned)) { all = pruned; break; }
+    }
+  }
   emit();
   return ev;
 }

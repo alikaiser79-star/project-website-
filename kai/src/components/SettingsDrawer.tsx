@@ -27,7 +27,7 @@ import {
   type LockConfig,
 } from '../lib/lock';
 import { downloadBackup, importBackupFile } from '../lib/kai/backup';
-import { runIntegrity, backfillCcy, alignDebtToSpine, type IntegrityCheck } from '../lib/kai/integrity';
+import { runIntegrity, backfillCcy, alignDebtToSpine, recordBookingsFix, type IntegrityCheck } from '../lib/kai/integrity';
 import { tokenTotals } from '../lib/kai/tokens';
 import {
   isSyncEnabled, getSyncKey, enableSync, disableSync, syncNow, syncConfigured,
@@ -341,6 +341,11 @@ function IntegritySection() {
     if (!c.fix) return;
     if (c.fix.kind === 'backfill_ccy') { const n = backfillCcy(c.fix.eventIds || []); toast.ok(`Tagged ${n} event(s) with a currency.`, 'INTEGRITY', 3000); }
     else if (c.fix.kind === 'align_debt') { alignDebtToSpine(); toast.ok('Debt balance aligned to the Spine.', 'INTEGRITY', 3000); }
+    else if (c.fix.kind === 'record_bookings') {
+      const r = recordBookingsFix();
+      if (r.persisted) toast.ok('Real bookings recorded — organ 04 is quiet now.', 'INTEGRITY', 3500);
+      else toast.err('Write failed — storage may be full. Clear old data and retry.', 'INTEGRITY', 4500);
+    }
     refresh();
   }
 
@@ -370,7 +375,9 @@ function IntegritySection() {
           )}
           {c.fix && (
             <button className="int-fix" onClick={() => fix(c)}>
-              {c.fix.kind === 'backfill_ccy' ? 'Tag currency (EGP / USD)' : 'Align to Spine'}
+              {c.fix.kind === 'backfill_ccy' ? 'Tag currency (EGP / USD)'
+                : c.fix.kind === 'record_bookings' ? 'Record real bookings now'
+                : 'Align to Spine'}
             </button>
           )}
         </div>
