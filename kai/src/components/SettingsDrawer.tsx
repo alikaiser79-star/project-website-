@@ -29,6 +29,7 @@ import {
 import { downloadBackup, importBackupFile } from '../lib/kai/backup';
 import { runIntegrity, backfillCcy, alignDebtToSpine, recordBookingsFix, type IntegrityCheck } from '../lib/kai/integrity';
 import { getRecurring, upsertRecurring, removeRecurring, type RecurringItem } from '../lib/kai/intake';
+import { getMakadiConfig, setMakadiConfig, type MakadiConfig } from '../lib/kai/ambassador';
 import { tokenTotals } from '../lib/kai/tokens';
 import {
   isSyncEnabled, getSyncKey, enableSync, disableSync, syncNow, syncConfigured,
@@ -311,6 +312,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
                 <RecurringSection />
               </Section>
 
+              <Section icon={<Bed size={12} />} title="Makadi Ambassador">
+                <AmbassadorSection />
+              </Section>
+
               <Section icon={<ShieldCheck size={12} />} title="Integrity">
                 <IntegritySection />
               </Section>
@@ -374,6 +379,61 @@ function RecurringSection() {
       </div>
       <p className="text-[10px] text-steel leading-relaxed">
         Direction and domain are inferred from the name (salary/rent/booking → income; else expense). Turnover-driven items (cleaner) are handled by the Ambassador per booking.
+      </p>
+    </div>
+  );
+}
+
+function AmbassadorSection() {
+  const [cfg, setCfg] = useState<MakadiConfig>(() => getMakadiConfig());
+  const save = (patch: Partial<MakadiConfig>) => setCfg(setMakadiConfig(patch));
+  const field = 'w-full bg-ink2 border border-amber/20 focus:border-amber rounded px-2 py-1.5 text-bone outline-none text-[12px]';
+  const lbl = 'block text-[10px] tracking-[0.14em] uppercase text-steel mb-1 mt-2';
+
+  return (
+    <div className="text-[11px] space-y-1">
+      <label className="flex items-center justify-between py-1">
+        <span className="text-bone/85">Ambassador active</span>
+        <input type="checkbox" checked={cfg.enabled} onChange={(e) => save({ enabled: e.target.checked })} />
+      </label>
+      <p className="text-[10px] text-steel leading-relaxed mb-1">
+        When on, KAI drafts guest-lifecycle messages and proposes them at the Gate — nothing sends without your tap.
+      </p>
+
+      <label className={lbl}>Smart-lock code</label>
+      <input className={field} value={cfg.lockCode} onChange={(e) => save({ lockCode: e.target.value })} placeholder="e.g. 4827" />
+
+      <label className={lbl}>Address</label>
+      <input className={field} value={cfg.address} onChange={(e) => save({ address: e.target.value })} placeholder="unit / building / area" />
+
+      <label className={lbl}>WiFi</label>
+      <input className={field} value={cfg.wifi} onChange={(e) => save({ wifi: e.target.value })} placeholder="network · password" />
+
+      <label className={lbl}>House rules (short)</label>
+      <input className={field} value={cfg.houseRules} onChange={(e) => save({ houseRules: e.target.value })} placeholder="no smoking, quiet after 11…" />
+
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <label className={lbl}>Check-in hour</label>
+          <input type="number" min={0} max={23} className={field} value={cfg.checkInHour} onChange={(e) => save({ checkInHour: Math.max(0, Math.min(23, Number(e.target.value) || 0)) })} />
+        </div>
+        <div className="flex-1">
+          <label className={lbl}>Check-out hour</label>
+          <input type="number" min={0} max={23} className={field} value={cfg.checkOutHour} onChange={(e) => save({ checkOutHour: Math.max(0, Math.min(23, Number(e.target.value) || 0)) })} />
+        </div>
+      </div>
+
+      <label className={lbl}>Cleaner name</label>
+      <input className={field} value={cfg.cleanerName} onChange={(e) => save({ cleanerName: e.target.value })} placeholder="who turns it over" />
+
+      <label className={lbl}>Cleaner email</label>
+      <input className={field} value={cfg.cleanerEmail} onChange={(e) => save({ cleanerEmail: e.target.value })} placeholder="for turnover flags" />
+
+      <label className={lbl}>Sign messages as</label>
+      <input className={field} value={cfg.hostName} onChange={(e) => save({ hostName: e.target.value })} placeholder="Ali" />
+
+      <p className="text-[10px] text-steel leading-relaxed mt-2">
+        Stored on this device only. The lock code appears only in the check-in message, sent after your approval.
       </p>
     </div>
   );

@@ -25,6 +25,7 @@ import IntelStrip, { NewsRow } from './components/IntelStrip';
 import { briefing } from './lib/commands';
 import { startMirror } from './lib/kai/mirror';
 import { scanBookings, getBookingTelemetry } from './lib/kai/bookingwatch';
+import { runAmbassador } from './lib/kai/ambassador';
 import { makadiDiag } from './lib/kai/commandSignals';
 import CommandCorePanel from './components/panels/CommandCorePanel';
 import MobileCommand from './components/MobileCommand';
@@ -357,7 +358,12 @@ export default function App() {
      This is the path that fires the first-booking push the moment it lands,
      rather than waiting for the Ops-view sweep or the nightly pulse. */
   useEffect(() => {
-    const scan = () => { void scanBookings().catch(() => {}); };
+    /* Scan mail for bookings, then let DER BOTSCHAFTER (Q3.2) propose any
+       due guest-lifecycle messages through the Gate (no-op unless the
+       operator enabled the Ambassador in Settings). Ambassador runs after
+       every scan so time-based stages (check-in window, post-checkout
+       review) surface even when no new mail arrived. */
+    const scan = () => { void scanBookings().catch(() => {}).finally(() => { void runAmbassador().catch(() => {}); }); };
     scan();
     const onVis = () => { if (document.visibilityState === 'visible') scan(); };
     document.addEventListener('visibilitychange', onVis);
@@ -379,6 +385,7 @@ export default function App() {
       (window as any).__kaiMakadi = () => { const r = makadiDiag(); console.info('[KAI makadi]', r); return r; };
       (window as any).__kaiBookingLog = () => { const r = getBookingTelemetry(); console.info('[KAI booking scans]', r); return r; };
       (window as any).__kaiScanBookings = () => scanBookings(true).then((r) => { console.info('[KAI booking scan NOW]', r); return r; });
+      (window as any).__kaiAmbassador = () => runAmbassador().then((r) => { console.info('[KAI ambassador]', r); return r; });
     } catch { /* ignore */ }
   }, []);
 
