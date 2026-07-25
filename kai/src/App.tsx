@@ -61,6 +61,7 @@ import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
 import InstallPrompt from './components/InstallPrompt';
+import MakadiProfitLine from './components/MakadiProfitLine';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -854,6 +855,9 @@ export default function App() {
             )}
 
             {view === 'command' && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
+            {view === 'command' && booted && !(lockCfg.enabled && !unlocked) && (
+              <MakadiProfitLine onOpen={() => setView('money')} />
+            )}
 
             {/* Non-Command views (§13.1) — each is its own lazy chunk, so
                 the default Command load never pulls Money/Growth/Ops/Comms

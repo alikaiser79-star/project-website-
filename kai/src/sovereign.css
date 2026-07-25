@@ -109,6 +109,33 @@
 @keyframes greet-in  { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes greet-out { to { opacity: 0; transform: translateY(-8px); } }
 
+/* ── MAKADI PROFIT LINE — the month's headline on Command ──────── */
+.makadi-line {
+  position: fixed; z-index: 6;                    /* above the organism canvas/HUD, below transient overlays */
+  left: 0; right: 0; margin-inline: auto;         /* centre without transform */
+  top: calc(env(safe-area-inset-top, 0px) + 132px);
+  width: max-content; max-width: 92vw;
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 7px 15px; border-radius: 99px; cursor: pointer;
+  background: linear-gradient(180deg, rgba(16, 11, 4, 0.82), rgba(9, 6, 3, 0.8));
+  border: 1px solid rgba(255, 185, 90, 0.28);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 170, 70, 0.06);
+  backdrop-filter: blur(6px);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  animation: greet-in 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.makadi-line:active { transform: scale(0.97); }
+.makadi-line-label { font-size: 8px; letter-spacing: 3px; color: rgba(255, 190, 110, 0.55); }
+.makadi-line-net {
+  font-size: 17px; font-variant-numeric: tabular-nums; letter-spacing: 0.5px;
+  color: rgba(255, 200, 120, 0.98); text-shadow: 0 0 12px rgba(255, 150, 70, 0.2);
+}
+.makadi-line-net i { font-style: normal; font-size: 9px; color: rgba(232, 210, 190, 0.45); margin-left: 4px; }
+.makadi-line-sub { font-size: 9px; letter-spacing: 1px; color: rgba(232, 210, 190, 0.5); }
+.makadi-line.is-paid { border-color: rgba(120, 220, 150, 0.45); }
+.makadi-line.is-paid .makadi-line-net { color: rgba(140, 235, 170, 0.98); text-shadow: 0 0 12px rgba(90, 210, 130, 0.25); }
+.makadi-line.is-under .makadi-line-net { color: rgba(255, 200, 120, 0.98); }
+
 /* ── §22.1 EARS — push-to-talk button + live transcript ───────── */
 .ptt-wrap {
   position: fixed; z-index: 340;
