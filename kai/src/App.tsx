@@ -35,6 +35,10 @@ import AskKaiDrawer from './components/AskKaiDrawer';
 import { runAnomalyWatch } from './lib/kai/anomaly';
 import Debrief from './components/Debrief';
 import { shouldShowDebrief, ensureDebrief, markDebriefShown, type Debrief as DebriefData } from './lib/kai/debrief';
+import MorningPlan from './components/MorningPlan';
+import { shouldShowMorningPlan, ensureMorningPlan, markPlanShown, type MorningPlan as PlanData } from './lib/kai/morningPlan';
+import Reckoning from './components/Reckoning';
+import { shouldShowReckoning, ensureReckoning, markReckoningShown, type Reckoning as ReckoningData } from './lib/kai/reckoning';
 import OneThingMode from './components/OneThingMode';
 import DayRitual from './components/DayRitual';
 import { shouldDayCompile, shouldShutdown } from './lib/kai/protocol';
@@ -133,6 +137,8 @@ export default function App() {
   const [askOpen, setAskOpen] = useState(false);
   const [debriefData, setDebriefData] = useState<DebriefData | null>(null);
   const [greeting, setGreeting] = useState<string | null>(null);
+  const [morningPlan, setMorningPlan] = useState<PlanData | null>(null);
+  const [reckoning, setReckoning] = useState<ReckoningData | null>(null);
   const [oneThingOpen, setOneThingOpen] = useState(false);
   const [dayRitual, setDayRitual] = useState<'compile' | 'shutdown' | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -638,16 +644,28 @@ export default function App() {
     // only if a fresh trigger fires. No timer, no polling.
     runAnomalyWatch().catch(() => {});
 
-    // Debrief (8.3) — the Sunday review, once per week, first open.
-    if (shouldShowDebrief()) {
-      ensureDebrief().then(d => { setDebriefData(d); markDebriefShown(); }).catch(() => {});
+    /* THE WEEKLY RECKONING — the Sunday accounting (upgrade of the Debrief),
+       once per week on first open. On non-mobile, after the boot settles.
+       When it's dismissed, the day's Morning Plan follows (Sunday sequence). */
+    const planIfDue = () => {
+      if (shouldShowMorningPlan() && !isMobile) {
+        setTimeout(() => ensureMorningPlan().then(p => { setMorningPlan(p); markPlanShown(); }).catch(() => {}), 400);
+      }
+    };
+    if (shouldShowReckoning() && !isMobile) {
+      ensureReckoning().then(r => { setReckoning(r); markReckoningShown(); }).catch(() => planIfDue());
+    } else {
+      // THE MORNING PLAN — today's 3 moves + one ruling, first open of the day.
+      planIfDue();
     }
 
     // Protocol (6.3) — first open of the day compiles the day; after
     // 21:00 the first open runs the shutdown ritual instead.
     if (shouldShutdown()) setDayRitual('shutdown');
     else if (shouldDayCompile()) setTimeout(() => setDayRitual('compile'), 1200);
-    /* Dev hook to preview the weekly debrief on any day. */
+    /* Dev hooks to preview the plan / reckoning / debrief on any day. */
+    (window as any).__kaiPlan = () => { ensureMorningPlan().then(p => { console.info('[KAI plan]', p); setMorningPlan(p); }).catch(() => {}); };
+    (window as any).__kaiReckon = () => { ensureReckoning().then(r => { console.info('[KAI reckoning]', r); setReckoning(r); }).catch(() => {}); };
     (window as any).__kaiDebrief = () => {
       ensureDebrief().then(setDebriefData).catch(() => setDebriefData({
         kept: '2 kept — arrears paid, lock replaced',
@@ -672,6 +690,10 @@ export default function App() {
         setSetOpen(true);
       } else if (a.type === 'open-cmd') {
         setCmdOpen(true);
+      } else if (a.type === 'open-plan') {
+        ensureMorningPlan().then(setMorningPlan).catch(() => {});
+      } else if (a.type === 'open-reckon') {
+        ensureReckoning().then(setReckoning).catch(() => {});
       } else if (a.type === 'ping-panel') {
         /* Switch to the view that owns this panel first, then flash
            it (after the view transition mounts the element). */
@@ -935,6 +957,17 @@ export default function App() {
 
       {/* Debrief — the weekly Sunday review (typed, gold). */}
       {debriefData && <Debrief data={debriefData} onDone={() => setDebriefData(null)} />}
+
+      {/* THE WEEKLY RECKONING — the Sunday accounting; on dismiss, the day's
+          plan follows. Reckoning takes precedence when both are due. */}
+      {reckoning && <Reckoning data={reckoning} onDone={() => {
+        setReckoning(null);
+        if (shouldShowMorningPlan() && !isMobile) ensureMorningPlan().then(p => { setMorningPlan(p); markPlanShown(); }).catch(() => {});
+      }} />}
+
+      {/* THE MORNING PLAN — today's 3 moves + one ruling (only when the
+          Reckoning isn't up, to avoid stacked overlays). */}
+      {morningPlan && !reckoning && <MorningPlan data={morningPlan} onDone={() => setMorningPlan(null)} />}
 
       {/* Protocol (6.3) — ONE THING focus + the daily ritual. */}
       {oneThingOpen && <OneThingMode onExit={() => setOneThingOpen(false)} />}

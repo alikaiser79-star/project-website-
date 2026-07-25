@@ -24,6 +24,7 @@ import { warChestBrief } from './kai/warchest';
 import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
+import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -169,6 +170,18 @@ export function runBuiltin(cmd: string): CmdResult | null {
   /* The Doctrine — KAI states its constitution (who it is, the five laws). */
   if (/^doctrine$|^constitution$|^who are you$|^what are you$|^دستور$|^عقيدة$/.test(q)) {
     return doctrineText();
+  }
+
+  /* The Morning Plan — today's 3 moves + one ruling, from the whole Spine. */
+  if (/^plan$|^today$|^my plan$|^the plan$/.test(q)) {
+    emitAction({ type: 'open-plan' });
+    return 'Reading the Spine — today\'s plan is coming up.';
+  }
+
+  /* The Weekly Reckoning — the Sunday accounting, summonable any day. */
+  if (/^reckon$|^reckoning$|^the reckoning$|^weekly reckoning$/.test(q)) {
+    emitAction({ type: 'open-reckon' });
+    return 'Closing the books on the week…';
   }
 
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
