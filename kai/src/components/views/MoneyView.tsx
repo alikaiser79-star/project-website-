@@ -7,18 +7,23 @@ import DebtPanel from '../panels/DebtPanel';
 import ExpensesPanel from '../panels/ExpensesPanel';
 import LedgerOfWinsPanel from '../panels/LedgerOfWinsPanel';
 import MakadiProfitPanel from '../panels/MakadiProfitPanel';
+import QuickLogBar from '../QuickLogBar';
 
 export default function MoneyView() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
-      <EscapeVelocityPanel delay={0.06} />
-      <AnalystPanel delay={0.08} />
-      <TollgatePanel delay={0.10} />
-      <MakadiProfitPanel delay={0.13} />
-      <IncomePanel delay={0.15} />
-      <DebtPanel delay={0.20} />
-      <ExpensesPanel delay={0.25} />
-      <LedgerOfWinsPanel />
-    </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8 items-start">
+        <EscapeVelocityPanel delay={0.06} />
+        <AnalystPanel delay={0.08} />
+        <TollgatePanel delay={0.10} />
+        <MakadiProfitPanel delay={0.13} />
+        <IncomePanel delay={0.15} />
+        <DebtPanel delay={0.20} />
+        <ExpensesPanel delay={0.25} />
+        <LedgerOfWinsPanel />
+      </div>
+      {/* DER EINGANG — persistent quick-log, sticky to the bottom of Money. */}
+      <QuickLogBar />
+    </>
   );
 }

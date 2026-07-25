@@ -28,6 +28,7 @@ import {
 } from '../lib/lock';
 import { downloadBackup, importBackupFile } from '../lib/kai/backup';
 import { runIntegrity, backfillCcy, alignDebtToSpine, recordBookingsFix, type IntegrityCheck } from '../lib/kai/integrity';
+import { getRecurring, upsertRecurring, removeRecurring, type RecurringItem } from '../lib/kai/intake';
 import { tokenTotals } from '../lib/kai/tokens';
 import {
   isSyncEnabled, getSyncKey, enableSync, disableSync, syncNow, syncConfigured,
@@ -306,6 +307,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
                 </p>
               </Section>
 
+              <Section icon={<Wallet size={12} />} title="Recurring auto-log">
+                <RecurringSection />
+              </Section>
+
               <Section icon={<ShieldCheck size={12} />} title="Integrity">
                 <IntegritySection />
               </Section>
@@ -327,6 +332,50 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function RecurringSection() {
+  const [items, setItems] = useState<RecurringItem[]>(() => getRecurring());
+  const [label, setLabel] = useState('');
+  const [amount, setAmount] = useState('');
+  const [day, setDay] = useState('1');
+  const field = 'bg-ink2 border border-amber/20 focus:border-amber rounded px-2 py-1.5 text-bone outline-none text-[12px]';
+
+  function add() {
+    const amt = parseFloat(amount.replace(/[, ]/g, ''));
+    if (!label.trim() || !isFinite(amt) || amt <= 0) return;
+    setItems(upsertRecurring({ label: label.trim(), amount: amt, dayOfMonth: parseInt(day, 10) || 1 }));
+    setLabel(''); setAmount('');
+  }
+  function toggle(r: RecurringItem) { setItems(upsertRecurring({ ...r, enabled: !r.enabled })); }
+
+  return (
+    <div className="text-[11px] space-y-2">
+      <p className="text-[10px] text-steel leading-relaxed">
+        Fixed monthly items log themselves — KAI proposes them at the Gate on their day for one-tap confirm. Never re-type what never changes.
+      </p>
+      {items.length > 0 && (
+        <div className="space-y-1">
+          {items.map((r) => (
+            <div key={r.id} className="flex items-center gap-2 border border-amber/12 rounded px-2 py-1.5">
+              <input type="checkbox" checked={r.enabled} onChange={() => toggle(r)} />
+              <span className="flex-1 text-bone/85">{r.label} · {Math.round(r.amount).toLocaleString('en-GB')} {r.ccy} <span className="text-steel">· day {r.dayOfMonth} · {r.dir === 'in' ? 'in' : 'out'}</span></span>
+              <button onClick={() => setItems(removeRecurring(r.id))} className="text-danger/70"><Trash2 size={12} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-1.5 items-center">
+        <input className={field + ' flex-1'} value={label} onChange={(e) => setLabel(e.target.value)} placeholder='item — "salary", "brother"' />
+        <input className={field + ' w-[68px]'} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="amt" inputMode="decimal" />
+        <input className={field + ' w-[48px]'} value={day} onChange={(e) => setDay(e.target.value)} placeholder="day" inputMode="numeric" title="day of month" />
+        <button onClick={add} className="px-2 py-1.5 border border-amber/40 text-amber rounded"><Plus size={12} /></button>
+      </div>
+      <p className="text-[10px] text-steel leading-relaxed">
+        Direction and domain are inferred from the name (salary/rent/booking → income; else expense). Turnover-driven items (cleaner) are handled by the Ambassador per booking.
+      </p>
+    </div>
   );
 }
 
