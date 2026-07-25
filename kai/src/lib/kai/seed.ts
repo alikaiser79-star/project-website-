@@ -222,6 +222,53 @@ export function recordWithdrawnInquiry(now: number = Date.now()): void {
   } catch { /* boot must never throw here */ }
 }
 
+/* ── FIRST BOOKINGS — REAL, CONFIRMED (operator-confirmed) ─────
+   Two real Makadi bookings, recorded as truth on Kaiser's word:
+     1. Airbnb — Hatem, Jul 27–30, 3 nights, $103.34 (USD).
+     2. Direct — Jul 26, 1 night, 1,500 EGP.
+   Currency discipline: each event carries its OWN amount in `value` with
+   an explicit `ccy` — USD and EGP are stored separately, never mixed; the
+   Profit Line normalises to EGP at read time via toEgp. nights_booked=4
+   quiets the Makadi organ (the truth changing, not a bug), and the
+   "first booking by Aug 1" commitment resolves KEPT with these as evidence.
+   Self-healing guard on the booking ref (survives a sync clobber). */
+export function recordRealBookings(now: number = Date.now()): void {
+  try {
+    const REF = 'real-booking-hatem-jul27';
+    if (getEvents({ domain: 'makadi', type: 'booking_confirmed' }).some((e) => e.meta?.ref === REF)) return;
+
+    const airbnb = logEvent({
+      domain: 'makadi', type: 'booking_confirmed', value: 103.34, ccy: 'USD',
+      meta: { ref: REF, guest: 'Hatem', dates: 'Jul 27–30, 2026', nights: 3, source: 'airbnb', amount: '$103.34' },
+      source: 'user', ts: now,
+    });
+    logEvent({
+      domain: 'makadi', type: 'booking_confirmed', value: 1500, ccy: 'EGP',
+      meta: { ref: 'real-booking-direct-jul26', guest: 'Direct booking', dates: 'Jul 26, 2026', nights: 1, source: 'direct', amount: '1,500 EGP' },
+      source: 'user', ts: now,
+    });
+    /* Total booked nights — a count, no currency. Quiets the organ. */
+    logEvent({ domain: 'makadi', type: 'nights_booked', value: 4, meta: { ref: 'real-bookings-jul', source: 'confirmed' }, source: 'user', ts: now });
+
+    /* Resolve the "first booking" commitment KEPT — makadi + booking-shaped
+       text, explicitly NOT the listing commitment. Evidence: the Airbnb event. */
+    const recovered = markKeptByMatch((c) => {
+      const t = (c.text || '').toLowerCase();
+      const makadi = c.metric?.domain === 'makadi' || /makadi/.test(t);
+      return makadi && /book/.test(t);
+    }, airbnb.id, now);
+
+    /* Visible confirmation in the Spine. */
+    try {
+      logEvent({
+        domain: 'system', type: 'booking_recorded', value: 4,
+        meta: { recovered, bookings: ['Airbnb Hatem $103.34 (3n)', 'Direct 1,500 EGP (1n)'], nights: 4, note: 'first real Makadi bookings' },
+        source: 'user', ts: now,
+      });
+    } catch { /* best-effort */ }
+  } catch { /* boot must never throw here */ }
+}
+
 /* Dev console hooks:
    window.__kaiSeed()   → force re-seed
    window.__kaiUnseed() → clear the flag (re-seeds next boot) */

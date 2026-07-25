@@ -61,12 +61,20 @@ export function makadiProfit(now = Date.now()): MakadiProfit {
     }
   }
 
-  /* EARNED — real Makadi rental income. */
+  /* EARNED — real Makadi rental income. Currency-disciplined: the amount
+     rides in value + ccy (USD and EGP stored separately), normalised to EGP
+     here via toEgp. A legacy value of 1 is the old "a booking happened" flag,
+     not money — for those, fall back to a parsed meta.amount, else booked
+     nights × the real nightly rate. */
   for (const e of getEvents({ domain: 'makadi', type: 'booking_confirmed' })) {
     const nights = Number((e.meta as any)?.nights) || 0;
     nightsBooked += nights;
-    const amt = amountToEgp((e.meta as any)?.amount);
-    earned += amt > 0 ? amt : nights * nightlyEgp;   // amount if given, else real nights × real rate
+    if ((e.value ?? 0) > 1) {
+      earned += toEgp(e.value as number, (e.ccy as Currency) || 'EGP');
+    } else {
+      const amt = amountToEgp((e.meta as any)?.amount);
+      earned += amt > 0 ? amt : nights * nightlyEgp;
+    }
   }
   for (const e of getEvents({ domain: 'income' })) {
     if ((e.meta as any)?.src === 'makadi' || /makadi/i.test(e.type) || (e.meta as any)?.makadi) {
