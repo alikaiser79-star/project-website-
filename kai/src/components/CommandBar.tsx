@@ -173,6 +173,9 @@ export default function CommandBar({ open, onClose, settings }: Props) {
       });
       flushSpeech(true);
       setHistory(h => h.map((t, i) => i === h.length - 1 ? { ...t, kai: reply || acc, streamed: true } : t));
+      /* §22.2 voice-out: if reading aloud is on but live recognition isn't
+         (so nothing spoke progressively), speak the finished answer once. */
+      if (settings.speakEnabled && !settings.voiceEnabled) speakIfOn(reply || acc);
 
       // When the synthesis queue drains, emit speak-end.
       if (settings.voiceEnabled) {
@@ -207,7 +210,7 @@ export default function CommandBar({ open, onClose, settings }: Props) {
     if (!skipSpeak) speakIfOn(kai);
   }
   function speakIfOn(text: string) {
-    if (!settings.voiceEnabled) return;
+    if (!settings.voiceEnabled && !settings.speakEnabled) return;   // §22.2 voice-out
     emit('speak-start');
     sfx.speak();
     voice.speak(

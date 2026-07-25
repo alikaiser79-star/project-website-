@@ -55,6 +55,7 @@ import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
 import InstallPrompt from './components/InstallPrompt';
 import PullToRefresh from './components/PullToRefresh';
+import { speakNow } from './lib/tts';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -768,6 +769,8 @@ export default function App() {
             setVoiceOn={(b) => onSettings({ ...settings, voiceEnabled: b })}
             soundOn={settings.soundEnabled}
             setSoundOn={(b) => onSettings({ ...settings, soundEnabled: b })}
+            speakOn={!!settings.speakEnabled}
+            setSpeakOn={(b) => { onSettings({ ...settings, speakEnabled: b }); if (b) speakNow('Voice on.'); }}
             operatorName={settings.operatorName}
             voiceState={voiceState}
           />

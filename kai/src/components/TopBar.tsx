@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Command, Mic, MicOff, Volume2, VolumeX, Settings, Download, AlertTriangle, Loader2, Sparkles, Brain, Plane, MoreHorizontal } from 'lucide-react';
+import { Command, Mic, MicOff, Volume2, VolumeX, AudioLines, Settings, Download, AlertTriangle, Loader2, Sparkles, Brain, Plane, MoreHorizontal } from 'lucide-react';
 import { operator } from '../kaiConfig';
 import { sfx } from '../lib/sound';
 import type { VoiceState } from '../lib/speech';
@@ -15,6 +15,8 @@ type Props = {
   setVoiceOn: (b: boolean) => void;
   soundOn: boolean;
   setSoundOn: (b: boolean) => void;
+  speakOn: boolean;
+  setSpeakOn: (b: boolean) => void;
   operatorName: string;
   voiceState?: VoiceState;
 };
@@ -27,7 +29,7 @@ function fmtTime(d: Date) {
 }
 
 export default function TopBar({
-  onCmdK, onSettings, onContent, onBrainDump, onAutopilot, voiceOn, setVoiceOn, soundOn, setSoundOn, operatorName, voiceState,
+  onCmdK, onSettings, onContent, onBrainDump, onAutopilot, voiceOn, setVoiceOn, soundOn, setSoundOn, speakOn, setSpeakOn, operatorName, voiceState,
 }: Props) {
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(t); }, []);
@@ -117,6 +119,9 @@ export default function TopBar({
           <IconBtn title="Mute sound (M)" onClick={() => { sfx.click(); setSoundOn(!soundOn); }} active={soundOn}>
             {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
           </IconBtn>
+          <IconBtn title={speakOn ? 'KAI reads answers aloud — tap to silence' : 'Have KAI read answers aloud'} onClick={() => { sfx.click(); setSpeakOn(!speakOn); }} active={speakOn}>
+            <AudioLines size={14} />
+          </IconBtn>
           {installEvt && (
             <button
               onClick={install}
@@ -150,6 +155,7 @@ export default function TopBar({
         {/* Mobile overflow menu */}
         <MoreMenu
           soundOn={soundOn} setSoundOn={setSoundOn}
+          speakOn={speakOn} setSpeakOn={setSpeakOn}
           onBrainDump={onBrainDump} onContent={onContent} onSettings={onSettings}
           installEvt={installEvt} install={install}
         />
@@ -161,9 +167,10 @@ export default function TopBar({
 /* Three-dot menu that collapses secondary chips on small screens.
    Closes on Esc, on outside click, and on any item tap. */
 function MoreMenu({
-  soundOn, setSoundOn, onBrainDump, onContent, onSettings, installEvt, install,
+  soundOn, setSoundOn, speakOn, setSpeakOn, onBrainDump, onContent, onSettings, installEvt, install,
 }: {
   soundOn: boolean; setSoundOn: (b: boolean) => void;
+  speakOn: boolean; setSpeakOn: (b: boolean) => void;
   onBrainDump: () => void; onContent: () => void; onSettings: () => void;
   installEvt: any; install: () => void;
 }) {
@@ -212,6 +219,11 @@ function MoreMenu({
             className="absolute right-0 top-full mt-2 z-40 w-[200px] rounded-md glass p-1.5 flex flex-col gap-0.5"
             role="menu"
           >
+            <MenuItem
+              icon={<AudioLines size={13} />}
+              label={speakOn ? 'Stop reading aloud' : 'Read answers aloud'}
+              onClick={() => run(() => setSpeakOn(!speakOn))}
+            />
             <MenuItem
               icon={soundOn ? <Volume2 size={13} /> : <VolumeX size={13} />}
               label={soundOn ? 'Mute sound' : 'Unmute sound'}

@@ -12,7 +12,7 @@ import { askClaudeStream } from '../lib/claude';
 import { buildKaiContext } from '../lib/kai/context';
 import { suggestChips, fireChip, type ProposeChip } from '../lib/kai/propose';
 import { Mail, Target, CalendarClock, Volume2 } from 'lucide-react';
-import { speakNow, speechSupported } from '../lib/tts';
+import { speakNow, speechSupported, autoSpeak } from '../lib/tts';
 import type { ChatTurn } from '../types';
 
 const HKEY = 'kai.ask.history';
@@ -60,6 +60,7 @@ export default function AskKaiDrawer({ open, onClose }: Props) {
       await askClaudeStream(prompt, history, (chunk) => { acc += chunk; setStreaming(acc); });
       const next: ChatTurn[] = [...history, { you: question, kai: acc, at: new Date().toISOString() }].slice(-12);
       setHistory(next); saveHistory(next); setStreaming('');
+      autoSpeak(acc);   /* §22.2 — read the answer aloud if voice-out is on */
       /* Propose Mode (7.5): offer up to 3 follow-up chips. */
       suggestChips(question, acc).then(setChips).catch(() => {});
     } catch (e: any) {
