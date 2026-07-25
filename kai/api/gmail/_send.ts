@@ -3,92 +3,82 @@
 
    The write side. Only ever reached from the executor in
    src/lib/kai/pending.ts AFTER the ConfirmationGate approval —
-   the LLM has no tool that calls this endpoint directly.
+   the LLM has no tool that calls this endpoint directly. The gate
+   is the human-in-the-loop check; we still sanity-check shape so a
+   malformed payload returns a clean 400.
 
-   No body validation by the LLM itself; the gate is the
-   human-in-the-loop check. We still sanity-check shape here so
-   a malformed payload returns a clean 400 instead of a Gmail
-   API blow-up.
-
-   Future: when KAI is ever exposed beyond Ali, add a shared-
-   secret header check here (the Face ID / PIN gate is the
-   current perimeter).
+   Edge-native: no Buffer. UTF-8 → base64 via TextEncoder + btoa.
    ============================================================ */
 
-import { gmailClient, explain } from './_client.js';
+import { getAccessToken, gmailApi, json, gmailErr, explain } from './_client.js';
 
-/* RFC 2047 encoded-word for a non-ASCII header value (subjects in
-   German/Russian/Arabic — anything Der Feldzug drafts). Chunks by whole
-   characters so each word encodes an integral number of characters and
-   stays within the 75-char header limit; ASCII passes through untouched. */
+/* Standard base64 of raw bytes (btoa is latin1-only, so feed it bytes). */
+function b64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+/* base64url of a UTF-8 string, no padding — the Gmail `raw` encoding. */
+function b64urlUtf8(s: string): string {
+  return b64(new TextEncoder().encode(s)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/* RFC 2047 encoded-word for a non-ASCII header value (German/Russian/Arabic
+   subjects). Chunks by whole characters so each encoded-word stays within the
+   75-char header limit; ASCII passes through untouched. */
 function encodeHeader(value: string): string {
   if (/^[\x00-\x7F]*$/.test(value)) return value;
-  const chars = Array.from(value);          // surrogate-safe
+  const enc = new TextEncoder();
   const words: string[] = [];
   let chunk = '';
-  const flush = () => { if (chunk) { words.push('=?UTF-8?B?' + Buffer.from(chunk, 'utf-8').toString('base64') + '?='); chunk = ''; } };
-  for (const ch of chars) {
-    /* keep each encoded-word ≤ 75 chars: base64 of the chunk's bytes
-       must stay ≤ 63 (10 for "=?UTF-8?B?" + 2 for "?=" = 12 overhead). */
-    const nextBytes = Buffer.byteLength(chunk + ch, 'utf-8');
-    if (Math.ceil(nextBytes / 3) * 4 > 63) flush();
+  const flush = () => { if (chunk) { words.push('=?UTF-8?B?' + b64(enc.encode(chunk)) + '?='); chunk = ''; } };
+  for (const ch of Array.from(value)) {           // surrogate-safe iteration
+    const nextBytes = enc.encode(chunk + ch).length;
+    if (Math.ceil(nextBytes / 3) * 4 > 63) flush();  // keep base64 ≤ 63 (word ≤ 75)
     chunk += ch;
   }
   flush();
-  return words.join('\r\n ');               // folding whitespace between words
+  return words.join('\r\n ');                     // folding whitespace between words
 }
 
-export default async function handler(req: any, res: any) {
-  res.setHeader('Content-Type', 'application/json');
+export async function send(req: Request): Promise<Response> {
+  let body: any = {};
+  try { body = await req.json(); } catch { /* empty/invalid → validated below */ }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'method_not_allowed' });
-  }
-
-  /* Vercel Node parses application/json by default. */
-  const body: any = req.body || {};
-  const to      = String(body.to      || '').trim();
-  const subject = String(body.subject || '').trim();
-  const text    = String(body.body    || '').trim();
+  const to = String(body?.to || '').trim();
+  const subject = String(body?.subject || '').trim();
+  const text = String(body?.body || '').trim();
 
   if (!to || !subject || !text) {
-    return res.status(400).json({ error: 'bad_request', message: 'to / subject / body all required' });
+    return json({ error: 'bad_request', message: 'to / subject / body all required' }, 400);
   }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
-    return res.status(400).json({ error: 'bad_recipient', message: 'recipient does not look like an email address' });
+    return json({ error: 'bad_recipient', message: 'recipient does not look like an email address' }, 400);
   }
 
   try {
-    const g = gmailClient();
+    const token = await getAccessToken();
 
-    /* RFC 5322 envelope. base64url with no padding is what the
-       Gmail API expects. */
-    const lines = [
+    /* RFC 5322 envelope → base64url raw, exactly as the Gmail API expects. */
+    const raw = b64urlUtf8([
       `To: ${to}`,
       `Subject: ${encodeHeader(subject)}`,
       'MIME-Version: 1.0',
       'Content-Type: text/plain; charset=utf-8',
       '',
       text,
-    ];
-    const raw = Buffer.from(lines.join('\r\n'), 'utf-8')
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+    ].join('\r\n'));
 
-    const sent = await g.users.messages.send({
-      userId: 'me',
-      requestBody: { raw },
+    const res = await gmailApi('/users/me/messages/send', token, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ raw }),
     });
+    if (!res.ok) return gmailErr(res, 'gmail send');
 
-    return res.status(200).json({
-      ok: true,
-      id: sent.data.id || null,
-      threadId: sent.data.threadId || null,
-    });
-  } catch (e: any) {
-    const { status, payload } = explain(e);
-    return res.status(status).json(payload);
+    const d: any = await res.json();
+    return json({ ok: true, id: d?.id || null, threadId: d?.threadId || null });
+  } catch (e) {
+    return explain(e);
   }
 }

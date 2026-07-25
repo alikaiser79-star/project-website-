@@ -1,63 +1,59 @@
 /* ============================================================
    GET /api/gmail/list?q=...
 
-   Read-only inbox digest. Returns up to 15 message headers +
-   snippets matching the Gmail query. Default: `in:inbox
-   newer_than:7d`.
-
-   READ side ships first per the brief: it's safe and useful
-   without granting KAI the ability to send anything. The write
-   side (/api/gmail/send) is only reachable via the
-   ConfirmationGate after Ali approves.
+   Read-only inbox digest. Up to 15 message headers + snippets
+   matching the Gmail query (default `in:inbox newer_than:7d`).
+   Response contract is unchanged from the googleapis version:
+     { query, messages: [{ id, threadId, from, subject, date, snippet }] }
+   so InboxPanel / mailwatch / bookingwatch need no client change.
    ============================================================ */
 
-import { gmailClient, explain } from './_client.js';
+import { getAccessToken, gmailApi, json, gmailErr, explain } from './_client.js';
 
-export default async function handler(req: any, res: any) {
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-store');
+interface MailMsg {
+  id: string; threadId: string; from: string; subject: string; date: string; snippet: string;
+}
 
-  if (req.method && req.method !== 'GET' && req.method !== 'HEAD') {
-    return res.status(405).json({ error: 'method_not_allowed' });
-  }
-
+export async function list(url: URL): Promise<Response> {
   try {
-    const g = gmailClient();
-    const q = String(
-      (req.query && req.query.q) ||
-      new URL(req.url || '', 'http://x').searchParams.get('q') ||
-      'in:inbox newer_than:7d',
-    ).slice(0, 240);
+    const token = await getAccessToken();
+    const q = (url.searchParams.get('q') || 'in:inbox newer_than:7d').slice(0, 240);
 
-    const list = await g.users.messages.list({
-      userId: 'me', q, maxResults: 15,
-    });
-    const ids = (list.data.messages || []).map((m: any) => m.id).filter(Boolean);
+    const listRes = await gmailApi(
+      '/users/me/messages?maxResults=15&q=' + encodeURIComponent(q),
+      token,
+    );
+    if (!listRes.ok) return gmailErr(listRes, 'gmail list');
+    const listData: any = await listRes.json();
+    const ids: string[] = (listData.messages || []).map((m: any) => m?.id).filter(Boolean);
 
-    /* Hydrate in parallel — metadata only, no bodies. Snippets
-       are short by Gmail's design and safe to surface. */
-    const messages = await Promise.all(ids.map(async (id: string) => {
-      const full = await g.users.messages.get({
-        userId: 'me', id, format: 'metadata',
-        metadataHeaders: ['From', 'Subject', 'Date'],
-      });
+    /* Hydrate in parallel — metadata only, no bodies. A single failed
+       hydrate drops that one message rather than sinking the whole digest. */
+    const hydrated = await Promise.all(ids.map(async (id): Promise<MailMsg | null> => {
+      const mRes = await gmailApi(
+        '/users/me/messages/' + id +
+          '?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date',
+        token,
+      );
+      if (!mRes.ok) return null;
+      const full: any = await mRes.json();
       const headers: Record<string, string> = {};
-      for (const h of (full.data.payload?.headers || [])) {
-        if (h.name && h.value) headers[h.name] = h.value;
+      for (const h of (full?.payload?.headers || [])) {
+        if (h?.name && h?.value) headers[h.name] = h.value;
       }
       return {
         id,
-        threadId: full.data.threadId || id,   // conversation key — dedups the watcher per thread, not per message
-        from:    headers.From    || '',
+        threadId: full?.threadId || id,       // conversation key — dedups the watcher per thread
+        from: headers.From || '',
         subject: headers.Subject || '',
-        date:    headers.Date    || '',
-        snippet: (full.data.snippet || '').slice(0, 220),
+        date: headers.Date || '',
+        snippet: String(full?.snippet || '').slice(0, 220),
       };
     }));
 
-    return res.status(200).json({ query: q, messages });
-  } catch (e: any) {
-    const { status, payload } = explain(e);
-    return res.status(status).json(payload);
+    const messages = hydrated.filter((m): m is MailMsg => m !== null);
+    return json({ query: q, messages });
+  } catch (e) {
+    return explain(e);
   }
 }

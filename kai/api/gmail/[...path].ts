@@ -1,28 +1,43 @@
 /* ============================================================
-   /api/gmail/* — single Vercel serverless function that
-   dispatches to the per-action handlers based on URL segment.
+   /api/gmail/* — single Vercel EDGE function that dispatches to the
+   per-action handlers by URL segment.
 
-   Counts as ONE function toward the Hobby 12-cap (instead of
-   N functions, one per action). Underscore-prefixed sibling
-   files (_list.ts, _send.ts, _client.ts) are NOT counted as
-   routes per Vercel's convention.
+   Runs on the Edge runtime (was Node + googleapis, which never
+   bundled small enough to deploy — hence the historical 404). Counts
+   as ONE function toward the Hobby 12-cap; underscore-prefixed sibling
+   files (_list.ts, _send.ts, _client.ts) are NOT counted as routes.
 
    Client URLs (/api/gmail/list, /api/gmail/send) are unchanged.
    ============================================================ */
 
-import list from './_list.js';
-import send from './_send.js';
+export const config = { runtime: 'edge' };
 
-export default async function handler(req: any, res: any) {
-  const slug = req.query?.path;
-  const action = Array.isArray(slug) ? String(slug[0] || '') : String(slug || '');
-  switch (action) {
-    case 'list': return list(req, res);
-    case 'send': return send(req, res);
-    default:
-      res.statusCode = 404;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ error: 'route_not_found', action }));
-      return;
+import { list } from './_list.js';
+import { send } from './_send.js';
+import { json } from './_client.js';
+
+export default async function handler(req: Request): Promise<Response> {
+  const url = new URL(req.url);
+  const action = url.pathname.replace(/^.*\/api\/gmail\/?/, '').replace(/\/+$/, '');
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'access-control-allow-origin': '*',
+        'access-control-allow-methods': 'GET,POST,OPTIONS',
+        'access-control-allow-headers': 'content-type',
+      },
+    });
   }
+
+  if (action === 'list') {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return json({ error: 'method_not_allowed' }, 405);
+    return list(url);
+  }
+  if (action === 'send') {
+    if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+    return send(req);
+  }
+  return json({ error: 'route_not_found', action }, 404);
 }
