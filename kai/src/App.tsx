@@ -50,6 +50,9 @@ import { weeklyDrifts } from './lib/kai/patterns';
 import { tokenTotals } from './lib/kai/tokens';
 import WarChestSession from './components/WarChestSession';
 import NightLedger from './components/NightLedger';
+import { shouldShowNightLedger } from './lib/kai/nightLedger';
+import Greeting from './components/Greeting';
+import { buildGreeting } from './lib/kai/greeting';
 import { subscribe as subscribeSpine } from './lib/kai/store';
 import { installBackupDevHooks } from './lib/kai/backup';
 import ShareCaptureSheet, { type ShareContent } from './components/ShareCaptureSheet';
@@ -129,6 +132,7 @@ export default function App() {
   const [cheatOpen, setCheatOpen] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
   const [debriefData, setDebriefData] = useState<DebriefData | null>(null);
+  const [greeting, setGreeting] = useState<string | null>(null);
   const [oneThingOpen, setOneThingOpen] = useState(false);
   const [dayRitual, setDayRitual] = useState<'compile' | 'shutdown' | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -320,6 +324,16 @@ export default function App() {
      mount, every 6h, and on tab visibility change. Idempotent
      and safe to call any time. */
   useEffect(() => startMirror(), []);
+
+  /* THE GREETING — KAI speaks first. After boot settles (seed + first sync),
+     one gold line of what actually changed since the last open. Suppressed
+     when the once-a-day Night Ledger is taking over the same job. */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { const g = buildGreeting(); if (g?.line && !shouldShowNightLedger()) setGreeting(g.line); } catch { /* ignore */ }
+    }, 900);
+    return () => clearTimeout(t);
+  }, []);
 
   /* §14.3 — the Makadi booking-watcher runs eagerly: on open and every
      time the app returns to the foreground (throttled inside scanBookings).
@@ -869,6 +883,7 @@ export default function App() {
       {warChestOpen && <WarChestSession onClose={() => setWarChestOpen(false)} />}
       <InstallPrompt />
       {isMobile && <PullToRefresh />}
+      {greeting && <Greeting line={greeting} onDone={() => setGreeting(null)} />}
       <NightLedger />
       <SettingsDrawer
         open={setOpen}

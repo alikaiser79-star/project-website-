@@ -15,6 +15,7 @@ import { getCommandSignals, ACK_ROUTE } from '../../lib/kai/commandSignals';
 import { organCardData, organWeight } from '../../lib/kai/organCard';
 import { signalsAt, rewindRange } from '../../lib/kai/rewind';
 import { emitAction } from '../../lib/actions';
+import { onHeartReaction } from '../../lib/kai/heartReactions';
 import { sfx } from '../../lib/sound';
 
 interface OrganDef { id: string; label: string; col: 'left' | 'right'; row: number; }
@@ -110,6 +111,9 @@ export default function CommandCorePanel() {
     return () => { clearTimeout(t0); window.removeEventListener('resize', onResize); core.stop(); coreRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* The heart reacts to news — a real Spine event landing surges the body. */
+  useEffect(() => onHeartReaction(({ organId, tone }) => coreRef.current?.surge(organId, tone)), []);
 
   /* Card memory + state on a slow tick. */
   useEffect(() => {

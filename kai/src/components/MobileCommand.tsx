@@ -27,6 +27,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CommandCore, type OrganDom } from '../lib/kai/commandCoreV6';
 import { getCommandSignals, ACK_ROUTE } from '../lib/kai/commandSignals';
+import { onHeartReaction } from '../lib/kai/heartReactions';
 import { emitAction } from '../lib/actions';
 import { sfx } from '../lib/sound';
 import { briefing } from '../lib/commands';
@@ -117,6 +118,9 @@ export default function MobileCommand() {
     hero.addEventListener('touchstart', tilt, { once: true });
     return () => { core.stop(); cleanup(); hero.removeEventListener('touchstart', tilt); coreRef.current = null; };
   }, []);
+
+  /* The heart reacts to news — a real Spine event landing surges the body. */
+  useEffect(() => onHeartReaction(({ organId, tone }) => coreRef.current?.surge(organId, tone)), []);
 
   /* Drive the visible river cards from real signals on a slow tick.
      Cheap — 12 lookups; the heart's 60fps loop is elsewhere. */

@@ -805,6 +805,24 @@ export class CommandCore {
     this.onAck?.(id);
   }
 
+  /* THE HEART REACTS TO NEWS — a strong surge of colour along the vein to
+     an organ, a shock through the whole body, then it settles. Fed by REAL
+     Spine events (heartReactions.ts): gold = a win (a booking landed),
+     crimson = a blow (a commitment broke). Public — the panel calls it. */
+  surge(id: string, tone: 'gold' | 'crimson' = 'gold') {
+    const o = this.organs[id]; if (!o) return;
+    const a = this.panelAnchors[id];
+    const color = tone === 'gold' ? '#ffd089' : '#e0403a';
+    this.charge[id] = Math.max(this.charge[id] || 0, 1.8);
+    o.ackFlash = Math.max(o.ackFlash, 0.95);
+    this._spawnArc(id, 'in', color);
+    this._spawnArc(id, 'out', color);
+    if (a) this.shock.push({ r: a.r * 0.45, v: this.maxR / 0.5, life: 0.95, x: a.x, y: a.y });
+    /* a ripple from the heart so the whole body feels the news */
+    this.shock.push({ r: this.heartR * 0.85, v: this.maxR / 0.5, life: 1, x: this.cx, y: this.cy });
+    try { tone === 'gold' ? this._ackSound() : this._alertSound(); } catch { /* audio optional */ }
+  }
+
   private _spawnArc(id: string, dir: 'in' | 'out', color: string) {
     const art = this.arteryByPanel[id]; if (!art) return;
     this.arcs.push({ pts: art.pts, t0: performance.now() / 1000, dur: 0.55, color, dir });

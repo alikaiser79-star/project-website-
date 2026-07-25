@@ -81,6 +81,28 @@
 .night-verdict { display: flex; align-items: flex-start; gap: 6px; margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(255, 179, 0, 0.18); font-size: 12px; line-height: 1.4; color: rgba(255, 201, 74, 0.95); }
 .night-verdict svg { flex-shrink: 0; margin-top: 2px; }
 
+/* ── THE GREETING — KAI's first word on open (gold, one line) ───── */
+.kai-greeting {
+  position: fixed; z-index: 320;
+  left: 0; right: 0; margin-inline: auto;      /* centre WITHOUT transform (see night-ledger) */
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  width: min(560px, 92vw);
+  display: flex; align-items: center; gap: 9px; justify-content: center;
+  padding: 10px 16px; text-align: center;
+  font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.45;
+  color: rgba(255, 205, 120, 0.98);
+  background: linear-gradient(180deg, rgba(18, 13, 4, 0.9), rgba(10, 7, 3, 0.86));
+  border: 1px solid rgba(255, 190, 90, 0.22); border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5), 0 0 22px rgba(255, 180, 70, 0.06);
+  backdrop-filter: blur(6px); cursor: pointer;
+  animation: greet-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.kai-greeting.is-leaving { animation: greet-out 0.4s ease both; }
+.kai-greeting-dot { width: 6px; height: 6px; border-radius: 99px; flex-shrink: 0;
+  background: rgba(255, 200, 90, 0.95); box-shadow: 0 0 8px rgba(255, 190, 80, 0.85); }
+@keyframes greet-in  { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes greet-out { to { opacity: 0; transform: translateY(-8px); } }
+
 /* ── WAR CHEST (§9) — victory gold, session, ledger ───────── */
 /* Organ card GOLD pulse when a money milestone lands (not crimson —
    this is a win). Overrides the crimson calling treatment. */
