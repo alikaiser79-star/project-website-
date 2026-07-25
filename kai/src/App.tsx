@@ -67,6 +67,8 @@ import EveningPrompt from './components/EveningPrompt';
 import { shouldAskEvening, markEveningAsked, runRecurring } from './lib/kai/intake';
 import TwinDrawer from './components/TwinDrawer';
 import { runDriftWatch } from './lib/kai/twin';
+import HunterDrawer from './components/HunterDrawer';
+import { runHunt, hunterLedger } from './lib/kai/hunter';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -151,6 +153,7 @@ export default function App() {
   const [eveningPrompt, setEveningPrompt] = useState(false);
   const [twinOpen, setTwinOpen] = useState(false);
   const [twinQuestion, setTwinQuestion] = useState<string | undefined>(undefined);
+  const [hunterOpen, setHunterOpen] = useState(false);
   const [oneThingOpen, setOneThingOpen] = useState(false);
   const [dayRitual, setDayRitual] = useState<'compile' | 'shutdown' | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -677,6 +680,18 @@ export default function App() {
       if (top) toast.warn(top.text, 'DER ZWILLING', 8000);
     } catch { /* boot-safe */ }
 
+    /* DER JÄGER (Q3.4) — the Hunter runs daily (deterministic, no LLM until
+       Ali opens a draft). Logs opportunities to the Spine; surfaces the
+       single highest EGP/min move so a real earner never sits unseen. */
+    try {
+      const opps = runHunt();
+      const top = opps[0];
+      if (top && top.expectedEgp >= 1000) {
+        toast.ok(`${top.title} · +${Math.round(top.expectedEgp).toLocaleString('en-GB')} EGP`, 'DER JÄGER', 7000);
+      }
+      (window as any).__kaiHunt = () => { const r = runHunt(); console.info('[KAI hunt]', r, hunterLedger()); return r; };
+    } catch { /* boot-safe */ }
+
     /* THE WEEKLY RECKONING — the Sunday accounting (upgrade of the Debrief),
        once per week on first open. On non-mobile, after the boot settles.
        When it's dismissed, the day's Morning Plan follows (Sunday sequence). */
@@ -730,6 +745,8 @@ export default function App() {
       } else if (a.type === 'open-twin') {
         setTwinQuestion(a.question);
         setTwinOpen(true);
+      } else if (a.type === 'open-hunter') {
+        setHunterOpen(true);
       } else if (a.type === 'ping-panel') {
         /* Switch to the view that owns this panel first, then flash
            it (after the view transition mounts the element). */
@@ -951,6 +968,7 @@ export default function App() {
         />
       )}
       <TwinDrawer open={twinOpen} question={twinQuestion} onClose={() => { setTwinOpen(false); setTwinQuestion(undefined); }} />
+      <HunterDrawer open={hunterOpen} onClose={() => setHunterOpen(false)} />
       <InstallPrompt />
       {booted && !(lockCfg.enabled && !unlocked) && <KaiEye />}
       {isMobile && <PullToRefresh />}

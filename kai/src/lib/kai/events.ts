@@ -19,7 +19,7 @@ export type Domain =
   | 'priorities' | 'expense' | 'habit' | 'content'
   | 'commitment' | 'people' | 'system' | 'anomaly'
   | 'agent' | 'leads' | 'deadline' | 'money'
-  | 'radar' | 'campaign' | 'counsel' | 'ambassador';
+  | 'radar' | 'campaign' | 'counsel' | 'ambassador' | 'hunter';
 
 export type EventSource = 'user' | 'voice' | 'receipt' | 'braindump' | 'ai' | 'auto';
 
