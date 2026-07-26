@@ -20,6 +20,7 @@ import { computeRunway } from '../lib/kai/runway';
 import { loadState } from '../lib/store';
 import { emitAction, type KaiAction } from '../lib/actions';
 import { truthAges, ageLabel, type TruthAge } from '../lib/kai/confession';
+import { organOrder, coldOrganIds, adaptiveWhy } from '../lib/kai/adaptiveOrder';
 import { ChevronDown, Heart } from 'lucide-react';
 
 const ORGANS: Array<{ id: string; label: string }> = [
@@ -51,6 +52,11 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
   const days = runway && runway.runwayDays != null && isFinite(runway.runwayDays) ? Math.floor(runway.runwayDays) : null;
 
   const ages = safe(() => truthAges(now), {} as Record<string, TruthAge>);
+  /* §29.10 — the depths reorder by what he actually taps, weighted by the
+     hour band he's in. Cold organs sink but never disappear. */
+  const order = safe(() => organOrder(ORGANS.map((o) => o.id), now), ORGANS.map((o) => o.id));
+  const cold = new Set(safe(() => coldOrganIds(ORGANS.map((o) => o.id), now), [] as string[]));
+  const orderedOrgans = order.map((id) => ORGANS.find((o) => o.id === id)!).filter(Boolean);
   const fire = (a?: KaiAction) => { if (a) emitAction(a); };
   const openCorrection = () => emitAction({ type: 'open-confession' });
 
@@ -96,17 +102,17 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
       {/* ZONE 3 — THE DEPTHS */}
       <section className="ord-depths">
         <button className="ord-depths-toggle" onClick={() => setDepths((d) => !d)} aria-expanded={depths}>
-          THE DEPTHS <span className="ord-depths-sub">all twelve organs</span>
+          THE DEPTHS <span className="ord-depths-sub" title={safe(() => adaptiveWhy(now), '')}>all twelve organs</span>
           <ChevronDown size={15} className={'ord-depths-chev' + (depths ? ' up' : '')} />
         </button>
         {depths && (
           <div className="ord-organs">
-            {ORGANS.map((o) => {
+            {orderedOrgans.map((o) => {
               const s = sig[o.id];
               return (
                 <button
                   key={o.id}
-                  className={'ord-organ' + (s?.calling ? ' calling' : '')}
+                  className={'ord-organ' + (s?.calling ? ' calling' : '') + (cold.has(o.id) ? ' cold' : '')}
                   onClick={() => (onOrganTap ? onOrganTap(o.id) : emitAction({ type: 'ping-panel', panel: o.id }))}
                 >
                   <span className="ord-organ-id">{o.id}</span>

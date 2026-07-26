@@ -413,6 +413,7 @@
   background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 190, 100, 0.12);
   font-family: ui-monospace, monospace;
 }
+.ord-organ.cold { opacity: 0.5; }
 .ord-organ.calling { border-color: rgba(255, 100, 70, 0.45); background: rgba(255, 90, 60, 0.05); }
 .ord-organ-id { font-size: 8px; letter-spacing: 2px; color: rgba(255, 185, 120, 0.45); }
 .ord-organ-label { font-size: 11px; color: rgba(240, 224, 200, 0.9); }

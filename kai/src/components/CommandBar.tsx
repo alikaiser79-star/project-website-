@@ -15,6 +15,7 @@ import { claudeConfig } from '../kaiConfig';
 import { emit } from '../hooks/useKaiPulse';
 import { loadState, saveState } from '../lib/store';
 import { onAction } from '../lib/actions';
+import { verbOrder, recordVerb } from '../lib/kai/adaptiveOrder';
 import type { ChatTurn, KaiSettings } from '../types';
 
 /* §24 — the visible verb palette. Every summonable surface, shown, so the
@@ -38,6 +39,15 @@ const PALETTE: Array<{ group: string; verbs: Array<{ cmd: string; desc: string }
 ];
 
 type Props = { open: boolean; onClose: () => void; settings: KaiSettings };
+
+/* §29.10 — the palette reorders by what he actually uses at this hour.
+   Nothing is hidden: a verb he has never said keeps its place, just lower. */
+function orderVerbs<T extends { cmd: string }>(verbs: T[]): T[] {
+  try {
+    const order = verbOrder(verbs.map((v) => v.cmd));
+    return order.map((c) => verbs.find((v) => v.cmd === c)!).filter(Boolean);
+  } catch { return verbs; }
+}
 
 export default function CommandBar({ open, onClose, settings }: Props) {
   const [input, setInput] = useState('');
@@ -85,6 +95,7 @@ export default function CommandBar({ open, onClose, settings }: Props) {
   async function submit(rawText?: string) {
     const text = (rawText ?? input).trim();
     if (!text || thinking) return;
+    try { recordVerb(text); } catch { /* never block a command */ }
     setInput('');
     emit('command');
 
@@ -302,7 +313,7 @@ export default function CommandBar({ open, onClose, settings }: Props) {
 
             {history.length === 0 && (
               <div className="p-4 max-h-[58vh] overflow-y-auto">
-                {PALETTE.map((sec) => (
+                {PALETTE.map((sec) => ({ ...sec, verbs: orderVerbs(sec.verbs) })).map((sec) => (
                   <div key={sec.group} className="mb-4">
                     <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel mb-2">{sec.group}</div>
                     <div className="flex flex-col gap-1">
