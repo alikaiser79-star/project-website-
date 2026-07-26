@@ -11,6 +11,7 @@ import {
   runHunt, hunterLedger, draftOpportunity, approveOpportunity, dismissOpportunity,
   type Opportunity, type Draft, type HunterLedger,
 } from '../lib/kai/hunter';
+import { assembleContext, annotatedMoves } from '../lib/kai/council';
 import { emit } from '../lib/kai/store';
 import { toast } from '../hooks/useToasts';
 import { Crosshair, Check, X, Copy, ChevronDown } from 'lucide-react';
@@ -26,7 +27,13 @@ export default function HunterDrawer({ open, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    try { setOpps(runHunt()); setLedger(hunterLedger()); } catch { setOpps([]); }
+    /* §25 — moves arrive filtered THROUGH the Twin, so a lane his own record
+       says he abandons carries that warning on the card. */
+    try {
+      runHunt();                                         // persist the hunt to the Spine
+      setOpps(annotatedMoves(assembleContext(Date.now(), true)));
+      setLedger(hunterLedger());
+    } catch { setOpps([]); }
     setOpenId(null); setDrafts({});
   }, [open]);
 
@@ -95,6 +102,7 @@ export default function HunterDrawer({ open, onClose }: Props) {
                 {expanded && (
                   <div className="hunter-opp-detail">
                     <div className="hunter-rationale">{o.rationale}</div>
+                    {(o as any).twinNote && <div className="hunter-twin-note">{(o as any).twinNote}</div>}
                     {o.kind !== 'pricing' && (
                       <div className="hunter-draft">
                         {d === 'loading' || !d ? <span className="hunter-drafting">drafting…</span> : (
