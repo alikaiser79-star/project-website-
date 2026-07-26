@@ -111,7 +111,7 @@ export function buildTwinModel(now = Date.now()): TwinModel {
     postWinTotal += spent; postWinDays += 3;
   }
   const baseExpenses = expenses.filter((e) => !inWinWindow(e.ts));
-  const spanDays = all.length ? Math.max(1, (now - all[0].ts) / DAY) : 1;
+  const spanDays = all.length ? Math.max(1, (now - all.reduce((m, e) => (e.ts < m ? e.ts : m), all[0].ts)) / DAY) : 1;
   const baseDays = Math.max(1, spanDays - postWinDays);
   const baseTotal = baseExpenses.reduce((s, e) => s + egp(e.value, e.ccy), 0);
   const postWinAvgEgp = postWinDays ? postWinTotal / postWinDays : 0;
@@ -162,7 +162,11 @@ export function buildTwinModel(now = Date.now()): TwinModel {
   followThrough.sort((a, b) => a.lastDaysAgo - b.lastDaysAgo);
 
   /* 5. CONFIDENCE — the Twin's honesty about how much to trust it. */
-  const days = all.length ? Math.floor((now - all[0].ts) / DAY) : 0;
+  /* The event array is in INSERTION order, and a synced Spine merges events
+     from other devices out of order — so all[0] is not the oldest. Taking it
+     as the start reported "seed" on a 200-day history. Use the true minimum. */
+  const oldest = all.length ? all.reduce((m, e) => (e.ts < m ? e.ts : m), all[0].ts) : now;
+  const days = all.length ? Math.floor((now - oldest) / DAY) : 0;
   const level: TwinConfidence['level'] = days < 14 ? 'seed' : days < 60 ? 'forming' : days < 120 ? 'sharpening' : 'sharp';
   const honest =
     level === 'seed' ? 'Barely enough history to read you — treat this as a first sketch.'

@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { inheritanceLetter, inheritanceJson } from './kai/inheritance';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,21 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §30.12 THE INHERITANCE — the portable model. */
+  if (/^inheritance$|^legacy$|^export model$|^how i move$/i.test(q)) {
+    if (/export/i.test(q)) {
+      try {
+        const blob = new Blob([inheritanceJson()], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `kai-inheritance-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch { /* ignore */ }
+      return 'Exported — a self-describing model file, readable without this app.';
+    }
+    return inheritanceLetter();
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
