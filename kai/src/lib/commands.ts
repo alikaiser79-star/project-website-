@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { haendlerText, sourcesNote, parseListing, addListing, recordSell, deals, setRules } from './kai/haendler';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,48 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §36 DER HÄNDLER — the arbitrage engine. Never says buy. */
+  if (/^h(ä|ae)ndler$|^trader$|^trading$|^deals$|^arbitrage$/i.test(q)) return haendlerText();
+  if (/^scanner$|^sources$|^why no scanner$/i.test(q)) return sourcesNote();
+  {
+    /* "listing <category> :: <pasted ad>" — paste an ad, it reads what it can. */
+    const m = cmd.trim().match(/^listing\s+([^:]+)::\s*([\s\S]+)$/i);
+    if (m) {
+      const cat = m[1].trim();
+      const p = parseListing(m[2]);
+      if (p.askEgp === null || p.model === null) {
+        return `Couldn't read the ${p.missing.join(' or ')} from that. I won't guess it into a price distribution — paste the ad with the price, or add it by hand.`;
+      }
+      addListing({ category: cat, model: p.model, condition: p.condition, askEgp: p.askEgp, source: 'pasted' });
+      return `Recorded: ${p.model} — ${p.askEgp.toLocaleString(operator.locale)} EGP, ${p.condition}${p.missing.length ? ` (couldn't read: ${p.missing.join(', ')})` : ''}.`;
+    }
+  }
+  {
+    /* "sold <id> 29000" */
+    const m = cmd.trim().match(/^sold\s+(\S+)\s+([\d,.]+)$/i);
+    if (m) {
+      const amt = parseFloat(m[2].replace(/,/g, ''));
+      const d = recordSell(m[1], amt);
+      if (!d) return 'No open deal with that id.';
+      return `Sold "${d.item}" for ${amt.toLocaleString(operator.locale)} EGP — net ${(amt - d.buyEgp - d.costsEgp).toLocaleString(operator.locale)} EGP after costs.`;
+    }
+  }
+  {
+    /* "trading capital 50000" — the ring-fence that keeps runway separate. */
+    const m = cmd.trim().match(/^trading capital\s+([\d,.]+)$/i);
+    if (m) {
+      const amt = parseFloat(m[1].replace(/,/g, ''));
+      if (!(amt >= 0)) return 'Give me a number.';
+      setRules({ tradingCapitalEgp: amt });
+      return `Trading capital ring-fenced at ${amt.toLocaleString(operator.locale)} EGP. This is separate from your runway and stays separate.`;
+    }
+  }
+  if (/^open deals$|^stock$/i.test(q)) {
+    const open = deals().filter((d) => d.soldAt === null);
+    if (!open.length) return 'No open stock.';
+    return open.map((d) => `${d.id} · ${d.item} (${d.category}) — ${(d.buyEgp + d.costsEgp).toLocaleString(operator.locale)} EGP in`).join('\n');
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
