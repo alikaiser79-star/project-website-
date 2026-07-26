@@ -13,7 +13,7 @@
 
 import { useState } from 'react';
 import { useKaiVersion } from '../lib/kai/mirror';
-import { buildNow } from '../lib/kai/nowItems';
+import { buildNow, bpmFor } from '../lib/kai/nowItems';
 import { getCommandSignals } from '../lib/kai/commandSignals';
 import { makadiProfit } from '../lib/kai/makadiProfit';
 import { computeRunway } from '../lib/kai/runway';
@@ -36,8 +36,10 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
   const now = Date.now();
   const nowRes = buildNow(now);
   const sig = getCommandSignals();
-  const callingCount = Object.keys(sig).filter((id) => sig[id]?.calling).length;
-  const bpm = Math.min(96, 58 + callingCount * 7);
+  /* The heart reads what NOW actually found — not a separate organ count.
+     Arousal and the face can never disagree (the §24 detachment fix). */
+  const bpm = bpmFor(nowRes.total);
+  const aroused = nowRes.total > 0;
 
   const profit = safe(() => makadiProfit(now), null);
   const runway = safe(() => computeRunway(now), null);
@@ -63,12 +65,18 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
         ) : (
           <div className="ord-calm">{nowRes.calm}</div>
         )}
+        {/* The heart is aroused by MORE than fits — say so, never hide it. */}
+        {nowRes.overflow > 0 && (
+          <button className="ord-now-more" onClick={() => setDepths(true)}>
+            +{nowRes.overflow} more need{nowRes.overflow === 1 ? 's' : ''} you — open the depths
+          </button>
+        )}
       </section>
 
       {/* ZONE 2 — THE BODY */}
       <section className="ord-body" aria-label="the body">
         <div className="ord-heart" style={{ ['--beat' as any]: `${(60 / bpm).toFixed(2)}s` }}>
-          <Heart className={'ord-heart-icon' + (callingCount ? ' calling' : '')} size={54} strokeWidth={1.5} />
+          <Heart className={'ord-heart-icon' + (aroused ? ' calling' : '')} size={54} strokeWidth={1.5} />
           <div className="ord-bpm">{bpm}<i>BPM</i></div>
         </div>
         <div className="ord-vitals">
