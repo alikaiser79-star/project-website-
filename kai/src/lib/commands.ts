@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { recallSummary } from './kai/memory';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,13 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §28.1 THE MEMORY — ask the ledger in plain words. The deterministic
+     summary answers instantly; "ask <q>" routes to the grounded recall. */
+  {
+    const m = cmd.trim().match(/^(?:recall|remember|memory)\s+(.+)$/i);
+    if (m) return recallSummary(m[1]);
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

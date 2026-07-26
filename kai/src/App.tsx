@@ -76,6 +76,7 @@ import { callingReport } from './lib/kai/nowItems';
 import NerveField from './components/NerveField';
 import { armNervousSystem } from './lib/kai/nervousSystem';
 import { recordOpen } from './lib/kai/adaptation';
+import { compactMemories } from './lib/kai/memory';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -690,6 +691,9 @@ export default function App() {
     /* DER EINGANG (Intake) — recurring fixed items propose themselves to the
        Gate when due (one-tap confirm), and after 21:00 with nothing logged
        today, ask once. Both are cheap, deduped, and silent when not needed. */
+    /* §28.1 — the Spine ages: events past 90 days fold into memories that
+       keep the meaning and drop the noise. Idempotent per domain-month. */
+    try { compactMemories(); } catch { /* boot-safe */ }
     try { runRecurring(); } catch { /* boot-safe */ }
     try { if (shouldAskEvening()) setEveningPrompt(true); } catch { /* boot-safe */ }
 
