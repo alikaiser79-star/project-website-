@@ -23,7 +23,7 @@
    (server-side, §25.3). Nothing here fabricates.
    ============================================================ */
 
-import { getEvents, type KaiEvent } from './events';
+import { getEvents, withSpineSnapshot, type KaiEvent } from './events';
 import { getVersion } from './store';
 import { getCommandSignals } from './commandSignals';
 import { getCommitments, type Commitment } from './commitments';
@@ -63,7 +63,15 @@ export function assembleContext(now = Date.now(), force = false): CouncilContext
   const version = safe(() => getVersion(), 0);
   if (!force && cached && cached.version === version && Math.abs(now - cached.at) < 5_000) return cached.ctx;
 
+  /* THE single storage read. Everything below runs inside the snapshot, so
+     every engine's internal getEvents() — all 97 call sites, including ones
+     the Council never imports — serves from this one array. Synchronous by
+     construction; see withSpineSnapshot for why that matters. */
   const events = safe(() => getEvents({}), [] as KaiEvent[]);
+  return withSpineSnapshot(events, () => assembleFrom(events, now, version));
+}
+
+function assembleFrom(events: KaiEvent[], now: number, version: number): CouncilContext {
   const commitments = safe(() => getCommitments(), [] as Commitment[]);
   const twin = safe(() => buildTwinModel(now), emptyTwin());
 
