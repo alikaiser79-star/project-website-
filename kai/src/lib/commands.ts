@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { spiegelText, dismissObservation } from './kai/spiegel';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,13 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §33.1 DER UNBEQUEME SPIEGEL — what the record shows, unasked. */
+  if (/^mirror$|^spiegel$|^what do you see$|^truths?$/i.test(q)) return spiegelText();
+  {
+    const d = cmd.trim().match(/^dismiss\s+(.+)$/i);
+    if (d) { dismissObservation(d[1].trim()); return 'Dismissed — and recorded. Dismissing the same truth repeatedly becomes an observation of its own.'; }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
