@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { compare as compareSeen, findDocument, watchedSubjects } from './kai/observations';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,22 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §29.8 THE CONTINUOUS EYE — what it saw, over time. */
+  {
+    const m = cmd.trim().match(/^(?:show me|compare|how is|what happened to)\s+(.+)$/i);
+    if (m) {
+      const c = compareSeen(m[1]);
+      const docs = findDocument(m[1]);
+      if (docs.length && c.then == null) return docs.slice(0, 3).map((d) => `${d.label}: ${d.reading}`).join('\n');
+      return c.line;
+    }
+  }
+  if (/^seen$|^observations$|^what have you seen$/i.test(q)) {
+    const w = watchedSubjects();
+    if (!w.length) return 'The eye has nothing on record yet — capture something with the Eye.';
+    return 'I have been watching:\n' + w.map((x) => `  ${x.subject} (${x.kind}, ${x.looks} look${x.looks === 1 ? '' : 's'})`).join('\n');
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

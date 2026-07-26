@@ -18,6 +18,7 @@
 
 import { claudeConfig } from '../../kaiConfig';
 import { buildKaiContext } from './context';
+import { priorReadingNote } from './observations';
 import type { Compressed } from '../receipts';
 
 const SYSTEM =
@@ -53,7 +54,7 @@ export async function askKaiEye(img: Compressed, question: string, now = Date.no
           },
           {
             type: 'text',
-            text: `QUESTION: ${q}\n\nCONTEXT (Ali's live numbers — use only if relevant):\n${safeContext(now, q)}`,
+            text: `QUESTION: ${q}${safePrior(q, now)}\n\nCONTEXT (Ali's live numbers — use only if relevant):\n${safeContext(now, q)}`,
           },
         ],
       }],
@@ -75,6 +76,12 @@ export async function askKaiEye(img: Compressed, question: string, now = Date.no
 
 /* Context must never sink the call — a fresh install with a thin Spine
    still gets a working eye. */
+/* §29.8 — if the eye has seen this subject before, the prompt carries the
+   prior reading so the answer is a COMPARISON, not a fresh first look. */
+function safePrior(q: string, now: number): string {
+  try { return priorReadingNote(q, now); } catch { return ''; }
+}
+
 function safeContext(now: number, query: string): string {
   try { return buildKaiContext(now, query); } catch { return '(context unavailable)'; }
 }
