@@ -205,6 +205,12 @@ export function runBuiltin(cmd: string): CmdResult | null {
     return 'Opening the Makadi Ambassador.';
   }
 
+  /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
+  if (/^confess$|^correct$|^correction$|^numbers?$|^the numbers are wrong$|^fix numbers$|^بيان$|^تصحيح$/i.test(q)) {
+    emitAction({ type: 'open-confession' });
+    return 'Reading your numbers back — say yes, or say the real one.';
+  }
+
   /* §23.3 THE ADAPTATION — what KAI has learned about how you work and
      changed about itself. Legible by design. */
   if (/^learned$|^adaptation$|^adapt$|^what have you learned$/i.test(q)) {

@@ -70,6 +70,8 @@ import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
 import CommandOrder from './components/CommandOrder';
+import ConfessionSheet, { type ConfessionMode } from './components/ConfessionSheet';
+import type { Fact } from './lib/kai/confession';
 import { callingReport } from './lib/kai/nowItems';
 import NerveField from './components/NerveField';
 import { armNervousSystem } from './lib/kai/nervousSystem';
@@ -160,6 +162,7 @@ export default function App() {
   const [twinOpen, setTwinOpen] = useState(false);
   const [twinQuestion, setTwinQuestion] = useState<string | undefined>(undefined);
   const [hunterOpen, setHunterOpen] = useState(false);
+  const [confession, setConfession] = useState<ConfessionMode | null>(null);
   const [showOrganism, setShowOrganism] = useState(false);   // §24 — Ordnung is the default Command face; the living organism is opt-in
   const [oneThingOpen, setOneThingOpen] = useState(false);
   const [dayRitual, setDayRitual] = useState<'compile' | 'shutdown' | null>(null);
@@ -768,6 +771,9 @@ export default function App() {
         setTwinOpen(true);
       } else if (a.type === 'open-hunter') {
         setHunterOpen(true);
+      } else if (a.type === 'open-confession') {
+        const f = a.facts as Fact[] | undefined;
+        setConfession(f && f.length ? { kind: 'facts', facts: f } : { kind: 'correction' });
       } else if (a.type === 'ping-panel') {
         /* Switch to the view that owns this panel first, then flash
            it (after the view transition mounts the element). */
@@ -996,6 +1002,7 @@ export default function App() {
       )}
       <TwinDrawer open={twinOpen} question={twinQuestion} onClose={() => { setTwinOpen(false); setTwinQuestion(undefined); }} />
       <HunterDrawer open={hunterOpen} onClose={() => setHunterOpen(false)} />
+      <ConfessionSheet mode={confession} onClose={() => setConfession(null)} />
       {booted && <NerveField />}
       {booted && <SpeechHint />}
       <InstallPrompt />
