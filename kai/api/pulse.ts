@@ -16,7 +16,7 @@
    is skipped and the state reaches devices via §8 sync + Night Ledger.
    ============================================================ */
 
-import { runPulseCore, type PulseEvent } from './_pulse-core';
+import { runPulsePhase, type PulseEvent, type PulsePhase } from './_pulse-core';
 import { sendPush, type Vapid, type PushSubscription } from './_webpush';
 
 export const config = { runtime: 'edge' };
@@ -68,10 +68,10 @@ function pairsToEvents(flat: any): PulseEvent[] {
   return out;
 }
 
-async function pulseNamespace(ns: string, now: number): Promise<{ dispatch: string | null; sent: number }> {
+async function pulseNamespace(ns: string, now: number, phase: PulsePhase): Promise<{ dispatch: string | null; sent: number }> {
   const evKey = `spine:ev:${ns}`;
   const events = pairsToEvents(await redis(['HGETALL', evKey]));
-  const { newEvents, dispatch, pushes } = runPulseCore(events, now);
+  const { newEvents, dispatch, pushes } = runPulsePhase(events, now, phase);
 
   if (newEvents.length) {
     const cmd: (string | number)[] = ['HSET', evKey];
@@ -79,8 +79,12 @@ async function pulseNamespace(ns: string, now: number): Promise<{ dispatch: stri
     await redis(cmd);
     await redis(['EXPIRE', evKey, TTL]);
   }
-  await redis(['SET', `kai:pulse:dispatch:${ns}`, JSON.stringify({ line: dispatch, ts: now })]);
-  await redis(['EXPIRE', `kai:pulse:dispatch:${ns}`, TTL]);
+  /* Only the SPEAK phase owns the stored morning line — other phases must
+     not blank it with their own null dispatch. */
+  if (phase === 'speak') {
+    await redis(['SET', `kai:pulse:dispatch:${ns}`, JSON.stringify({ line: dispatch, ts: now })]);
+    await redis(['EXPIRE', `kai:pulse:dispatch:${ns}`, TTL]);
+  }
 
   /* §14.2 — SPEAK, within the 3/day hard cap. */
   let sent = 0;
@@ -169,14 +173,20 @@ export default async function handler(req: Request): Promise<Response> {
       const auth = req.headers.get('authorization') || '';
       if (auth !== `Bearer ${CRON_SECRET}`) return j({ error: 'unauthorized' }, 401);
     }
+    /* §23.1 — which circadian phase this firing is. The cron URL carries it
+       (?phase=wake|speak|midday|evening|dream); default 'speak' keeps the
+       legacy single-cron behaviour. */
+    const PHASES: PulsePhase[] = ['wake', 'speak', 'midday', 'evening', 'dream'];
+    const raw = url.searchParams.get('phase') || 'speak';
+    const phase: PulsePhase = (PHASES as string[]).includes(raw) ? (raw as PulsePhase) : 'speak';
     const now = Date.now();
     try {
       const namespaces: string[] = (await redis(['SMEMBERS', REG_KEY])) || [];
       let dispatched = 0, pushed = 0;
       for (const ns of namespaces) {
-        try { const r = await pulseNamespace(ns, now); if (r.dispatch) dispatched++; pushed += r.sent; } catch { /* one ns failing shouldn't abort */ }
+        try { const r = await pulseNamespace(ns, now, phase); if (r.dispatch) dispatched++; pushed += r.sent; } catch { /* one ns failing shouldn't abort */ }
       }
-      return j({ ok: true, ran: namespaces.length, dispatched, pushed, push: !!VAPID, at: now });
+      return j({ ok: true, phase, ran: namespaces.length, dispatched, pushed, push: !!VAPID, at: now });
     } catch (e: any) {
       return j({ error: 'pulse_error', detail: String(e?.message || e).slice(0, 120) }, 502);
     }

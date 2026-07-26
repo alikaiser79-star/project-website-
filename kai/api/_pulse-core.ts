@@ -178,3 +178,115 @@ export function runPulseCore(events: PulseEvent[], now: number): PulseResult {
 
   return { newEvents, dispatch, pushes: pulsePushes(events, now, dispatch), summary: { escalations: escalations.length, anomalies } };
 }
+
+/* ============================================================
+   §23.1 THE METABOLISM — a real circadian cycle, server-side. The daily
+   heartbeat becomes FIVE phases, each computing from the operator's synced
+   Spine so KAI thinks whether or not the app is open. All phases are
+   deterministic and idempotent; each writes a marker so a re-fire is a
+   no-op. Silence is always valid. Nothing ambient — this reads the Spine
+   the operator's own watchers filled, within their authorized perimeter.
+   ============================================================ */
+export type PulsePhase = 'wake' | 'speak' | 'midday' | 'evening' | 'dream';
+
+const EMPTY = { escalations: 0, anomalies: 0 };
+function firedToday(events: PulseEvent[], type: string, now: number): boolean {
+  const start = new Date(now); start.setHours(0, 0, 0, 0);
+  return events.some((e) => e.domain === 'system' && e.type === type && e.ts >= start.getTime());
+}
+
+export function runPulsePhase(events: PulseEvent[], now: number, phase: PulsePhase): PulseResult {
+  switch (phase) {
+    case 'speak':   return runPulseCore(events, now);              // 07:35 — the day's one line
+    case 'wake':    return wakePhase(events, now);                 // 06:00 — read what landed overnight
+    case 'midday':  return middayPhase(events, now);               // 13:00 — quiet urgent-only scan
+    case 'evening': return eveningPhase(events, now);              // 21:00 — intake nudge if unlogged
+    case 'dream':   return dreamPhase(events, now);                // 02:00 — re-read, find patterns
+    default:        return runPulseCore(events, now);
+  }
+}
+
+/* 06:00 WAKE — summarise what changed overnight (operator-sourced writes in
+   the last ~9h). No push; it primes the morning. */
+function wakePhase(events: PulseEvent[], now: number): PulseResult {
+  if (firedToday(events, 'wake', now)) return { newEvents: [], dispatch: null, pushes: [], summary: EMPTY };
+  const overnight = events.filter((e) => e.ts >= now - 9 * HOUR && e.source !== 'auto');
+  const byDomain: Record<string, number> = {};
+  for (const e of overnight) byDomain[e.domain] = (byDomain[e.domain] || 0) + 1;
+  const summary = Object.entries(byDomain).sort((a, b) => b[1] - a[1]).map(([d, n]) => `${d}:${n}`).join(' ') || 'quiet';
+  return {
+    newEvents: [{ ts: now, domain: 'system', type: 'wake', value: overnight.length, meta: { summary, changed: overnight.length }, source: 'auto' }],
+    dispatch: null, pushes: [], summary: EMPTY,
+  };
+}
+
+/* 13:00 MIDDAY — a quiet scan. Push ONLY a true interrupt (cash-critical,
+   overdue, an inquiry aging past 2h) — never the morning line again. */
+function middayPhase(events: PulseEvent[], now: number): PulseResult {
+  const core = runPulseCore(events, now);
+  const interrupts = core.pushes.filter((p) => p.tag !== 'morning');   // drop the daily dispatch line
+  return {
+    newEvents: [...core.newEvents, { ts: now, domain: 'system', type: 'midday', value: interrupts.length, meta: {}, source: 'auto' }],
+    dispatch: null, pushes: interrupts, summary: core.summary,
+  };
+}
+
+/* 21:00 EVENING — the intake nudge, once, only if nothing was logged today. */
+function eveningPhase(events: PulseEvent[], now: number): PulseResult {
+  if (firedToday(events, 'evening', now)) return { newEvents: [], dispatch: null, pushes: [], summary: EMPTY };
+  const start = new Date(now); start.setHours(0, 0, 0, 0);
+  const loggedToday = events.some((e) => e.domain === 'expense' && e.ts >= start.getTime());
+  const pushes: PushMsg[] = loggedToday ? [] : [{ title: 'KAI', body: 'Anything spent today? One tap to log it.', tag: 'intake', priority: 1 }];
+  return {
+    newEvents: [{ ts: now, domain: 'system', type: 'evening', value: loggedToday ? 1 : 0, meta: { loggedToday }, source: 'auto' }],
+    dispatch: null, pushes, summary: EMPTY,
+  };
+}
+
+/* 02:00 DREAM — re-read the whole Spine and write patterns nobody asked for,
+   as system/insight events the morning can surface. Deterministic; deduped by
+   text within 24h so a re-fire doesn't duplicate. */
+function dreamPhase(events: PulseEvent[], now: number): PulseResult {
+  if (firedToday(events, 'dream', now)) return { newEvents: [], dispatch: null, pushes: [], summary: EMPTY };
+  const insights = dreamInsights(events, now);
+  const recent = new Set(events.filter((e) => e.domain === 'system' && e.type === 'insight' && e.ts >= now - DAY).map((e) => String(e.meta?.text)));
+  const fresh = insights.filter((t) => !recent.has(t));
+  const newEvents: Omit<PulseEvent, 'id'>[] = fresh.map((text) => ({ ts: now, domain: 'system', type: 'insight', meta: { text, phase: 'dream' }, source: 'auto' }));
+  newEvents.push({ ts: now, domain: 'system', type: 'dream', value: fresh.length, meta: { count: fresh.length }, source: 'auto' });
+  return { newEvents, dispatch: null, pushes: [], summary: EMPTY };
+}
+
+/* Deterministic overnight patterns, from EVENTS alone (works off the synced
+   Spine, no client store needed). Only emits what the data supports. */
+function dreamInsights(events: PulseEvent[], now: number): string[] {
+  const out: string[] = [];
+
+  /* 1. reward-spend reflex — expense in the 3 days after a win vs baseline. */
+  const isWin = (e: PulseEvent) => (e.domain === 'money' && e.type === 'milestone') || (e.domain === 'makadi' && e.type === 'booking_confirmed') || (e.domain === 'commitment' && e.type === 'commitment_kept');
+  const wins = events.filter(isWin).sort((a, b) => a.ts - b.ts);
+  const expenses = events.filter((e) => e.domain === 'expense' && typeof e.value === 'number');
+  if (wins.length >= 2 && expenses.length >= 5) {
+    const win3 = (ts: number) => expenses.filter((e) => e.ts > ts && e.ts <= ts + 3 * DAY).reduce((s, e) => s + (e.value || 0), 0);
+    const postWin = wins.reduce((s, w) => s + win3(w.ts), 0) / (wins.length * 3);
+    const inWin = (ts: number) => wins.some((w) => ts > w.ts && ts <= w.ts + 3 * DAY);
+    const baseEx = expenses.filter((e) => !inWin(e.ts));
+    const span = Math.max(1, (now - events[0].ts) / DAY - wins.length * 3);
+    const base = baseEx.reduce((s, e) => s + (e.value || 0), 0) / span;
+    if (base > 0 && postWin / base >= 1.4) out.push(`After a win you spend ${(postWin / base).toFixed(1)}× your usual — the reward reflex. Watch the days after money lands.`);
+  }
+
+  /* 2. a domain that used to be active and has gone silent (14d). */
+  for (const dom of ['garden', 'content', 'instagram', 'makadi', 'leads']) {
+    const evs = events.filter((e) => e.domain === dom).sort((a, b) => a.ts - b.ts);
+    if (evs.length < 4) continue;
+    const lastDaysAgo = Math.floor((now - evs[evs.length - 1].ts) / DAY);
+    if (lastDaysAgo >= 14 && lastDaysAgo <= 60) { out.push(`${dom} has gone quiet — ${lastDaysAgo} days since the last move. You had momentum there.`); break; }
+  }
+
+  /* 3. commitment reliability, from kept/broken events. */
+  const kept = events.filter((e) => e.domain === 'commitment' && e.type === 'commitment_kept').length;
+  const broke = events.filter((e) => e.domain === 'commitment' && e.type === 'commitment_broken').length;
+  if (kept + broke >= 3) out.push(`You've kept ${kept} of ${kept + broke} commitments on record (${Math.round((kept / (kept + broke)) * 100)}%). ${broke > kept ? 'The vague ones are where you slip.' : 'Hold that line.'}`);
+
+  return out.slice(0, 3);
+}
