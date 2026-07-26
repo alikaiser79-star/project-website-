@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { vermaechtnisText, cite as citeBequest, ENTRIES } from './kai/vermaechtnis';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,20 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §37 DAS VERMÄCHTNIS — inherited observations, and what the record did
+     to them. Retired entries are gone from here automatically. */
+  if (/^verm(ä|ae)chtnis$|^bequest$|^profile$|^what do you know about me$/i.test(q)) {
+    return vermaechtnisText();
+  }
+  {
+    const m = cmd.trim().match(/^cite\s+([PRW]\d+)$/i);
+    if (m) {
+      const id = m[1].toUpperCase();
+      if (!ENTRIES.some((e) => e.id === id)) return `No entry ${id} in the bequest.`;
+      return citeBequest(id) || `${id} was retired — your record contradicted it, so I will not cite it.`;
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

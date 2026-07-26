@@ -26,6 +26,7 @@
 import { getEvents, logEvent } from './events';
 import { getCommitments, resolveCommitments, type Commitment } from './commitments';
 import { toEgp } from './money';
+import { bequestContext } from './vermaechtnis';
 import { buildKaiContext } from './context';
 import { askClaude } from '../claude';
 import type { Currency } from '../../types';
@@ -278,6 +279,11 @@ export function twinContext(now = Date.now()): string {
   if (m.precursors.length) L.push('  failure precursors: ' + m.precursors.map((p) => `${p.label} [${p.occurrences}/${p.ofBroken}]`).join('; '));
   if (m.followThrough.length) L.push('  follow-through: ' + m.followThrough.map((f) => `${f.domain} ${f.status} (${f.lastDaysAgo}d)`).join(', '));
   L.push(`  confidence: ${m.confidence.level} — ${m.confidence.honest}`);
+  /* §37 — the bequest, kept clearly separate from anything derived above.
+     Retired entries are removed HERE rather than trusted to a model that
+     might cite one anyway. */
+  L.push('');
+  L.push(bequestContext(now));
   return L.join('\n');
 }
 
