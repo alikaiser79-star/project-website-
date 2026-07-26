@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { maschineText, worthOf, classify, setType, addUnit, type IncomeType } from './kai/maschine';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,37 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §35 DIE MASCHINE — income by shape, the factory slope, the vertical. */
+  if (/^maschine$|^machine$|^compounding$|^freedom$|^by type$/i.test(q)) return maschineText();
+  {
+    /* "worth 900/mo" / "worth 1500 once" — the same money, two meanings. */
+    const m = cmd.trim().match(/^worth\s+([\d,.]+)\s*(?:egp)?\s*(\/mo|per month|monthly|once|one.?off)?$/i);
+    if (m) {
+      const amt = parseFloat(m[1].replace(/,/g, ''));
+      const recurring = !!m[2] && !/once|one.?off/i.test(m[2]);
+      if (Number.isFinite(amt) && amt > 0) return worthOf(amt, recurring ? 'RECURRING' : 'LINEAR').line;
+    }
+  }
+  {
+    /* "type <label> = RECURRING" — he overrides the classification. */
+    const m = cmd.trim().match(/^type\s+(.+?)\s*=\s*(linear|asset|recurring|multiplying)$/i);
+    if (m) {
+      setType(m[1].trim(), m[2].toUpperCase() as IncomeType);
+      return `"${m[1].trim()}" is now ${m[2].toUpperCase()}.`;
+    }
+  }
+  {
+    /* "unit <name> managed 20%" / "unit <name> owned" */
+    const m = cmd.trim().match(/^unit\s+(.+?)\s+(owned|managed)\s*([\d.]+)?%?$/i);
+    if (m) {
+      const owned = /owned/i.test(m[2]);
+      const share = owned ? 100 : parseFloat(m[3] || '0');
+      if (!owned && !(share > 0)) return 'A managed unit needs your share — "unit Makadi B managed 20%".';
+      addUnit({ name: m[1].trim(), owned, sharePct: share });
+      return owned ? `"${m[1].trim()}" recorded as yours.` : `"${m[1].trim()}" recorded as managed at ${share}%.`;
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
