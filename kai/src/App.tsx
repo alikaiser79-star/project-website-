@@ -69,6 +69,7 @@ import TwinDrawer from './components/TwinDrawer';
 import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
+import CommandOrder from './components/CommandOrder';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -154,6 +155,7 @@ export default function App() {
   const [twinOpen, setTwinOpen] = useState(false);
   const [twinQuestion, setTwinQuestion] = useState<string | undefined>(undefined);
   const [hunterOpen, setHunterOpen] = useState(false);
+  const [showOrganism, setShowOrganism] = useState(false);   // §24 — Ordnung is the default Command face; the living organism is opt-in
   const [oneThingOpen, setOneThingOpen] = useState(false);
   const [dayRitual, setDayRitual] = useState<'compile' | 'shutdown' | null>(null);
   const [journalOpen, setJournalOpen] = useState(false);
@@ -903,8 +905,14 @@ export default function App() {
               />
             )}
 
-            {view === 'command' && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
-            {view === 'command' && booted && !(lockCfg.enabled && !unlocked) && (
+            {/* §24 DIE ORDNUNG — the ordered three-zone face is the default;
+                the living organism (CORE-V6) is one tap away. */}
+            {view === 'command' && !showOrganism && <CommandOrder onOrganism={() => setShowOrganism(true)} />}
+            {view === 'command' && showOrganism && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
+            {view === 'command' && showOrganism && (
+              <button className="ord-return" onClick={() => setShowOrganism(false)}>← order</button>
+            )}
+            {view === 'command' && showOrganism && booted && !(lockCfg.enabled && !unlocked) && (
               <MakadiProfitLine onOpen={() => setView('money')} />
             )}
 

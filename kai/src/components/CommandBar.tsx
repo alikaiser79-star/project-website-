@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronRight, Loader2, Sparkles, X, Trash2, Download } from 'lucide-react';
+import { ChevronRight, Loader2, X, Trash2, Download } from 'lucide-react';
 import Markdown from './Markdown';
 import { runBuiltin } from '../lib/commands';
 import { askClaude, askClaudeStream } from '../lib/claude';
@@ -17,7 +17,25 @@ import { loadState, saveState } from '../lib/store';
 import { onAction } from '../lib/actions';
 import type { ChatTurn, KaiSettings } from '../types';
 
-const suggestions = ['status', 'debt', 'income', 'tasks', 'garden', 'makadi', 'instagram'];
+/* §24 — the visible verb palette. Every summonable surface, shown, so the
+   operator never has to remember a command. Grouped, tappable. */
+const PALETTE: Array<{ group: string; verbs: Array<{ cmd: string; desc: string }> }> = [
+  { group: 'Summon', verbs: [
+    { cmd: 'hunter',    desc: 'revenue moves, ranked' },
+    { cmd: 'twin',      desc: 'your behavioral model' },
+    { cmd: 'plan',      desc: "today's plan" },
+    { cmd: 'reckon',    desc: 'the week in review' },
+    { cmd: 'ambassador',desc: 'Makadi auto-replies' },
+    { cmd: 'doctrine',  desc: 'who KAI is' },
+  ] },
+  { group: 'Ask', verbs: [
+    { cmd: 'status',  desc: 'the whole picture' },
+    { cmd: 'runway',  desc: 'days of freedom' },
+    { cmd: 'debt',    desc: 'the card' },
+    { cmd: 'makadi',  desc: 'the apartment' },
+    { cmd: 'counsel', desc: 'rule on a decision' },
+  ] },
+];
 
 type Props = { open: boolean; onClose: () => void; settings: KaiSettings };
 
@@ -283,23 +301,27 @@ export default function CommandBar({ open, onClose, settings }: Props) {
             </div>
 
             {history.length === 0 && (
-              <div className="p-4">
-                <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel mb-2">suggested</div>
-                <div className="flex flex-wrap gap-2">
-                  {suggestions.map(s => (
-                    <button
-                      key={s}
-                      onClick={() => submit(s)}
-                      onMouseEnter={() => sfx.hover()}
-                      className="font-mono text-[11px] tracking-[0.15em] uppercase px-2.5 py-1 border border-amber/25 hover:border-amber hover:bg-amber/10 text-amber rounded"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-4 font-mono text-[11px] text-steel leading-relaxed flex gap-2">
-                  <Sparkles size={12} className="text-cyan mt-0.5 shrink-0" />
-                  KAI talks to Claude through <span className="text-amber">/api/claude</span>. If the server has <span className="text-amber">ANTHROPIC_API_KEY</span> set, free-form questions get a real answer.
+              <div className="p-4 max-h-[58vh] overflow-y-auto">
+                {PALETTE.map((sec) => (
+                  <div key={sec.group} className="mb-4">
+                    <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-steel mb-2">{sec.group}</div>
+                    <div className="flex flex-col gap-1">
+                      {sec.verbs.map((v) => (
+                        <button
+                          key={v.cmd}
+                          onClick={() => submit(v.cmd)}
+                          onMouseEnter={() => sfx.hover()}
+                          className="flex items-baseline gap-3 text-left px-2.5 py-2 rounded border border-transparent hover:border-amber/30 hover:bg-amber/5"
+                        >
+                          <span className="font-mono text-[13px] tracking-[0.08em] text-amber w-[92px] shrink-0">{v.cmd}</span>
+                          <span className="font-mono text-[11px] text-steel">{v.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div className="mt-1 font-mono text-[10px] text-steel/70 leading-relaxed">
+                  …or ask anything in plain words.
                 </div>
               </div>
             )}
