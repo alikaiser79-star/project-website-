@@ -15,6 +15,8 @@ import { getCommitments } from './commitments';
 import { getLeads } from './leads';
 import { computeRunway } from './runway';
 import { askClaude } from '../claude';
+import { claudeConfig } from '../../kaiConfig';
+import { stampAdvisor } from './ratgeber';
 
 const DAY = 86_400_000;
 const LAST_AUTO = 'kai.counsel.autoDay';
@@ -67,7 +69,14 @@ export async function counsel(now = Date.now()): Promise<Ruling> {
   const verdict = (allLines[0] || 'VERDICT: hold the line.').replace(/^VERDICT:\s*/i, '');
   const ruling: Ruling = { verdict, lines: allLines, at: now };
   try {
-    logEvent({ domain: 'counsel', type: 'ruling', meta: { verdict: verdict.slice(0, 200), lines: allLines }, source: 'ai', ts: now });
+    /* §33.5 — stamp WHICH advisor said this. Models get replaced; the
+       ledger outlives them, and unattributed advice cannot be scored. */
+    const stamp = stampAdvisor(verdict, claudeConfig.modelHeavy);
+    logEvent({
+      domain: 'counsel', type: 'ruling',
+      meta: { verdict: verdict.slice(0, 200), lines: allLines, advisor: stamp.advisor, subject: stamp.subject },
+      source: 'ai', ts: now,
+    });
   } catch { /* ignore */ }
   return ruling;
 }

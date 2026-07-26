@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { ratgeberText, judgeCounsel } from './kai/ratgeber';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,20 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §33.5 DAS GEDÄCHTNIS DER RATGEBER — what the advisors said, and whether
+     it held. Survives the model that said it. */
+  if (/^ratgeber$|^advisors?$|^counsel ledger$|^who advised me$|^was the advice right$/i.test(q)) {
+    return ratgeberText();
+  }
+  {
+    /* "judge <id> right|wrong <note>" — ONLY Ali resolves a ruling. */
+    const m = cmd.trim().match(/^judge\s+(\S+)\s+(right|wrong|confirmed|contradicted)\s*(.*)$/i);
+    if (m) {
+      const verdict = /right|confirmed/i.test(m[2]) ? 'confirmed' : 'contradicted';
+      return judgeCounsel(m[1], verdict, m[3] || '', 'user').reason;
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
