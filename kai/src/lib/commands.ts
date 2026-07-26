@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { heirText, standing as heirStanding, ratify as ratifyHeir, revokeAll as revokeHeir, markPresent, handoff } from './kai/heir';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,28 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §31 DER ERBE — standing, tiers, and the permanent limits. */
+  if (/^heir$|^erbe$|^der erbe$|^standing$/i.test(q)) { markPresent(); return heirText(); }
+  {
+    const r = cmd.trim().match(/^ratify\s+(voice|judgment|judgement|continuity)$/i);
+    if (r) {
+      const t = r[1].toLowerCase().replace('judgement', 'judgment').toUpperCase() as any;
+      markPresent();
+      return ratifyHeir(t).reason;
+    }
+  }
+  if (/^revoke heir$|^revoke all$|^stand down$/i.test(q)) { revokeHeir(); return 'Revoked. Every tier is gone; everything waits for your tap again.'; }
+  if (/^handoff$|^port kai$/i.test(q)) {
+    try {
+      const blob = new Blob([JSON.stringify(handoff(), null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `kai-handoff-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { /* ignore */ }
+    return 'Handoff written — what to carry, in what order, and the limits that travel with it. A ratified tier does NOT transfer; a new implementation earns standing again.';
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

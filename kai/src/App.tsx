@@ -76,6 +76,7 @@ import { callingReport } from './lib/kai/nowItems';
 import NerveField from './components/NerveField';
 import { armNervousSystem } from './lib/kai/nervousSystem';
 import { recordOpen } from './lib/kai/adaptation';
+import { markPresent } from './lib/kai/heir';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -399,6 +400,9 @@ export default function App() {
     /* §23.3 — record this open so KAI learns the hour you actually use it.
        Logged BEFORE the nervous system arms, so it lands in the baseline. */
     try { recordOpen(); } catch { /* boot-safe */ }
+    /* §31 — opening KAI is the liveness signal. Continuity may only act when
+       this has gone quiet; it is never assumed. */
+    try { markPresent(); } catch { /* boot-safe */ }
     /* §23.2 — arm the nervous system AFTER boot writes so those set the
        baseline (no boot-time flash); only events that land later are felt. */
     try { armNervousSystem(); } catch { /* boot-safe */ }
