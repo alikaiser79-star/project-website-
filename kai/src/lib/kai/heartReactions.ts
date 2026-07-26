@@ -17,10 +17,16 @@ type Cb = (r: HeartReaction) => void;
 /* domain.type → which organ surges, and in what colour. */
 const REACTABLE: Record<string, HeartReaction> = {
   'makadi.booking_confirmed':     { organId: '04', tone: 'gold' },     // a booking landed → Makadi
+  'makadi.rate_changed':          { organId: '04', tone: 'gold' },     // raised the rate → Makadi
+  'income.received':              { organId: '01', tone: 'gold' },     // money in → Income
+  'income.salary_logged':         { organId: '01', tone: 'gold' },     // salary → Income
+  'hunter.actioned':              { organId: '01', tone: 'gold' },     // a hunt paid off → Income
   'commitment.commitment_kept':   { organId: '09', tone: 'gold' },     // kept your word → Mirror
   'commitment.commitment_broken': { organId: '09', tone: 'crimson' },  // broke it → Mirror, one jolt
+  'system.drift_warning':         { organId: '09', tone: 'crimson' },  // drift forming → Mirror
   'money.milestone':              { organId: '02', tone: 'gold' },     // a money milestone → Debt
-  'debt.balance_updated':         { organId: '02', tone: 'gold' },     // paid the card → Debt
+  'debt.payment_logged':          { organId: '02', tone: 'gold' },     // paid the card → Debt
+  'debt.balance_updated':         { organId: '02', tone: 'gold' },     // balance moved → Debt
 };
 
 const listeners = new Set<Cb>();
