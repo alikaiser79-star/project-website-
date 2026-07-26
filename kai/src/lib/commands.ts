@@ -25,7 +25,11 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { verify as verifyChain, seal as sealChain, exportRecord, recordText } from './kai/witness';
 import { emitAction } from './actions';
+import { toast } from '../hooks/useToasts';
+
+function toastFn(kind: 'ok' | 'err', msg: string) { try { (kind === 'ok' ? toast.ok : toast.err)(msg, 'WITNESS', 7000); } catch { /* ignore */ } }
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -203,6 +207,36 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §30.11 THE WITNESS STAND — verify, seal, and produce the record.
+     Async surfaces route through the command bar's promise path. */
+  if (/^verify$|^verify chain$|^integrity chain$/i.test(q)) {
+    void verifyChain().then((v) => {
+      try { (window as any).__kaiVerify = v; } catch { /* ignore */ }
+      toastFn(v.ok ? 'ok' : 'err', v.detail);
+    }).catch(() => {});
+    return 'Verifying the chain — re-deriving every hash from genesis…';
+  }
+  if (/^seal$|^seal the record$/i.test(q)) {
+    void sealChain().catch(() => {});
+    return 'Sealing — the head hash is anchored into the Spine and syncs from here.';
+  }
+  {
+    const m = cmd.trim().match(/^(?:record|evidence|export record)\s*(.*)$/i);
+    if (m) {
+      const dom = (m[1] || 'all').trim().toLowerCase();
+      void exportRecord((dom || 'all') as any).then((r) => {
+        try {
+          const blob = new Blob([recordText(r)], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `kai-record-${dom || 'all'}-${new Date().toISOString().slice(0, 10)}.txt`;
+          a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch { /* ignore */ }
+      }).catch(() => {});
+      return `Producing the record for ${dom || 'all'} — events, hashes, seals, and how to verify it independently.`;
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
