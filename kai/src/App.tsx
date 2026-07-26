@@ -70,6 +70,8 @@ import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
 import CommandOrder from './components/CommandOrder';
+import NerveField from './components/NerveField';
+import { armNervousSystem } from './lib/kai/nervousSystem';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -382,6 +384,9 @@ export default function App() {
      forces a re-seed for dev. */
   useEffect(() => {
     installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); migrateMakadiListing(); recordWithdrawnInquiry(); recordRealBookings(); seedCodex();
+    /* §23.2 — arm the nervous system AFTER boot writes so those set the
+       baseline (no boot-time flash); only events that land later are felt. */
+    try { armNervousSystem(); } catch { /* boot-safe */ }
     /* §13.3 verification hooks (retrieval / patterns / tokens) */
     try {
       (window as any).__kaiRetrieve = (q: string) => retrieveEvents(q);
@@ -977,6 +982,7 @@ export default function App() {
       )}
       <TwinDrawer open={twinOpen} question={twinQuestion} onClose={() => { setTwinOpen(false); setTwinQuestion(undefined); }} />
       <HunterDrawer open={hunterOpen} onClose={() => setHunterOpen(false)} />
+      {booted && <NerveField />}
       <InstallPrompt />
       {booted && !(lockCfg.enabled && !unlocked) && <KaiEye />}
       {isMobile && <PullToRefresh />}
