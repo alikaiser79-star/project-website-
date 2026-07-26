@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { totmannText, writeCredentialHint, buildHandover, handoverText, status as totmannStatus } from './kai/totmann';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,25 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §33.2 DER TOTMANNSCHALTER — the dead man's switch. */
+  if (/^totmann(schalter)?$|^dead ?man'?s? ?switch$|^switch$|^if i disappear$|^presence$/i.test(q)) {
+    return totmannText();
+  }
+  {
+    /* Recording WHERE something lives. Anything shaped like the thing itself
+       is refused by the module, and the refusal is what he sees. */
+    const m = cmd.trim().match(/^(?:where is|location)\s+(.+?)\s*(?:is|lives|:)\s+(.+)$/i);
+    if (m) return writeCredentialHint(m[1].trim(), m[2].trim()).reason;
+  }
+  if (/^handover$|^the package$|^what would they get$/i.test(q)) {
+    const h = buildHandover();
+    if (!h) {
+      const s = totmannStatus();
+      return `Nothing is released. ${s.line}\nThe package only ever prepares after full dormancy AND a real person has been asked and not answered.`;
+    }
+    return handoverText(h);
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

@@ -17,6 +17,7 @@
 import { read, write, uid, emit } from './store';
 import { logEvent } from './events';
 import { match as delegateMatch, recordFire as delegateRecord } from './delegate';
+import { actionLocked } from './totmann';
 
 export type PendingKind = 'email_send' | 'ig_publish' | 'site_commit' | 'site_deploy' | 'sms_send' | 'log_batch';
 
@@ -154,6 +155,18 @@ const EXECUTORS: Record<PendingKind, (p: any) => Promise<void>> = {
 export async function approveAction(id: string): Promise<void> {
   const a = listAll().find(x => x.id === id);
   if (!a || a.status !== 'pending') return;
+
+  /* §33.2 THE DEAD MAN'S SWITCH. While dormant NOTHING executes — not by
+     tap, and above all not by a standing Delegate rule firing into silence.
+     This is the one place both paths converge, so it is the one place the
+     lock belongs. The action is marked failed, not dropped: it is still
+     there, retryable, the moment he comes back. */
+  if (actionLocked()) {
+    setStatus(id, 'failed', 'Dead man’s switch: all action is locked until you return. Open KAI once and it clears.');
+    try { logEvent({ domain: 'system', type: 'totmann_blocked', meta: { action_id: id, kind: a.kind, summary: a.summary }, source: 'auto' }); } catch { /* ignore */ }
+    return;
+  }
+
   try {
     await EXECUTORS[a.kind](a.payload);
     setStatus(id, 'approved');
