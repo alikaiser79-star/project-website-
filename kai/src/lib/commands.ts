@@ -25,6 +25,9 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { curriculumText, teach, lessonText, dueForTest, answerTest, compoundingText } from './kai/lehre';
+import { libraryText, packText, addNote, type Provenance } from './kai/packs';
+import { sparringText, getScenario, scenarioText, progress, type ScenarioId } from './kai/sparring';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +206,49 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §38 DIE LEHRE — the teaching. */
+  if (/^lehre$|^curriculum$|^what should i learn$|^learn$/i.test(q)) return curriculumText();
+  if (/^lesson$|^teach me$|^today'?s lesson$/i.test(q)) {
+    const l = teach();
+    return l ? lessonText(l) : 'Nothing new to teach — everything on the list is taught and retained. The curriculum grows as your record does.';
+  }
+  if (/^test me$|^quiz$|^retention$/i.test(q)) {
+    const d = dueForTest();
+    if (!d) return 'Nothing due. I ask once, a week after teaching — not before.';
+    return `From ${d.taughtDaysAgo} days ago: ${d.question}\n(answer with: answer ${d.lessonId} <your answer>)`;
+  }
+  {
+    const m = cmd.trim().match(/^answer\s+(\S+)\s+([\s\S]+)$/i);
+    if (m) return answerTest(m[1], m[2]).reason;
+  }
+  if (/^learned$|^compounding record$|^what have i learned$/i.test(q)) return compoundingText();
+
+  /* §38.2 the skill library */
+  if (/^library$|^packs$|^skills$/i.test(q)) return libraryText();
+  {
+    const m = cmd.trim().match(/^pack\s+([a-z-]+)$/i);
+    if (m) return packText(m[1].toLowerCase());
+  }
+  {
+    /* "note <pack> <principle|derived|external> :: <claim> :: <source>" */
+    const m = cmd.trim().match(/^note\s+([a-z-]+)\s+(principle|external)\s*::\s*([^:]+?)\s*(?:::\s*([\s\S]+))?$/i);
+    if (m) return addNote(m[1].toLowerCase(), m[3].trim(), m[2].toLowerCase() as Provenance, m[4]?.trim()).reason;
+  }
+
+  /* §38.3 the sparring */
+  if (/^spar$|^sparring$|^rehearse$/i.test(q)) return sparringText();
+  {
+    const m = cmd.trim().match(/^spar\s+(court-expert|refund-guest|client-price|car-lowball)$/i);
+    if (m) {
+      const sc = getScenario(m[1].toLowerCase() as ScenarioId);
+      return sc ? scenarioText(sc) : 'No such scenario.';
+    }
+  }
+  {
+    const m = cmd.trim().match(/^spar record\s+(court-expert|refund-guest|client-price|car-lowball)$/i);
+    if (m) return progress(m[1].toLowerCase() as ScenarioId).line;
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
