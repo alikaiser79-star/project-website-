@@ -25,6 +25,8 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { debateDecision, debateMove, debateText } from './kai/opposition';
+import { assembleContext as ctxFor } from './kai/council';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +205,16 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §30.13 THE OPPOSITION — one case for, one against, same Spine. */
+  {
+    const m = cmd.trim().match(/^(?:argue|debate|both sides|challenge)\s+(.+)$/i);
+    if (m) {
+      const ctx = ctxFor();
+      const move = ctx.moves.find((o) => o.title.toLowerCase().includes(m[1].toLowerCase().slice(0, 12)));
+      return debateText(move ? debateMove(move, ctx) : debateDecision(m[1], ctx));
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
