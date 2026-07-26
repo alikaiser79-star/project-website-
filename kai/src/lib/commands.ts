@@ -25,6 +25,8 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { weeklyVerdict, verdictText } from './kai/conscience';
+import { assembleContext } from './kai/council';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +205,11 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §28.5 THE CONSCIENCE — the Sunday verdict, gradeable and merciless. */
+  if (/^verdict$|^the verdict$|^grade me$|^week verdict$/i.test(q)) {
+    return verdictText(weeklyVerdict(assembleContext()));
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

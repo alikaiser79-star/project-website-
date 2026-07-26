@@ -12,17 +12,29 @@ import { parseLine, parseBatch, applyIntakeEntry, entrySummary, type IntakeEntry
 import { proposeAction } from '../lib/kai/pending';
 import { emit } from '../lib/kai/store';
 import { toast } from '../hooks/useToasts';
+import { assembleContext } from '../lib/kai/council';
+import { checkIntent, recordObjection, type Objection } from '../lib/kai/conscience';
 import { ClipboardList, X } from 'lucide-react';
 
 export default function QuickLogBar() {
   const [text, setText] = useState('');
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [objection, setObjection] = useState<Objection | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const preview = text.trim() ? parseLine(text) : null;
 
   function log() {
     const e = parseLine(text);
     if (!e) return;
+    /* §28.5 — the conscience speaks BEFORE, not in tomorrow's summary. It
+       objects once; a second tap proceeds. It never blocks. */
+    if (e.dir === 'out' && !objection) {
+      try {
+        const o = checkIntent('spend', { amountEgp: e.amount }, assembleContext());
+        if (o) { setObjection(o); return; }
+      } catch { /* never let the conscience stop a log */ }
+    }
+    if (objection) { recordObjection(objection, false); setObjection(null); }
     applyIntakeEntry(e);
     emit();
     toast.ok('Logged · ' + entrySummary(e), 'INTAKE', 2400);
@@ -47,6 +59,16 @@ export default function QuickLogBar() {
         </button>
         <button type="submit" className="quicklog-go" disabled={!preview}>log</button>
       </form>
+      {objection && (
+        <div className={'quicklog-objection ' + objection.severity}>
+          <div className="quicklog-obj-text">{objection.text}</div>
+          <div className="quicklog-obj-why">{objection.because}</div>
+          <div className="quicklog-obj-actions">
+            <button className="quicklog-obj-go" onClick={log}>log it anyway</button>
+            <button className="quicklog-obj-no" onClick={() => { recordObjection(objection, true); setObjection(null); setText(''); }}>you're right</button>
+          </div>
+        </div>
+      )}
       {preview
         ? <div className="quicklog-hint ok">{entrySummary(preview)}{preview.category ? ` · ${preview.category}` : ''}</div>
         : text.trim()
