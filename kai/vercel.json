@@ -5,6 +5,10 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "crons": [
-    { "path": "/api/pulse", "schedule": "30 5 * * *" }
+    { "path": "/api/pulse?phase=wake",    "schedule": "0 4 * * *" },
+    { "path": "/api/pulse?phase=speak",   "schedule": "35 5 * * *" },
+    { "path": "/api/pulse?phase=midday",  "schedule": "0 11 * * *" },
+    { "path": "/api/pulse?phase=evening", "schedule": "0 19 * * *" },
+    { "path": "/api/pulse?phase=dream",   "schedule": "0 0 * * *" }
   ]
 }
