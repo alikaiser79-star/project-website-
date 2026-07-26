@@ -29,6 +29,7 @@ import { loadState, saveState } from '../store';
 import { toEgp } from './money';
 import { proposeAction } from './pending';
 import { askClaude } from '../claude';
+import { laneWeight, isShapeSuppressed } from './adaptation';
 import type { Currency } from '../../types';
 
 const DAY = 86_400_000;
@@ -166,10 +167,12 @@ export function generateOpportunities(now = Date.now()): Opportunity[] {
     });
   }
 
-  /* rank by EGP per minute of Ali's time, drop dismissed shapes. */
+  /* rank by EGP per minute of Ali's time; drop shapes he dismissed recently
+     OR has learned-suppressed (§23.3), and bias the order toward lanes he
+     actually approves — the interface adapting to how he uses it. */
   return out
-    .filter((o) => !isShapeDismissed(o.shape, now))
-    .sort((a, b) => b.egpPerMin - a.egpPerMin);
+    .filter((o) => !isShapeDismissed(o.shape, now) && !isShapeSuppressed(o.shape, now))
+    .sort((a, b) => b.egpPerMin * laneWeight(b.kind, now) - a.egpPerMin * laneWeight(a.kind, now));
 }
 
 /* Open nights ahead — from occupancy (no per-date calendar exists), labelled

@@ -16,6 +16,7 @@ import { organCardData, organWeight } from '../../lib/kai/organCard';
 import { signalsAt, rewindRange } from '../../lib/kai/rewind';
 import { emitAction } from '../../lib/actions';
 import { onHeartReaction } from '../../lib/kai/heartReactions';
+import { recordOrganTap } from '../../lib/kai/adaptation';
 import { sfx } from '../../lib/sound';
 
 interface OrganDef { id: string; label: string; col: 'left' | 'right'; row: number; }
@@ -101,7 +102,7 @@ export default function CommandCorePanel() {
       canvas: canvasRef.current, root: rootRef.current, organs,
       hud: { bpm: bpmRef.current, state: stateRef.current, sub: subRef.current },
       signalProvider: getCommandSignals,
-      onAck: (id) => { const t = ACK_ROUTE[id]; if (t) emitAction({ type: 'ping-panel', panel: t }); },
+      onAck: (id) => { recordOrganTap(id); const t = ACK_ROUTE[id]; if (t) emitAction({ type: 'ping-panel', panel: t }); },
     });
     coreRef.current = core;
     core.start();
