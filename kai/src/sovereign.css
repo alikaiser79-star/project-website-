@@ -346,6 +346,56 @@
 .ord-vital.good .ord-vital-value { color: rgba(140, 235, 170, 0.95); }
 .ord-vital.warn .ord-vital-value { color: rgba(255, 200, 120, 0.95); }
 
+/* §26.4 TRUTH AGE — a guessed number must not look as confident as a fresh one */
+.ord-vital-age { margin-top: 5px; font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: 0.6px; color: rgba(232, 210, 190, 0.38); }
+.ord-vital-age.is-stale {
+  color: rgba(255, 160, 110, 0.85); background: none; border: none; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: 9px; letter-spacing: 0.6px; text-decoration: underline dotted;
+}
+.ord-vital.stale { border-color: rgba(255, 150, 90, 0.28); }
+.ord-vital.stale .ord-vital-value { opacity: 0.55; }
+
+/* §26 DIE BEICHTE — the confirm sheet */
+.conf-scrim { position: fixed; inset: 0; z-index: 560; background: rgba(4, 3, 2, 0.66); backdrop-filter: blur(3px); display: flex; align-items: flex-end; justify-content: center; animation: ask-kai-fade 0.2s ease both; }
+.conf {
+  width: min(460px, 96vw); max-height: 88vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+  background: linear-gradient(180deg, rgba(14, 11, 7, 0.99), rgba(7, 5, 4, 0.99));
+  border: 1px solid rgba(255, 190, 100, 0.24); border-radius: 16px 16px 0 0;
+  padding: 14px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  font-family: 'JetBrains Mono', ui-monospace, monospace; color: #f0c078;
+  animation: kai-eye-rise 0.26s cubic-bezier(0.25,0.46,0.45,0.94) both;
+}
+.conf-head { display: flex; align-items: center; justify-content: space-between; }
+.conf-title { font-size: 11px; letter-spacing: 3px; color: rgba(240, 192, 120, 0.75); }
+.conf-x { background: none; border: none; color: rgba(240, 192, 120, 0.5); cursor: pointer; }
+.conf-body { display: flex; flex-direction: column; gap: 10px; }
+.conf-fact { border: 1px solid rgba(255, 190, 100, 0.2); border-radius: 11px; padding: 11px 13px; background: rgba(255, 255, 255, 0.02); }
+.conf-fact-label { font-size: 15px; color: #ffe0b8; line-height: 1.35; }
+.conf-fact-detail { font-size: 11px; color: rgba(232, 210, 190, 0.5); }
+.conf-fact-raw { font-size: 11px; color: rgba(232, 210, 190, 0.45); margin-top: 4px; font-style: italic; }
+.conf-fact-actions { display: flex; gap: 8px; margin-top: 10px; }
+.conf-yes, .conf-no, .conf-skip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 14px; border-radius: 9px; cursor: pointer;
+  font-family: inherit; font-size: 12px; letter-spacing: 0.6px;
+}
+.conf-yes { flex: 1; background: rgba(120, 220, 150, 0.16); border: 1px solid rgba(120, 220, 150, 0.42); color: rgba(200, 245, 215, 0.98); }
+.conf-no { background: none; border: 1px solid rgba(255, 130, 110, 0.32); color: rgba(255, 160, 140, 0.85); }
+.conf-skip { background: none; border: 1px solid rgba(255, 190, 100, 0.22); color: rgba(240, 210, 170, 0.7); }
+.conf-foot { font-size: 10.5px; color: rgba(232, 210, 190, 0.45); text-align: center; }
+.conf-step { font-size: 16px; line-height: 1.4; color: #ffe6c4; }
+.conf-heard { font-size: 12px; color: rgba(255, 205, 140, 0.8); font-style: italic; }
+.conf-mic {
+  width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px; border-radius: 11px; cursor: pointer; touch-action: none; user-select: none;
+  background: rgba(255, 190, 90, 0.12); border: 1px solid rgba(255, 195, 90, 0.4); color: #ffcaa0;
+  font-family: inherit; font-size: 12.5px;
+}
+.conf-mic.live { border-color: rgba(255, 120, 90, 0.9); color: rgba(255, 235, 220, 1); animation: ptt-pulse 1.2s ease-in-out infinite; }
+.conf-quick { display: flex; gap: 8px; }
+.conf-age { font-size: 10px; color: rgba(232, 210, 190, 0.4); text-align: center; }
+
 /* ZONE 3 — THE DEPTHS */
 .ord-depths { border-top: 1px solid rgba(255, 190, 100, 0.1); padding-top: 12px; }
 .ord-depths-toggle {

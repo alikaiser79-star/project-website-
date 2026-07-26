@@ -11,6 +11,7 @@ import { useRef, useState } from 'react';
 import { Mic } from 'lucide-react';
 import { startPTT, stopPTT, isPTTSupported } from '../lib/pushToTalk';
 import { emitAction } from '../lib/actions';
+import { parseFacts } from '../lib/kai/confession';
 import { sfx } from '../lib/sound';
 
 export default function PushToTalk() {
@@ -39,7 +40,17 @@ export default function PushToTalk() {
         activeRef.current = false; setListening(false);
         const clean = t.trim();
         setText('');
-        if (clean) emitAction({ type: 'open-cmd', prefill: clean, submit: true });
+        if (!clean) return;
+        /* §26 — "the numbers are wrong" opens the guided correction pass. */
+        if (/\b(numbers?|figures?)\b.*\b(wrong|off|stale|outdated)\b|أرقام.*(غلط|قديمة)/i.test(clean)) {
+          emitAction({ type: 'open-confession' });
+          return;
+        }
+        /* §26.1 — a spoken FACT becomes Spine state (after confirmation),
+           not chat. Anything else falls through to the command pipeline. */
+        const facts = parseFacts(clean);
+        if (facts.length) { emitAction({ type: 'open-confession', facts }); return; }
+        emitAction({ type: 'open-cmd', prefill: clean, submit: true });
       },
     });
     if (ok) setListening(true); else activeRef.current = false;

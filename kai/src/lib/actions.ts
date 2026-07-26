@@ -12,7 +12,8 @@ export type KaiAction =
   | { type: 'open-plan' }                           // summon The Morning Plan
   | { type: 'open-reckon' }                         // summon The Weekly Reckoning
   | { type: 'open-twin'; question?: string }        // summon Der Zwilling (the Twin)
-  | { type: 'open-hunter' };                        // summon Der Jäger (the Hunter)
+  | { type: 'open-hunter' }                         // summon Der Jäger (the Hunter)
+  | { type: 'open-confession'; facts?: unknown };   // §26 — confirm heard facts / correction pass
 
 type Listener = (a: KaiAction) => void;
 const listeners = new Set<Listener>();

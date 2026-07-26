@@ -19,6 +19,7 @@ import { makadiProfit } from '../lib/kai/makadiProfit';
 import { computeRunway } from '../lib/kai/runway';
 import { loadState } from '../lib/store';
 import { emitAction, type KaiAction } from '../lib/actions';
+import { truthAges, ageLabel, type TruthAge } from '../lib/kai/confession';
 import { ChevronDown, Heart } from 'lucide-react';
 
 const ORGANS: Array<{ id: string; label: string }> = [
@@ -49,7 +50,9 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
   const net = profit?.net ?? null;
   const days = runway && runway.runwayDays != null && isFinite(runway.runwayDays) ? Math.floor(runway.runwayDays) : null;
 
+  const ages = safe(() => truthAges(now), {} as Record<string, TruthAge>);
   const fire = (a?: KaiAction) => { if (a) emitAction(a); };
+  const openCorrection = () => emitAction({ type: 'open-confession' });
 
   return (
     <div className="ord">
@@ -79,11 +82,14 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
           <Heart className={'ord-heart-icon' + (aroused ? ' calling' : '')} size={54} strokeWidth={1.5} />
           <div className="ord-bpm">{bpm}<i>BPM</i></div>
         </div>
+        {/* §26.4 TRUTH AGE — a number KAI is guessing with must never look as
+            confident as one you just confirmed. Stale (>14d) dims and invites
+            the correction pass. */}
         <div className="ord-vitals">
-          <Vital label="Cash" value={cash != null ? egp(cash) : '—'} unit="EGP" />
-          <Vital label="Debt" value={debt != null ? egp(debt) : '—'} unit="EGP" tone="warn" />
-          <Vital label="Makadi net" value={net != null ? (net < 0 ? '−' : '+') + egp(Math.abs(net)) : '—'} unit="EGP" tone={net != null && net >= 0 ? 'good' : 'warn'} />
-          <Vital label="Runway" value={days != null ? String(days) : '—'} unit="days" />
+          <Vital label="Cash" value={cash != null ? egp(cash) : '—'} unit="EGP" age={ages.cash} onStale={openCorrection} />
+          <Vital label="Debt" value={debt != null ? egp(debt) : '—'} unit="EGP" tone="warn" age={ages.debt} onStale={openCorrection} />
+          <Vital label="Makadi net" value={net != null ? (net < 0 ? '−' : '+') + egp(Math.abs(net)) : '—'} unit="EGP" tone={net != null && net >= 0 ? 'good' : 'warn'} age={ages.makadi} onStale={openCorrection} />
+          <Vital label="Runway" value={days != null ? String(days) : '—'} unit="days" age={ages.runway} onStale={openCorrection} />
         </div>
       </section>
 
@@ -123,11 +129,20 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
   );
 }
 
-function Vital({ label, value, unit, tone }: { label: string; value: string; unit: string; tone?: 'good' | 'warn' }) {
+function Vital({ label, value, unit, tone, age, onStale }: {
+  label: string; value: string; unit: string; tone?: 'good' | 'warn';
+  age?: TruthAge; onStale?: () => void;
+}) {
+  const stale = !!age?.stale;
   return (
-    <div className={'ord-vital' + (tone ? ' ' + tone : '')}>
+    <div className={'ord-vital' + (tone ? ' ' + tone : '') + (stale ? ' stale' : '')}>
       <div className="ord-vital-label">{label}</div>
       <div className="ord-vital-value">{value}<span>{unit}</span></div>
+      {age && (
+        stale
+          ? <button className="ord-vital-age is-stale" onClick={onStale}>{ageLabel(age)} · refresh</button>
+          : <div className="ord-vital-age">{ageLabel(age)}</div>
+      )}
     </div>
   );
 }
