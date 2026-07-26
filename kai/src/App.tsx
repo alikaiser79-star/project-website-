@@ -70,13 +70,15 @@ import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
 import CommandOrder from './components/CommandOrder';
+import { callingReport } from './lib/kai/nowItems';
 import NerveField from './components/NerveField';
 import { armNervousSystem } from './lib/kai/nervousSystem';
 import { recordOpen } from './lib/kai/adaptation';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
-import { speakNow } from './lib/tts';
+import { speakNow, installSpeechPrimer } from './lib/tts';
+import SpeechHint from './components/SpeechHint';
 
 /* Lazy-loaded heavies: orb (three + drei + postprocessing) and the
    chart panel (recharts). Keeps the initial paint slim. */
@@ -385,6 +387,12 @@ export default function App() {
      forces a re-seed for dev. */
   useEffect(() => {
     installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); migrateMakadiListing(); recordWithdrawnInquiry(); recordRealBookings(); seedCodex();
+    /* Voice-out gesture lock — Safari only unlocks speechSynthesis inside a
+       real interaction, so prime it on the operator's first tap. Without this
+       every async speak (a finished answer, the morning dispatch) is dropped
+       silently on iOS. */
+    try { installSpeechPrimer(); } catch { /* boot-safe */ }
+
     /* §23.3 — record this open so KAI learns the hour you actually use it.
        Logged BEFORE the nervous system arms, so it lands in the baseline. */
     try { recordOpen(); } catch { /* boot-safe */ }
@@ -701,6 +709,8 @@ export default function App() {
         toast.ok(`${top.title} · +${Math.round(top.expectedEgp).toLocaleString('en-GB')} EGP`, 'DER JÄGER', 7000);
       }
       (window as any).__kaiHunt = () => { const r = runHunt(); console.info('[KAI hunt]', r, hunterLedger()); return r; };
+      /* Why is the heart at that rate? Names every calling signal. */
+      (window as any).__kaiCalling = () => { const r = callingReport(); console.info('[KAI calling]', r); return r; };
     } catch { /* boot-safe */ }
 
     /* THE WEEKLY RECKONING — the Sunday accounting (upgrade of the Debrief),
@@ -987,6 +997,7 @@ export default function App() {
       <TwinDrawer open={twinOpen} question={twinQuestion} onClose={() => { setTwinOpen(false); setTwinQuestion(undefined); }} />
       <HunterDrawer open={hunterOpen} onClose={() => setHunterOpen(false)} />
       {booted && <NerveField />}
+      {booted && <SpeechHint />}
       <InstallPrompt />
       {booted && !(lockCfg.enabled && !unlocked) && <KaiEye />}
       {isMobile && <PullToRefresh />}
