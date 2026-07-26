@@ -98,8 +98,44 @@ export interface EventFilter {
   until?: number;
 }
 
+/* ============================================================
+   §25b THE SINGLE PASS — a scoped Spine snapshot.
+
+   The Council assembles one shared context per tick, but 97 call sites
+   across a dozen engines each re-read storage, so "one pass" was a
+   convention nobody could enforce. Threading a ctx parameter through all
+   97 would churn every signature and ripple through every caller.
+
+   Instead the guarantee moves to the READ: while a snapshot is active,
+   every getEvents() in the call tree — in engines this module has never
+   heard of — serves from that one in-memory array. The single pass becomes
+   STRUCTURAL rather than conventional, with no signature changes.
+
+   Rules:
+     • SYNCHRONOUS ONLY. The scope must not span an await, or a later tick
+       could read a stale snapshot. assembleContext() is fully sync.
+     • WRITES ARE UNAFFECTED. logEvent() persists through the store directly,
+       so appends during a scope still hit storage; they simply aren't
+       visible until the scope ends — which is what makes the assembly a
+       coherent view instead of a shifting one.
+     • Nesting is stacked; an inner scope restores the outer on exit.
+   ============================================================ */
+let snapshot: KaiEvent[] | null = null;
+let storageReads = 0;          // instrumentation: proves the pass is single
+
+export function withSpineSnapshot<T>(events: KaiEvent[], fn: () => T): T {
+  const prev = snapshot;
+  snapshot = events;
+  try { return fn(); } finally { snapshot = prev; }
+}
+export function inSpineSnapshot(): boolean { return snapshot !== null; }
+/* Test/diagnostic: how many times storage was actually hit. */
+export function spineReadCount(): number { return storageReads; }
+export function resetSpineReadCount(): void { storageReads = 0; }
+
 export function getEvents(f: EventFilter = {}): KaiEvent[] {
-  return read<KaiEvent[]>(KEY, []).filter((ev) =>
+  const source = snapshot ?? (storageReads++, read<KaiEvent[]>(KEY, []));
+  return source.filter((ev) =>
     (f.domain === undefined || ev.domain === f.domain) &&
     (f.type   === undefined || ev.type   === f.type) &&
     (f.source === undefined || ev.source === f.source) &&
