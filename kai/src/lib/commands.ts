@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { gardenText, logHarvest, setPrice } from './kai/livingAsset';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,24 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §30.14 THE LIVING ASSET — the garden as an engine. */
+  if (/^garden$|^hidden garten$|^hidden gärten$|^the garden$/i.test(q)) {
+    let t: number | null = null;
+    try { t = Number(localStorage.getItem('kai.weather.tempC')) || null; } catch { /* ignore */ }
+    return gardenText(Date.now(), t);
+  }
+  {
+    const h = cmd.trim().match(/^harvest\s+(\d+(?:\.\d+)?)\s*(kg|bunch|piece|litre)?\s+(?:of\s+)?(.+)$/i);
+    if (h) {
+      const r = logHarvest(h[3].trim(), parseFloat(h[1]), (h[2] || 'kg') as any);
+      return r.valued
+        ? `Logged ${h[1]}${h[2] || 'kg'} of ${h[3].trim()} — ${r.egp.toLocaleString('en-GB')} EGP into the ledger.`
+        : `Logged ${h[1]}${h[2] || 'kg'} of ${h[3].trim()}. No market price on record, so it carries no value yet — say "price ${h[3].trim()} <EGP per unit>".`;
+    }
+    const pr = cmd.trim().match(/^price\s+(.+?)\s+(\d+(?:\.\d+)?)$/i);
+    if (pr) { setPrice(pr[1].trim(), parseFloat(pr[2])); return `${pr[1].trim()} set at ${pr[2]} EGP — future harvests count.`; }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
