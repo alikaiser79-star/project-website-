@@ -24,6 +24,7 @@ import { warChestBrief } from './kai/warchest';
 import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
+import { adaptationSummary } from './kai/adaptation';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -196,6 +197,13 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^hunt$|^hunter$|^jäger$|^jager$|^der jäger$|^الصياد$|^opportunities$/i.test(q)) {
     emitAction({ type: 'open-hunter' });
     return 'Der Jäger — hunting revenue moves.';
+  }
+
+  /* §23.3 THE ADAPTATION — what KAI has learned about how you work and
+     changed about itself. Legible by design. */
+  if (/^learned$|^adaptation$|^adapt$|^what have you learned$/i.test(q)) {
+    const a = adaptationSummary();
+    return `What I've learned (${a.opens} opens on record):\n` + a.changes.map((c) => '• ' + c).join('\n');
   }
 
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {

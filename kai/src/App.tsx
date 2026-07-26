@@ -69,6 +69,7 @@ import TwinDrawer from './components/TwinDrawer';
 import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
+import { recordOpen } from './lib/kai/adaptation';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -380,6 +381,8 @@ export default function App() {
      forces a re-seed for dev. */
   useEffect(() => {
     installSeedDevHooks(); installBackupDevHooks(); installGardenDevHooks(); seedSpine(); migrateMoney(); migrateMakadiListing(); recordWithdrawnInquiry(); recordRealBookings(); seedCodex();
+    /* §23.3 — record this open so KAI learns the hour you actually use it. */
+    try { recordOpen(); } catch { /* boot-safe */ }
     /* §13.3 verification hooks (retrieval / patterns / tokens) */
     try {
       (window as any).__kaiRetrieve = (q: string) => retrieveEvents(q);
