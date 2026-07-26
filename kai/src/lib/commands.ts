@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { hostPlan, hostLearning, guestBook } from './kai/host';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,22 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §29.6 THE HOST — the whole guest relationship at a glance. */
+  if (/^host$|^guests?$|^guest book$/i.test(q)) {
+    const p = hostPlan();
+    const lines: string[] = [];
+    lines.push(p.due.length ? `${p.due.length} guest message${p.due.length === 1 ? '' : 's'} ready:` : 'Nothing due for guests.');
+    for (const d of p.due) lines.push(`  · ${d.stage.replace(/_/g, ' ')} → ${d.guest} (${d.why})`);
+    if (p.escalations.length) {
+      lines.push('', 'NEEDS YOU:');
+      for (const e of p.escalations) lines.push(`  ! ${e.guest}: ${e.reason}`);
+    }
+    const book = [...guestBook().values()].filter((g) => g.stays > 0);
+    if (book.length) lines.push('', 'GUESTS: ' + book.map((g) => `${g.name} (${g.stays} stay${g.stays === 1 ? '' : 's'}${g.rating ? `, ${g.rating}★` : ''})`).join(' · '));
+    lines.push('', hostLearning().note);
+    return lines.join('\n');
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
