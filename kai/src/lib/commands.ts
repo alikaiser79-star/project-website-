@@ -25,7 +25,11 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { checkConformance, conformanceText, PROTOCOL_VERSION } from './kai/protocol.spec';
 import { emitAction } from './actions';
+import { toast } from '../hooks/useToasts';
+
+function toastFn(kind: 'ok' | 'err', msg: string) { try { (kind === 'ok' ? toast.ok : toast.err)(msg, 'PROTOCOL', 8000); } catch { /* ignore */ } }
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -203,6 +207,15 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §30.15 THE PROTOCOL — conformance of THIS build against the spec. */
+  if (/^protocol$|^conformance$|^spec$|^am i kai$/i.test(q)) {
+    void checkConformance().then((c) => {
+      try { (window as any).__kaiConformance = c; } catch { /* ignore */ }
+      toastFn(c.ok ? 'ok' : 'err', c.summary);
+    }).catch(() => {});
+    return `Checking this build against KAI Protocol v${PROTOCOL_VERSION} — five clauses, evidence from the Spine.\nFull report lands in window.__kaiConformance; the spec is docs/KAI_PROTOCOL.md.`;
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
