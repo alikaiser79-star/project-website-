@@ -20,6 +20,8 @@ import { computeRunway } from '../lib/kai/runway';
 import { loadState } from '../lib/store';
 import { emitAction, type KaiAction } from '../lib/actions';
 import { truthAges, ageLabel, type TruthAge } from '../lib/kai/confession';
+import { assembleContext } from '../lib/kai/council';
+import { resolveBeing } from '../lib/kai/being';
 import { ChevronDown, Heart } from 'lucide-react';
 
 const ORGANS: Array<{ id: string; label: string }> = [
@@ -39,7 +41,11 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
   const sig = getCommandSignals();
   /* The heart reads what NOW actually found — not a separate organ count.
      Arousal and the face can never disagree (the §24 detachment fix). */
-  const bpm = bpmFor(nowRes.total);
+  /* §28.2 — the heart no longer beats from a count; it holds a STATE
+     resolved from the whole Council context. Rhythm, colour and veins all
+     follow it, and it says WHY in one line. */
+  const being = safe(() => resolveBeing(assembleContext(now), nowRes.total), null);
+  const bpm = being?.bpm ?? bpmFor(nowRes.total);
   const aroused = nowRes.total > 0;
 
   const profit = safe(() => makadiProfit(now), null);
@@ -78,9 +84,18 @@ export default function CommandOrder({ onOrganTap, onOrganism }: { onOrganTap?: 
 
       {/* ZONE 2 — THE BODY */}
       <section className="ord-body" aria-label="the body">
-        <div className="ord-heart" style={{ ['--beat' as any]: `${(60 / bpm).toFixed(2)}s` }}>
+        <div
+          className={'ord-heart' + (being ? ' v-' + being.veins : '')}
+          style={{ ['--beat' as any]: `${(60 / bpm).toFixed(2)}s`, ['--being' as any]: being?.rgb ?? '255,180,110', ['--glow' as any]: String(being?.glow ?? 0.4) }}
+        >
           <Heart className={'ord-heart-icon' + (aroused ? ' calling' : '')} size={54} strokeWidth={1.5} />
           <div className="ord-bpm">{bpm}<i>BPM</i></div>
+          {being && (
+            <div className="ord-being">
+              <span className="ord-being-label">{being.label}</span>
+              <span className="ord-being-why">{being.because}</span>
+            </div>
+          )}
         </div>
         {/* §26.4 TRUTH AGE — a number KAI is guessing with must never look as
             confident as one you just confirmed. Stale (>14d) dims and invites
