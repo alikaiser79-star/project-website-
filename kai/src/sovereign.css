@@ -256,6 +256,12 @@
 .hunter-chev.up { transform: rotate(180deg); }
 .hunter-opp-detail { padding: 0 13px 12px; display: flex; flex-direction: column; gap: 9px; }
 .hunter-rationale { font-size: 11.5px; line-height: 1.55; color: rgba(210, 224, 214, 0.82); }
+/* §25 — the Twin's verdict on a Hunter card (his record, not an opinion) */
+.hunter-twin-note {
+  font-size: 11px; line-height: 1.5; color: rgba(210, 190, 245, 0.9);
+  background: rgba(180, 150, 230, 0.08); border-left: 2px solid rgba(180, 150, 230, 0.45);
+  border-radius: 0 7px 7px 0; padding: 7px 10px;
+}
 .hunter-draft { background: rgba(0, 0, 0, 0.32); border: 1px solid rgba(120, 220, 150, 0.14); border-radius: 8px; padding: 9px 11px; }
 .hunter-drafting { font-size: 11px; color: rgba(150, 230, 175, 0.6); }
 .hunter-subj { font-size: 11px; color: rgba(150, 235, 180, 0.75); margin-bottom: 5px; letter-spacing: 0.3px; }

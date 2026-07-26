@@ -68,10 +68,71 @@ function pairsToEvents(flat: any): PulseEvent[] {
   return out;
 }
 
+/* ── §25.3 the Council's nightly synthesis ─────────────────────
+   ONE call, over a compact digest of the whole synced Spine, asked for the
+   cross-domain pattern a single engine cannot see (e.g. "spending rises the
+   week after a booking lands"). Returns one sentence or null. Never invents:
+   the prompt forbids any claim the digest doesn't support, and a night with
+   no real pattern is expected to return NONE. */
+async function synthesise(events: PulseEvent[], now: number): Promise<string | null> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key || events.length < 25) return null;                 // too thin to see a pattern
+
+  /* already synthesised tonight? */
+  const start = new Date(now); start.setHours(0, 0, 0, 0);
+  if (events.some((e) => e.domain === 'system' && e.type === 'insight' && e.meta?.source === 'council' && e.ts >= start.getTime())) return null;
+
+  /* compact digest: per-domain counts + the money/commitment timeline. */
+  const DAYMS = 86_400_000;
+  const recent = events.filter((e) => e.ts >= now - 60 * DAYMS);
+  const byDomain: Record<string, number> = {};
+  for (const e of recent) byDomain[e.domain] = (byDomain[e.domain] || 0) + 1;
+  const day = (ts: number) => new Date(ts).toISOString().slice(0, 10);
+  const timeline = recent
+    .filter((e) => ['expense', 'income', 'makadi', 'debt', 'money', 'commitment', 'content', 'garden', 'hunter'].includes(e.domain))
+    .slice(-90)
+    .map((e) => `${day(e.ts)} ${e.domain}.${e.type}${typeof e.value === 'number' ? ' ' + Math.round(e.value) : ''}${e.ccy ? ' ' + e.ccy : ''}`)
+    .join('\n');
+
+  const prompt =
+    `You are DER RAT — the council of KAI's engines, meeting at 02:00 over Ali Kaiser's own event log.\n` +
+    `Find ONE pattern ACROSS domains that no single engine could see on its own — a relationship ` +
+    `between money, bookings, commitments, content or time. Examples of the SHAPE (not the content): ` +
+    `"spending rises the week after a booking lands", "you post content only in the days after income arrives".\n\n` +
+    `HARD RULES: use ONLY what the log below supports; cite the real direction and rough magnitude; ` +
+    `if there is no honest cross-domain pattern, reply exactly NONE. One sentence, max 24 words, ` +
+    `plain and specific. No preamble.\n\n` +
+    `DOMAIN COUNTS (60d): ${Object.entries(byDomain).map(([d, n]) => `${d}:${n}`).join(' ')}\n\n` +
+    `TIMELINE:\n${timeline}`;
+
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 200, messages: [{ role: 'user', content: prompt }] }),
+  });
+  if (!r.ok) return null;
+  const d: any = await r.json();
+  const text = String(d?.content?.[0]?.text || '').trim();
+  if (!text || /^none\b/i.test(text)) return null;
+  return text.slice(0, 240);
+}
+
 async function pulseNamespace(ns: string, now: number, phase: PulsePhase): Promise<{ dispatch: string | null; sent: number }> {
   const evKey = `spine:ev:${ns}`;
   const events = pairsToEvents(await redis(['HGETALL', evKey]));
   const { newEvents, dispatch, pushes } = runPulsePhase(events, now, phase);
+
+  /* §25.3 THE NIGHTLY SYNTHESIS — at 02:00 the Council reads the WHOLE
+     shared context in one Claude call and writes what no single module can
+     see: the pattern ACROSS domains. Stored as a council insight, which
+     bestLine() then prefers for the morning. Deduped per night; a failure is
+     silent (the deterministic dream insights already ran). */
+  if (phase === 'dream') {
+    try {
+      const line = await synthesise(events, now);
+      if (line) newEvents.push({ ts: now, domain: 'system', type: 'insight', meta: { text: line, source: 'council', phase: 'dream' }, source: 'ai' } as any);
+    } catch { /* synthesis is best-effort */ }
+  }
 
   if (newEvents.length) {
     const cmd: (string | number)[] = ['HSET', evKey];

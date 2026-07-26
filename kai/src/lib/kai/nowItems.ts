@@ -18,6 +18,7 @@ import { getCommandSignals } from './commandSignals';
 import { generateOpportunities } from './hunter';
 import { makadiProfit } from './makadiProfit';
 import { computeRunway } from './runway';
+import { assembleContext, councilQueue } from './council';
 import type { KaiAction } from '../actions';
 
 const HOUR = 3_600_000;
@@ -42,7 +43,26 @@ export interface NowResult {
   overflow: number;        // total - shown, surfaced as "+N more"
 }
 
+/* §25 — NOW no longer ranks alone. It renders the Council's ONE queue, which
+   already spans every engine and is deduped by semantic key, so a fact can
+   never reach him twice from two mouths. */
 export function buildNow(now = Date.now()): NowResult {
+  try {
+    const ctx = assembleContext(now);
+    const queue = councilQueue(ctx);
+    if (queue.length) {
+      const items: NowItem[] = queue.map((n) => ({ id: n.key, text: n.text, tone: n.tone, action: n.action }));
+      return { items: items.slice(0, 3), calm: null, total: items.length, overflow: Math.max(0, items.length - 3) };
+    }
+    return { items: [], calm: calmLine(now), total: 0, overflow: 0 };
+  } catch {
+    return buildNowLocal(now);        // Council unavailable → the engine's own read
+  }
+}
+
+/* Fallback: the pre-Council ranking, kept so a failure in one engine can
+   never blank the front face. */
+function buildNowLocal(now = Date.now()): NowResult {
   /* Collect every candidate (deduped by lane) BEFORE capping, so the caller
      knows the true count. The heart's arousal reads `total`; capping at three
      is a display decision, never a hidden one (CORE-V4: no invisible state). */

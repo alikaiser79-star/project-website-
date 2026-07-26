@@ -197,13 +197,31 @@ function firedToday(events: PulseEvent[], type: string, now: number): boolean {
 
 export function runPulsePhase(events: PulseEvent[], now: number, phase: PulsePhase): PulseResult {
   switch (phase) {
-    case 'speak':   return runPulseCore(events, now);              // 07:35 — the day's one line
+    case 'speak':   return speakPhase(events, now);                // 07:35 — the day's one line
     case 'wake':    return wakePhase(events, now);                 // 06:00 — read what landed overnight
     case 'midday':  return middayPhase(events, now);               // 13:00 — quiet urgent-only scan
     case 'evening': return eveningPhase(events, now);              // 21:00 — intake nudge if unlogged
     case 'dream':   return dreamPhase(events, now);                // 02:00 — re-read, find patterns
     default:        return runPulseCore(events, now);
   }
+}
+
+/* 07:35 SPEAK — the day's one line. §25.2: the morning dispatch is the best
+   output of ALL engines, not just this scan — so if the Council's 02:00
+   synthesis found a cross-domain pattern last night, THAT is what KAI says
+   (nothing else it computes can outrank a pattern nobody asked for). Falls
+   back to the ranked scan, and to silence. */
+function speakPhase(events: PulseEvent[], now: number): PulseResult {
+  const core = runPulseCore(events, now);
+  const synth = events
+    .filter((e) => e.domain === 'system' && e.type === 'insight' && e.meta?.source === 'council' && now - e.ts < 36 * HOUR)
+    .sort((a, b) => a.ts - b.ts).slice(-1)[0];
+  const line = synth?.meta?.text ? String(synth.meta.text) : core.dispatch;
+  if (!line || line === core.dispatch) return core;
+  /* Replace only the morning message; true alarms keep their own wording. */
+  const pushes = core.pushes.map((p) => (p.tag === 'morning' ? { ...p, body: line } : p));
+  if (!pushes.some((p) => p.tag === 'morning')) pushes.push({ title: 'KAI', body: line, tag: 'morning', priority: 2 });
+  return { ...core, dispatch: line, pushes: pushes.slice(0, 3) };
 }
 
 /* 06:00 WAKE — summarise what changed overnight (operator-sourced writes in

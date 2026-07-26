@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { buildTwinModel, detectDrift, twinCounsel, type TwinModel, type DriftWarning, type TwinRuling } from '../lib/kai/twin';
+import { assembleContext, annotatedDrift } from '../lib/kai/council';
 import { AlertTriangle, Scale } from 'lucide-react';
 
 interface Props { open: boolean; question?: string; onClose: () => void; }
@@ -23,7 +24,13 @@ export default function TwinDrawer({ open, question, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    try { setModel(buildTwinModel()); setDrift(detectDrift()); } catch { /* boot-safe */ }
+    /* §25 — drift arrives annotated with what the drifting lane is worth,
+       from the Hunter's live moves. The Twin no longer warns in a vacuum. */
+    try {
+      const ctx = assembleContext(Date.now(), true);
+      setModel(ctx.twin);
+      setDrift(annotatedDrift(ctx).map((d) => (d.laneText ? { ...d, text: `${d.text} ${d.laneText}` } : d)));
+    } catch { /* boot-safe */ }
     setTimeout(() => inputRef.current?.focus(), 60);
   }, [open]);
 
