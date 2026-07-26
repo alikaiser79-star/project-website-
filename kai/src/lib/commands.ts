@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { auditText, logBuildHours, recordFinalAnswer, FINAL_QUESTION, shouldAskFinalQuestion } from './kai/selfAudit';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,23 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §32 DER SPIEGEL DES SPIEGELS — KAI on KAI. */
+  if (/^audit$|^kai on kai$|^self audit$|^was i worth it$/i.test(q)) return auditText();
+  {
+    const b = cmd.trim().match(/^built\s+(\d+(?:\.\d+)?)\s*h?(?:ours?)?\s*(.*)$/i);
+    if (b) { logBuildHours(parseFloat(b[1]), b[2] || ''); return `${b[1]}h logged. Now I can tell you what I cost you, not just what I earned.`; }
+  }
+  {
+    const a = cmd.trim().match(/^answer\s+(yes|no)\s+(yes|no)\s*(.*)$/i);
+    if (a) {
+      recordFinalAnswer(/yes/i.test(a[1]), /yes/i.test(a[2]), a[3] || '');
+      return 'Recorded. Over years, that answer is the only metric that matters.';
+    }
+    if (/^final question$|^the question$/i.test(q)) {
+      return `${FINAL_QUESTION}\n\nAnswer with: answer <yes|no> <yes|no> <your words>\n(first = is your life better, second = was I part of why)`;
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

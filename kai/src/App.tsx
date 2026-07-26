@@ -76,6 +76,8 @@ import { callingReport } from './lib/kai/nowItems';
 import NerveField from './components/NerveField';
 import { armNervousSystem } from './lib/kai/nervousSystem';
 import { recordOpen } from './lib/kai/adaptation';
+import { selfVerdict, shouldAskFinalQuestion, FINAL_QUESTION } from './lib/kai/selfAudit';
+import { logEvent as logEv } from './lib/kai/events';
 import PushToTalk from './components/PushToTalk';
 import KaiEye from './components/KaiEye';
 import PullToRefresh from './components/PullToRefresh';
@@ -132,6 +134,15 @@ const PANEL_VIEW: Record<string, ViewKey> = {
   '13': 'comms',   '16': 'comms',   '14': 'comms',   '20': 'comms',  '21': 'comms',
   '17': 'comms',   '18': 'comms',
 };
+
+/* §32 — when did KAI last report on itself? */
+function getEventsForAudit(): number | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem('kai.events') || '[]') as Array<{ domain: string; type: string; ts: number }>;
+    const seen = raw.filter((e) => e.domain === 'system' && e.type === 'self_audit').map((e) => e.ts);
+    return seen.length ? Math.max(...seen) : null;
+  } catch { return null; }
+}
 
 function loadView(): ViewKey {
   try {
@@ -399,6 +410,20 @@ export default function App() {
     /* §23.3 — record this open so KAI learns the hour you actually use it.
        Logged BEFORE the nervous system arms, so it lands in the baseline. */
     try { recordOpen(); } catch { /* boot-safe */ }
+    /* §32 — once a month, unprompted, KAI reports on itself. Once a quarter
+       it asks the only question that matters. Neither is flattering. */
+    try {
+      const MONTH_MS = 30 * 86_400_000;
+      const lastAudit = getEventsForAudit();
+      if (lastAudit == null || Date.now() - lastAudit >= MONTH_MS) {
+        const v = selfVerdict();
+        toast.warn(v.line, 'KAI ON KAI', 12000);
+        logEv({ domain: 'system', type: 'self_audit', meta: { line: v.line, kills: v.kills }, source: 'auto' });
+      }
+      if (shouldAskFinalQuestion()) {
+        toast.warn(FINAL_QUESTION + ' — answer with: answer <yes|no> <yes|no> <words>', 'THE QUESTION', 15000);
+      }
+    } catch { /* boot-safe */ }
     /* §23.2 — arm the nervous system AFTER boot writes so those set the
        baseline (no boot-time flash); only events that land later are felt. */
     try { armNervousSystem(); } catch { /* boot-safe */ }
