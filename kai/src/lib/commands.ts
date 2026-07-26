@@ -25,6 +25,7 @@ import { weeklyDrifts } from './kai/patterns';
 import { addWatch } from './kai/watches';
 import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
+import { hauptbuchText } from './kai/hauptbuch';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -203,6 +204,11 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
     emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
     return 'Opening the Makadi Ambassador.';
+  }
+
+  /* §33.4 DAS UNBEQUEME HAUPTBUCH — the ledger of inaction, both columns. */
+  if (/^hauptbuch$|^inaction$|^ledger of inaction$|^what did i not do$|^cost of inaction$/i.test(q)) {
+    return hauptbuchText();
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
