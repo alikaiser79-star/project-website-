@@ -198,6 +198,12 @@ export function runBuiltin(cmd: string): CmdResult | null {
     return 'Der Jäger — hunting revenue moves.';
   }
 
+  /* DER BOTSCHAFTER — the Ambassador lives in Settings; summon it here. */
+  if (/^ambassador$|^botschafter$|^der botschafter$|^makadi ambassador$/i.test(q)) {
+    emitAction({ type: 'open-settings', section: 'Makadi Ambassador' });
+    return 'Opening the Makadi Ambassador.';
+  }
+
   if (/^briefing$|^brief$|^morning\b|^daily\b/.test(q)) {
     return briefing();
   }
