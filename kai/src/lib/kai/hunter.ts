@@ -71,14 +71,32 @@ function avgBookingEgp(now: number): number {
 
 /* Extract a comp nightly price (USD) from a radar finding/recommendation, if
    one is literally present. No number → no pricing opportunity (never invents). */
-function compFromRadar(now: number): number | null {
+function compFromRadar(now: number, currentRate = 0): number | null {
   const evs = getEvents({ since: now - 14 * DAY }).filter((e) => e.domain === 'radar');
+
+  /* The old pattern was `(\d{2,4})` — integers only. On "comps median 75.55
+     USD" it could not match "75.55", backtracked, and matched "55 USD" — the
+     DECIMAL FRACTION. 55 happened to equal the current rate, so `comp > cur`
+     was false and the whole opportunity vanished. The Hunter was right and
+     silent at the same time, which is the worst way to be wrong.
+
+     Decimals are now captured, and a number is only taken when a currency
+     marker actually attaches to it. */
+  const NUM = /(?:\$\s?(\d{1,4}(?:\.\d{1,2})?))|(?:\b(\d{1,4}(?:\.\d{1,2})?)\s?(?:usd|\$|dollars?)\b)/gi;
   let best: number | null = null;
+
   for (const e of evs) {
     const text = `${e.meta?.title || ''} ${e.meta?.why || ''} ${e.meta?.summary || ''} ${e.meta?.detail || ''}`;
-    const m = text.match(/\$\s?(\d{2,4})|(\d{2,4})\s?(?:usd|\$)/i);
-    const n = m ? parseInt(m[1] || m[2], 10) : NaN;
-    if (isFinite(n) && (best == null || n > best)) best = n;
+    NUM.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = NUM.exec(text)) !== null) {
+      const n = parseFloat(m[1] ?? m[2]);
+      if (!isFinite(n) || n <= 0) continue;
+      /* Radar phrasing is comparative — "median $75.55 vs your $55". His own
+         rate appears in the same sentence and must never be read as a comp. */
+      if (currentRate > 0 && Math.abs(n - currentRate) < 0.01) continue;
+      if (best == null || n > best) best = n;
+    }
   }
   return best;
 }
@@ -121,18 +139,23 @@ export function generateOpportunities(now = Date.now()): Opportunity[] {
 
   /* 2. UNDERPRICED vs COMPS — only if radar literally shows a higher comp. */
   if (state && nightlyEgp > 0) {
-    const comp = compFromRadar(now);
     const cur = state.nightlyRate || 0;
+    const comp = compFromRadar(now, cur);
     const ccy = (state.rateCcy || 'USD') as Currency;
     if (comp != null && comp > cur && cur > 0) {
       const openNights = estimateOpenNights(now, state);
-      const deltaEgp = toEgp(comp - cur, ccy) * Math.max(1, openNights);
+      const perNight = toEgp(comp - cur, ccy);
+      const deltaEgp = perNight * Math.max(1, openNights);
+      const gapPct = Math.round(((comp - cur) / cur) * 100);
       push({
         id: 'price-' + comp, shape: 'pricing',
         kind: 'pricing',
-        title: `Raise rate ${cur}→${comp} ${ccy}`,
-        rationale: `Radar shows comps at ${comp} ${ccy}; you're at ${cur}. Over ~${openNights} open nights that's ~+${egp(deltaEgp).toLocaleString('en-GB')} EGP. One tap applies it.`,
-        expectedEgp: deltaEgp, minutes: 1, meta: { from: cur, to: comp, ccy },
+        title: `Raise rate ${cur} → ${comp} ${ccy}`,
+        rationale:
+          `Radar median is ${comp} ${ccy}; you are at ${cur} — ${gapPct}% under. ` +
+          `That is ${egp(perNight).toLocaleString('en-GB')} EGP per night left on the table, ` +
+          `~+${egp(deltaEgp).toLocaleString('en-GB')} EGP across ~${openNights} open nights. One tap applies it.`,
+        expectedEgp: deltaEgp, minutes: 1, meta: { from: cur, to: comp, ccy, gapPct, perNightEgp: egp(perNight) },
       });
     }
   }
@@ -184,7 +207,10 @@ function estimateOpenNights(_now: number, state: NonNullable<ReturnType<typeof m
 
 /* ── persist a hunt so the ledger + surface can read it ── */
 export function runHunt(now = Date.now()): Opportunity[] {
-  const opps = generateOpportunities(now);
+  /* Ranked by return on HIS minute, so the biggest move leads rather than
+     whatever happened to be generated first. Previously the list came back in
+     generation order, which buried a large pricing gap under any inquiry. */
+  const opps = generateOpportunities(now).sort((a, b) => b.egpPerMin - a.egpPerMin);
   const today = new Date(now).toISOString().slice(0, 10);
   for (const o of opps) {
     const already = getEvents({ domain: 'hunter', type: 'opportunity' })

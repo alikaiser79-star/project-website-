@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, X, Mic, ChevronRight } from 'lucide-react';
 import {
   applyFact, correctionSteps, parseCorrection, ageLabel, truthAges,
-  type Fact, type CorrectionStep,
+  type Fact, type CorrectionStep, type Suspect,
 } from '../lib/kai/confession';
 import { startPTT, stopPTT, isPTTSupported } from '../lib/pushToTalk';
 import { speakNow } from '../lib/tts';
@@ -83,6 +83,8 @@ function CorrectionPass({ onClose }: { onClose: () => void }) {
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState('');
   const [fixed, setFixed] = useState(0);
+  /* §26.5 THE MAGNITUDE GATE — a 10x jump is never written on one word. */
+  const [suspect, setSuspect] = useState<Suspect | null>(null);
   const ages = truthAges();
   const step = steps[i];
   const spokenRef = useRef(-1);
@@ -94,7 +96,7 @@ function CorrectionPass({ onClose }: { onClose: () => void }) {
     try { speakNow(step.spoken); } catch { /* ignore */ }
   }, [i, step]);
 
-  function next() { setHeard(''); if (i + 1 >= steps.length) { finish(); } else setI(i + 1); }
+  function next() { setHeard(''); setSuspect(null); if (i + 1 >= steps.length) { finish(); } else setI(i + 1); }
   function finish() {
     toast.ok(fixed ? `${fixed} number${fixed === 1 ? '' : 's'} corrected — headline is true.` : 'Nothing changed — all confirmed.', 'BEICHTE', 3200);
     onClose();
@@ -109,6 +111,13 @@ function CorrectionPass({ onClose }: { onClose: () => void }) {
         setListening(false);
         if (!t.trim() || !step) return;
         const r = parseCorrection(t, step);
+        if ('suspect' in r) {
+          /* Hold the step open and read both numbers back. Nothing is written
+             until he confirms — the whole point of the gate. */
+          setSuspect(r.suspect);
+          try { speakNow(r.suspect.spoken); } catch { /* ignore */ }
+          return;
+        }
         if ('fact' in r) { try { applyFact(r.fact); emit(); setFixed((f) => f + 1); } catch { /* ignore */ } }
         next();
       },
@@ -129,6 +138,24 @@ function CorrectionPass({ onClose }: { onClose: () => void }) {
         <div className="conf-body">
           <div className="conf-step">{step.prompt}</div>
           {heard && <div className="conf-heard">“{heard}”</div>}
+          {suspect && (
+            <div className="conf-suspect" role="alert">
+              <div className="conf-suspect-why">{suspect.why}</div>
+              <div className="conf-suspect-act">
+                <button
+                  className="conf-suspect-yes"
+                  onClick={() => {
+                    /* Explicit confirm — re-parsed with the gate lifted, so the
+                       value still travels the one commit path. */
+                    const r = parseCorrection(String(suspect.value), step, { confirmed: true });
+                    if ('fact' in r) { try { applyFact(r.fact); emit(); setFixed((f) => f + 1); } catch { /* ignore */ } }
+                    next();
+                  }}
+                >yes, it really is {suspect.value.toLocaleString('en-GB')}</button>
+                <button className="conf-suspect-no" onClick={() => setSuspect(null)}>no — say it again</button>
+              </div>
+            </div>
+          )}
           <button
             className={'conf-mic' + (listening ? ' live' : '')}
             onPointerDown={hold} onPointerUp={release} onPointerLeave={release}

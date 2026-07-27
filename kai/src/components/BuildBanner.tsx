@@ -38,8 +38,15 @@ export default function BuildBanner() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.98 }}
           transition={{ duration: 0.28, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="fixed top-3 left-1/2 -translate-x-1/2 z-[90] glass rounded-full pl-3 pr-2 py-1.5 flex items-center gap-2 border border-amber/55"
+          /* Centred with margin-inline, NOT with -translate-x-1/2.
+             Framer Motion writes `transform` inline to run the y/scale
+             animation, which overrides the Tailwind translate class — so the
+             banner stayed at left:50% at full width and pushed the page
+             563px wide on a 375px screen. Every mobile view scrolled
+             sideways because of the build banner. */
+          className="fixed top-3 z-[90] glass rounded-full pl-3 pr-2 py-1.5 flex items-center gap-2 border border-amber/55"
           style={{
+            left: 0, right: 0, marginInline: 'auto', width: 'max-content', maxWidth: '92vw',
             boxShadow: '0 0 22px rgba(255,179,0,0.30), 0 0 4px rgba(255,179,0,0.6)',
           }}
         >

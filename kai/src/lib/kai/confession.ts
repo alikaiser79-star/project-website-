@@ -52,9 +52,16 @@ export function parseAmount(clauseRaw: string): number | null {
   const s = normalise(clauseRaw);
 
   /* 1. digits, optional thousands commas/decimal, optional k / thousand / ألف */
-  const m = s.match(/(\d[\d,]*(?:\.\d+)?)\s*(k\b|thousand|thousands|alf|ألف|الف|آلاف)?/);
+  const m = s.match(/(\d[\d,.]*)\s*(k\b|thousand|thousands|alf|ألف|الف|آلاف)?/);
   if (m) {
-    let n = parseFloat(m[1].replace(/,/g, ''));
+    const rawNum = m[1].replace(/,/g, '');
+    /* A dot followed by EXACTLY three digits, with no multiplier word after
+       it, is a European thousands separator — not a decimal point. "54.000"
+       is fifty-four thousand, and parseFloat read it as 54. That is a
+       three-orders-of-magnitude error on a card balance. A genuine decimal
+       ("1.5 thousand", "54.5") never has exactly three trailing digits. */
+    const euroThousands = /^\d{1,3}(?:\.\d{3})+$/.test(rawNum) && !m[2];
+    let n = parseFloat(euroThousands ? rawNum.replace(/\./g, '') : rawNum);
     if (isFinite(n) && n > 0) {
       if (m[2]) n *= 1000;
       return n;
@@ -67,7 +74,16 @@ export function parseAmount(clauseRaw: string): number | null {
   const words = s.split(/[^a-z]+/).filter(Boolean);
   let total = 0, current = 0, seen = false;
   for (const w of words) {
-    if (w in EN_SMALL) { current += EN_SMALL[w]; seen = true; continue; }
+    if (w in EN_SMALL) {
+      const v = EN_SMALL[w];
+      /* Digit-by-digit dictation: "five four thousand" is 54,000, not 9,000.
+         When a units word (1–9) follows another units word, the speaker is
+         reading digits, so compose rather than add. "twenty four" still adds,
+         because 20 is not a units digit. */
+      if (current > 0 && current < 10 && v > 0 && v < 10) current = current * 10 + v;
+      else current += v;
+      seen = true; continue;
+    }
     if (w === 'hundred') { current = (current || 1) * 100; seen = true; continue; }
     if (w === 'thousand' || w === 'alf') { total += (current || 1) * 1000; current = 0; seen = true; continue; }
   }
@@ -276,8 +292,43 @@ export function correctionSteps(now = Date.now()): CorrectionStep[] {
   return steps;
 }
 
-/* A spoken reply during the pass: yes/no, or a corrected number. */
-export function parseCorrection(reply: string, step: CorrectionStep): { ok: true } | { fact: Fact } | { skip: true } {
+/* THE MAGNITUDE GATE.
+
+   A voice pass commits whatever the recogniser heard. When a 59,000 EGP card
+   balance is replaced by 8 because a syllable was lost, nothing downstream can
+   tell that it is wrong — it is a plausible number in the right field, and the
+   Spine records it as fact.
+
+   So an order-of-magnitude jump is never committed silently. It is handed back
+   for an explicit confirm with BOTH numbers spoken, and he says yes or says the
+   real one. This does not care how the number got mangled, which is the point:
+   it protects against mis-hearings nobody predicted, including the ones that
+   have not happened yet.
+
+   Deliberately one-sided in strictness: 10× either way. Paying a card down from
+   59,000 to 5,000 is real and clears the gate; 59,000 to 8 does not. */
+const MAGNITUDE = 10;
+
+export interface Suspect { value: number; current: number; why: string; spoken: string }
+
+export function magnitudeSuspect(next: number, current: number | null, key: CorrectionStep['key']): Suspect | null {
+  if (current == null || current <= 0 || next <= 0) return null;
+  const ratio = next > current ? next / current : current / next;
+  if (ratio < MAGNITUDE) return null;
+  const what = key === 'debt' ? 'the card' : key === 'cash' ? 'cash' : 'the Makadi rate';
+  const dir = next < current ? 'down from' : 'up from';
+  return {
+    value: next, current,
+    why: `That would take ${what} ${dir} ${egp(current)} to ${egp(next)} — a ${Math.round(ratio)}× change. I am not writing that on one word.`,
+    spoken: `I heard ${egp(next)}. That is ${Math.round(ratio)} times ${dir === 'down from' ? 'smaller than' : 'larger than'} the ${egp(current)} on record. Say it again, or say yes to confirm.`,
+  };
+}
+
+/* A spoken reply during the pass: yes/no, a corrected number, or a number so
+   far off the record that it has to be confirmed before it is written. */
+export function parseCorrection(
+  reply: string, step: CorrectionStep, opts: { confirmed?: boolean } = {},
+): { ok: true } | { fact: Fact } | { skip: true } | { suspect: Suspect } {
   const s = normalise(reply).trim();
   /* NOTE: \b is ASCII-only in JS — an Arabic alternative followed by \b never
      matches. ASCII words keep the boundary; Arabic ones are matched bare. */
@@ -285,6 +336,12 @@ export function parseCorrection(reply: string, step: CorrectionStep): { ok: true
   if (/^(?:skip|next|later|pass)\b/.test(s) || /^(?:بعدين|تخطى|التالي)/.test(s)) return { skip: true };
   const amount = parseAmount(reply);
   if (amount != null) {
+    /* The gate. Skipped only when he has already been shown both numbers and
+       said yes — never skipped because the value "looks fine". */
+    if (!opts.confirmed) {
+      const s = magnitudeSuspect(amount, step.current, step.key);
+      if (s) return { suspect: s };
+    }
     const ccy: Currency = step.key === 'makadi_rate' ? ccyOf(reply, 'USD') : 'EGP';
     const label = step.key === 'cash' ? `cash → ${egp(amount)} EGP`
       : step.key === 'debt' ? `card balance → ${egp(amount)} EGP`

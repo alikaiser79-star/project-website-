@@ -896,9 +896,21 @@ body { font-variant-numeric: tabular-nums; }
 .ask-kai-send:disabled { opacity: 0.4; cursor: default; }
 
 /* ── §22.3 THE EYE (capture→ask vision) ──────────────────── */
+/* The Eye sits bottom-LEFT, not bottom-right.
+
+   It used to be right:16px / bottom:+80px — two pixels from the push-to-talk
+   button at right:16px / bottom:+82px, with a higher z-index. It covered the
+   mic completely and swallowed every tap meant for it.
+
+   Stacking them on the right does not work either: .ptt-wrap is a column that
+   grows UPWARD, so the live transcript bubble would slide under whatever sat
+   above the mic. The left edge is the only position that stays clear whether
+   or not he is speaking. Same bottom offset as the mic, so it clears the nav
+   for the same reason. */
 .kai-eye-fab {
   position: fixed; z-index: 480;
-  right: 16px; bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  left: calc(env(safe-area-inset-left, 0px) + 16px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);
   width: 46px; height: 46px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: radial-gradient(circle at 40% 35%, rgba(30, 18, 10, 0.96), rgba(10, 6, 5, 0.96));
