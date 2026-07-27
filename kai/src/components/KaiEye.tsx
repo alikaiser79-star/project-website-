@@ -14,6 +14,7 @@ import { useRef, useState } from 'react';
 import { Eye, Camera, Image as ImageIcon, Volume2 } from 'lucide-react';
 import { compressImage, type Compressed } from '../lib/receipts';
 import { askKaiEye } from '../lib/kai/eye';
+import { observe, compare } from '../lib/kai/observations';
 import { speakNow, speechSupported } from '../lib/tts';
 
 type Phase = 'idle' | 'ready' | 'thinking' | 'answered';
@@ -57,6 +58,9 @@ export default function KaiEye() {
     try {
       const reply = await askKaiEye(img, question, Date.now());
       setAnswer(reply);
+      /* §29.8 — the eye remembers: subject + reading persist to the Spine so
+         the next look can compare, and the Twin can reason about it. */
+      try { observe({ question: question || 'what is this', reading: reply, thumb: preview ?? undefined }); } catch { /* never block the answer */ }
       setPhase('answered');
       if (speechSupported()) speakNow(reply);
     } catch (e: any) {
