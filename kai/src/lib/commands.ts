@@ -442,6 +442,28 @@ export function runBuiltin(cmd: string): CmdResult | null {
     return `Checking this build against KAI Protocol v${PROTOCOL_VERSION} — five clauses, evidence from the Spine.\nFull report lands in window.__kaiConformance; the spec is docs/KAI_PROTOCOL.md.`;
   }
 
+  /* GMAIL HEALTH — the diagnosis, reachable from the phone. */
+  if (/^gmail health$|^gmail$|^inbox health$|^why is gmail broken$/i.test(q)) {
+    void fetch('/api/gmail/health').then((r) => r.json()).then((d: any) => {
+      const L = [`GMAIL: ${d.ok ? 'WORKING' : 'FAILING at the ' + d.stage + ' stage'}`, ''];
+      L.push(`env: ${d.deployment?.vercelEnv}`);
+      if (d.deployment?.note) L.push(`  ${d.deployment.note}`);
+      L.push('');
+      for (const v of d.vars || []) {
+        L.push(`${v.present ? '✓' : '✗'} ${v.name} — ${v.present ? `${v.length} chars` : 'MISSING'}${v.hasSurroundingWhitespace ? ' · HAS STRAY WHITESPACE' : ''}`);
+        if (v.shapeOk === false) L.push(`    ${v.shapeNote}`);
+      }
+      if (d.token) L.push(`\ntoken: HTTP ${d.token.status}${d.token.error ? ` · ${d.token.error}` : ''}${d.token.description ? ` — ${d.token.description}` : ''}`);
+      if (d.gmail) L.push(`gmail: HTTP ${d.gmail.status}${d.gmail.emailAddress ? ` · ${d.gmail.emailAddress}` : ''}${d.gmail.error ? ` · ${d.gmail.error}` : ''}`);
+      L.push('');
+      L.push(d.diagnosis || '');
+      for (const c of d.checkAlso || []) L.push('· ' + c);
+      try { (window as any).__kaiGmailHealth = d; } catch { /* ignore */ }
+      toastFn(d.ok ? 'ok' : 'err', L.join('\n'), 'GMAIL', 30000);
+    }).catch((e) => toastFn('err', 'Could not reach /api/gmail/health: ' + String(e?.message || e), 'GMAIL', 12000));
+    return 'Checking Gmail end to end — env vars, the token exchange, and a real Gmail call…';
+  }
+
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
   if (/^confess$|^correct$|^correction$|^numbers?$|^the numbers are wrong$|^fix numbers$|^بيان$|^تصحيح$/i.test(q)) {
     emitAction({ type: 'open-confession' });

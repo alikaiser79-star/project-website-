@@ -14,6 +14,7 @@ export const config = { runtime: 'edge' };
 
 import { list } from './_list.js';
 import { send } from './_send.js';
+import { health } from './_health.js';
 import { json } from './_client.js';
 
 export default async function handler(req: Request): Promise<Response> {
@@ -35,6 +36,10 @@ export default async function handler(req: Request): Promise<Response> {
     if (req.method !== 'GET' && req.method !== 'HEAD') return json({ error: 'method_not_allowed' }, 405);
     return list(url);
   }
+  /* Unauthenticated on purpose — it returns shape, never values, and it
+     has to be reachable when nothing else is. */
+  if (action === 'health') return health();
+
   if (action === 'send') {
     if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
     return send(req);

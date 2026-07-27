@@ -9,7 +9,7 @@
 
 import { useRef, useState } from 'react';
 import { Mic } from 'lucide-react';
-import { startPTT, stopPTT, isPTTSupported } from '../lib/pushToTalk';
+import { startPTT, stopPTT, isPTTSupported, pttBlocker, explainPTT, pttEnvironment, type PTTProblem } from '../lib/pushToTalk';
 import { emitAction } from '../lib/actions';
 import { parseFacts } from '../lib/kai/confession';
 import { sfx } from '../lib/sound';
@@ -18,15 +18,18 @@ export default function PushToTalk() {
   const supported = isPTTSupported();
   const [listening, setListening] = useState(false);
   const [text, setText] = useState('');
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<PTTProblem | null>(null);
   const activeRef = useRef(false);
 
   function begin(e: React.PointerEvent) {
     e.preventDefault();
     if (activeRef.current) return;
-    if (!supported) {
-      /* iOS / no Web Speech — hand off to ⌘K + the keyboard's own dictation. */
+    /* Say WHY before handing off, instead of silently opening ⌘K and
+       leaving him to wonder whether the button is broken. */
+    const blocked = pttBlocker();
+    if (blocked) {
       sfx.click();
+      setErr(blocked);
       emitAction({ type: 'open-cmd' });
       return;
     }
@@ -35,7 +38,12 @@ export default function PushToTalk() {
     sfx.click();
     const ok = startPTT({
       onInterim: (t) => setText(t),
-      onError: (x) => { setErr(x === 'not-allowed' ? 'mic blocked' : x === 'no-speech' ? 'heard nothing' : 'voice error'); },
+      onError: (x) => {
+        /* The RAW code, named and explained. "voice error" told him
+           nothing and cost an evening. */
+        activeRef.current = false; setListening(false);
+        setErr(explainPTT(x));
+      },
       onFinal: (t) => {
         activeRef.current = false; setListening(false);
         const clean = t.trim();
@@ -70,7 +78,17 @@ export default function PushToTalk() {
           <span className="ptt-text">{text || 'listening…'}</span>
         </div>
       )}
-      {err && !listening && <div className="ptt-bubble ptt-err">{err}</div>}
+      {err && !listening && (
+        <div className="ptt-bubble ptt-err" role="alert">
+          <div className="ptt-err-title">{err.title}</div>
+          <div className="ptt-err-detail">{err.detail}</div>
+          <div className="ptt-err-foot">
+            <code>{err.code}</code>
+            <span>{(() => { const e = pttEnvironment(); return `${e.protocol}// · ${e.secureContext ? 'secure' : 'INSECURE'} · ${e.hasApi ? 'speech API present' : 'no speech API'}${e.standalone ? ' · installed PWA' : ''}`; })()}</span>
+            <button onClick={() => setErr(null)}>dismiss</button>
+          </div>
+        </div>
+      )}
       <button
         className={'ptt-btn' + (listening ? ' is-live' : '') + (supported ? '' : ' is-fallback')}
         onPointerDown={begin}

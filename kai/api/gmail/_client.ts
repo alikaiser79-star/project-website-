@@ -22,9 +22,13 @@ const GMAIL_BASE = 'https://gmail.googleapis.com/gmail/v1';
 interface Creds { id: string; secret: string; refresh: string; }
 
 export function gmailCreds(): Creds | null {
-  const id = process.env.GOOGLE_CLIENT_ID;
-  const secret = process.env.GOOGLE_CLIENT_SECRET;
-  const refresh = process.env.GOOGLE_REFRESH_TOKEN;
+  /* TRIMMED. A value pasted into the Vercel dashboard with a trailing
+     newline is invisible there and makes the token endpoint answer
+     `invalid_client` — an error that points at the wrong thing entirely.
+     /api/gmail/health reports the whitespace; this stops it mattering. */
+  const id = process.env.GOOGLE_CLIENT_ID?.trim();
+  const secret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  const refresh = process.env.GOOGLE_REFRESH_TOKEN?.trim();
   if (!id || !secret || !refresh) return null;
   return { id, secret, refresh };
 }
@@ -91,11 +95,22 @@ export function explain(e: any): Response {
   if (msg === 'NO_GMAIL_CREDS') {
     return json({
       error: 'no_gmail_creds',
-      message: 'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in Vercel.',
+      message: 'Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN in Vercel (for the Production environment), then redeploy. Open /api/gmail/health to see which are missing.',
     }, 503);
   }
-  if (/^TOKEN_(400|401|403)\b|invalid_grant|invalid_client/i.test(msg)) {
-    return json({ error: 'gmail_auth', message: 'Gmail authorization failed — re-authorize the refresh token.' }, 401);
+  if (/^TOKEN_(400|401|403)\b|invalid_grant|invalid_client|unauthorized_client/i.test(msg)) {
+    /* Carry Google's OWN error code through. "authorization failed" is true
+       and useless; `invalid_grant` vs `invalid_client` are different
+       problems with different fixes, and the panel shows this string. */
+    const code = (msg.match(/invalid_grant|invalid_client|unauthorized_client|invalid_scope/i) || [])[0] || 'unknown';
+    return json({
+      error: 'gmail_auth',
+      message: `Gmail auth failed — Google said "${code}". Open /api/gmail/health for the full diagnosis.`,
+      google: code,
+    }, 401);
   }
-  return json({ error: 'gmail_error', message: msg.slice(0, 240) }, 502);
+  return json({
+    error: 'gmail_error',
+    message: msg.slice(0, 240) + ' · see /api/gmail/health',
+  }, 502);
 }
