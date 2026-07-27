@@ -33,6 +33,7 @@ import { assembleContext } from './kai/council';
 import { hostPlan, hostLearning, guestBook } from './kai/host';
 import { trustLedgerText, pendingOffers, grantAutonomy, declineOffer } from './kai/apprentice';
 import { compare as compareSeen, findDocument, watchedSubjects } from './kai/observations';
+import { compsText, setMyUnit, addComp, myUnit, type View } from './kai/comps';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -301,6 +302,49 @@ export function runBuiltin(cmd: string): CmdResult | null {
     const w = watchedSubjects();
     if (!w.length) return 'The eye has nothing on record yet — capture something with the Eye.';
     return 'I have been watching:\n' + w.map((x) => `  ${x.subject} (${x.kind}, ${x.looks} look${x.looks === 1 ? '' : 's'})`).join('\n');
+  }
+
+  /* COMP CLASS — why a rate move is or is not being proposed. */
+  if (/^comps$|^comp set$|^why no raise$|^median$/i.test(q)) return compsText();
+  {
+    /* "my unit 1br garden phase 1" / "my unit 2br sea 12 reviews" */
+    const m = cmd.trim().match(/^my unit\s+(\d)\s*(?:br|bed|bedrooms?)\s*(sea|pool|garden|none)?\s*(.*)$/i);
+    if (m) {
+      const rest = m[3] || '';
+      const phase = (rest.match(/phase\s*\w+/i) || [])[0];
+      const reviews = parseInt((rest.match(/(\d+)\s*reviews?/i) || [])[1] || '', 10);
+      const ageYears = parseInt((rest.match(/(\d+)\s*(?:y|years?)\s*old/i) || [])[1] || '', 10);
+      const u = setMyUnit({
+        bedrooms: parseInt(m[1], 10),
+        view: (m[2]?.toLowerCase() || 'none') as View,
+        ...(phase ? { phase } : {}),
+        ...(Number.isFinite(reviews) ? { reviews } : {}),
+        ...(Number.isFinite(ageYears) ? { ageYears } : {}),
+      });
+      return `Your unit: ${u.bedrooms}BR · ${u.view} view${u.phase ? ' · ' + u.phase : ''}. Comps are now measured against this and nothing else.`;
+    }
+  }
+  {
+    /* "comp 68 1br garden phase 1 14 reviews" — one classified comparable. */
+    const m = cmd.trim().match(/^comp\s+\$?([\d.]+)\s+(\d)\s*(?:br|bed|bedrooms?)\s*(sea|pool|garden|none)?\s*(.*)$/i);
+    if (m) {
+      if (!myUnit()) return 'Set your own class first — "my unit 1br garden phase 1" — or there is nothing to compare against.';
+      const rest = m[4] || '';
+      const phase = (rest.match(/phase\s*\w+/i) || [])[0];
+      const reviews = parseInt((rest.match(/(\d+)\s*reviews?/i) || [])[1] || '', 10);
+      const ageYears = parseInt((rest.match(/(\d+)\s*(?:y|years?)\s*old/i) || [])[1] || '', 10);
+      addComp({
+        source: 'manual', nightlyUsd: parseFloat(m[1]),
+        cls: {
+          bedrooms: parseInt(m[2], 10),
+          view: (m[3]?.toLowerCase() || 'none') as View,
+          ...(phase ? { phase } : {}),
+          ...(Number.isFinite(reviews) ? { reviews } : {}),
+          ...(Number.isFinite(ageYears) ? { ageYears } : {}),
+        },
+      });
+      return compsText();
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

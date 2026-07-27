@@ -30,6 +30,7 @@ import { toEgp } from './money';
 import { proposeAction } from './pending';
 import { askClaude } from '../claude';
 import { laneWeight, isShapeSuppressed } from './adaptation';
+import { classedMedian, isReady, describe } from './comps';
 import type { Currency } from '../../types';
 
 const DAY = 86_400_000;
@@ -69,8 +70,11 @@ function avgBookingEgp(now: number): number {
   return (p.nightlyEgp || 0) * INQUIRY_NIGHTS;
 }
 
-/* Extract a comp nightly price (USD) from a radar finding/recommendation, if
-   one is literally present. No number → no pricing opportunity (never invents). */
+/* RETIRED FOR PRICING. Kept only because other surfaces may want to read a
+   number out of radar prose. It must never again drive a rate move: the pool
+   behind it is unknown, so the median it yields is uncomparable by
+   construction. Pricing goes through comps.ts / classedMedian(). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function compFromRadar(now: number, currentRate = 0): number | null {
   const evs = getEvents({ since: now - 14 * DAY }).filter((e) => e.domain === 'radar');
 
@@ -137,25 +141,36 @@ export function generateOpportunities(now = Date.now()): Opportunity[] {
     });
   }
 
-  /* 2. UNDERPRICED vs COMPS — only if radar literally shows a higher comp. */
+  /* 2. UNDERPRICED vs COMPS — ONLY against a class-matched median.
+
+     This used to read the Radar's pooled median, which mixed 2-bedrooms,
+     sea-view chalets and Phase 2 new-builds with his 1BR and produced a
+     confident "37% under" on a rate that was correct for its class. A
+     pooled median is not a weaker signal; it is a different measurement
+     denominated in the same unit, which is what made it dangerous.
+
+     No classed median -> NO MOVE. The reason is available via `compsText()`
+     so the surface explains itself instead of going quietly empty. */
   if (state && nightlyEgp > 0) {
     const cur = state.nightlyRate || 0;
-    const comp = compFromRadar(now, cur);
     const ccy = (state.rateCcy || 'USD') as Currency;
-    if (comp != null && comp > cur && cur > 0) {
+    const m = classedMedian(now);
+    if (isReady(m) && m.medianUsd > cur && cur > 0) {
       const openNights = estimateOpenNights(now, state);
-      const perNight = toEgp(comp - cur, ccy);
+      const perNight = toEgp(m.medianUsd - cur, ccy);
       const deltaEgp = perNight * Math.max(1, openNights);
-      const gapPct = Math.round(((comp - cur) / cur) * 100);
+      const gapPct = Math.round(((m.medianUsd - cur) / cur) * 100);
       push({
-        id: 'price-' + comp, shape: 'pricing',
+        id: 'price-' + m.medianUsd, shape: 'pricing',
         kind: 'pricing',
-        title: `Raise rate ${cur} → ${comp} ${ccy}`,
+        title: `Raise rate ${cur} → ${m.medianUsd} ${ccy}`,
         rationale:
-          `Radar median is ${comp} ${ccy}; you are at ${cur} — ${gapPct}% under. ` +
-          `That is ${egp(perNight).toLocaleString('en-GB')} EGP per night left on the table, ` +
+          `${m.n} comps matching YOUR class (${describe(m.cls)}) sit at a ${m.medianUsd} ${ccy} median, ` +
+          `range ${m.low}–${m.high}; you are at ${cur} — ${gapPct}% under. ` +
+          `That is ${egp(perNight).toLocaleString('en-GB')} EGP per night, ` +
           `~+${egp(deltaEgp).toLocaleString('en-GB')} EGP across ~${openNights} open nights. One tap applies it.`,
-        expectedEgp: deltaEgp, minutes: 1, meta: { from: cur, to: comp, ccy, gapPct, perNightEgp: egp(perNight) },
+        expectedEgp: deltaEgp, minutes: 1,
+        meta: { from: cur, to: m.medianUsd, ccy, gapPct, perNightEgp: egp(perNight), comps: m.n, cls: describe(m.cls) },
       });
     }
   }
