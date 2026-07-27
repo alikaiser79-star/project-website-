@@ -27,6 +27,8 @@ import { doctrineText } from './kai/doctrine';
 import { adaptationSummary } from './kai/adaptation';
 import { recallSummary } from './kai/memory';
 import { parseScenario, compareScenario, baselineLine } from './kai/simulator';
+import { buildCampaign, armCampaign, trackCampaign } from './kai/strategist';
+import { assembleContext } from './kai/council';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -222,6 +224,19 @@ export function runBuiltin(cmd: string): CmdResult | null {
       const sc = m[1] ? parseScenario(m[1]) : null;
       return sc ? compareScenario(sc).line : baselineLine();
     }
+  }
+
+  /* §28.4 THE STRATEGIST — the campaign: 3-5 compounding moves with a date.
+     "campaign" shows/tracks it; "arm campaign" commits the sequence. */
+  if (/^campaign$|^plan the month$|^strategy$|^arm campaign$/i.test(q)) {
+    const tracked = trackCampaign();
+    if (tracked && !/^arm/i.test(q)) {
+      return tracked.line + '\n' + tracked.campaign.steps.map((st) => `${st.done ? '✓' : '·'} ${st.text} (${st.progress ?? ''})`).join('\n');
+    }
+    const c = buildCampaign(assembleContext());
+    if (!c) return 'Not enough live signal for a campaign — one move at a time for now. Try "hunt".';
+    if (/^arm/i.test(q)) { armCampaign(c); return `Armed — ${c.title}. ${c.verdict}`; }
+    return `${c.title}: ${c.verdict}\n` + c.steps.map((st, i) => `${i + 1}. ${st.text} (+${Math.round(st.valueEgp).toLocaleString('en-GB')} EGP)`).join('\n') + '\n\nSay "arm campaign" to commit it.';
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
