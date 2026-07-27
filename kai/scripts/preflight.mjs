@@ -40,6 +40,34 @@ head('2. Vercel function count (Hobby cap 12)');
   if (routes.length<=12) ok(`${routes.length} function(s) — under the 12 cap`);
   else bad(`${routes.length} functions — OVER the Hobby 12 cap`);
 }
+head('2b. vercel.json cron limits (Hobby)');
+{
+  /* Three waves of work sat unshipped because vercel.json asked for six
+     crons on a plan that allows two. The build never ran, production
+     silently stayed on the last valid deploy, and NOTHING said so. A config
+     that blocks every future deploy is exactly the class of failure
+     preflight exists to catch — same lesson as the U+2028 sweep. */
+  const HOBBY_MAX_CRONS = 2;
+  try {
+    const cfg = JSON.parse(readFileSync(join(ROOT,'vercel.json'),'utf8'));
+    const crons = Array.isArray(cfg.crons) ? cfg.crons : [];
+    if (crons.length > HOBBY_MAX_CRONS) {
+      bad(`${crons.length} cron entries — Hobby allows ${HOBBY_MAX_CRONS}. Vercel REJECTS the deployment, so production stays on the previous build with no error in the app.`);
+      crons.forEach(c=>log('       · '+c.schedule+'  '+c.path));
+    } else ok(`${crons.length} cron(s) — within the Hobby limit`);
+
+    /* Hobby crons fire once per day. A field with a list, range or step is
+       asking for more than that. */
+    const subDaily = crons.filter(c => /[,/-]/.test(String(c.schedule).split(/\s+/)[1] || ''));
+    if (subDaily.length) {
+      bad(`${subDaily.length} cron(s) fire more than once a day — Hobby is daily-only:`);
+      subDaily.forEach(c=>log('       · '+c.schedule+'  '+c.path));
+    } else if (crons.length) ok('all crons are once-daily');
+  } catch (e) {
+    bad('could not read vercel.json — ' + String(e.message).slice(0,120));
+  }
+}
+
 head('3. tsc --noEmit');
 try { execSync('npx tsc --noEmit',{cwd:ROOT,stdio:'pipe'}); ok('type-check clean'); }
 catch(e){ bad('type errors:'); process.stdout.write((e.stdout?.toString()||e.message).slice(0,4000)+'\n'); }
