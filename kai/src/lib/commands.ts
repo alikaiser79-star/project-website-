@@ -35,6 +35,7 @@ import { trustLedgerText, pendingOffers, grantAutonomy, declineOffer } from './k
 import { compare as compareSeen, findDocument, watchedSubjects } from './kai/observations';
 import { compsText, setMyUnit, addComp, myUnit, type View } from './kai/comps';
 import { verify as verifyChain, seal as sealChain, exportRecord, recordText } from './kai/witness';
+import { inheritanceLetter, inheritanceJson } from './kai/inheritance';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -348,6 +349,7 @@ export function runBuiltin(cmd: string): CmdResult | null {
         },
       });
       return compsText();
+    }
   }
 
   /* §30.11 THE WITNESS STAND — verify, seal, and produce the record.
@@ -378,6 +380,21 @@ export function runBuiltin(cmd: string): CmdResult | null {
       }).catch(() => {});
       return `Producing the record for ${dom || 'all'} — events, hashes, seals, and how to verify it independently.`;
     }
+  }
+
+  /* §30.12 THE INHERITANCE — the portable model. */
+  if (/^inheritance$|^legacy$|^export model$|^how i move$/i.test(q)) {
+    if (/export/i.test(q)) {
+      try {
+        const blob = new Blob([inheritanceJson()], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `kai-inheritance-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch { /* ignore */ }
+      return 'Exported — a self-describing model file, readable without this app.';
+    }
+    return inheritanceLetter();
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
