@@ -10,6 +10,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { askClaudeStream } from '../lib/claude';
 import { buildKaiContext } from '../lib/kai/context';
+import { assembleContext } from '../lib/kai/council';
+import { beingVoice } from '../lib/kai/being';
 import { suggestChips, fireChip, type ProposeChip } from '../lib/kai/propose';
 import { Mail, Target, CalendarClock, Volume2 } from 'lucide-react';
 import { speakNow, speechSupported, autoSpeak } from '../lib/tts';
@@ -54,7 +56,11 @@ export default function AskKaiDrawer({ open, onClose }: Props) {
       'You are KAI, Ali\'s command core. Answer ONLY from the CONTEXT below — his real ' +
       'numbers. Show the math when it applies. Flat, direct tone; no praise, no padding; ' +
       'under 160 words. If the context does not contain the answer, say so plainly.';
-    const prompt = `${preamble}\n\nCONTEXT:\n${buildKaiContext(Date.now(), question)}\n\nQUESTION: ${question}`;
+    /* §28.2 — the state of being sets the register: pressed reads terse,
+       rising reads warm. Same facts, different voice. */
+    let tone = '';
+    try { tone = '\n\nVOICE: ' + beingVoice(assembleContext(Date.now())); } catch { /* ignore */ }
+    const prompt = `${preamble}${tone}\n\nCONTEXT:\n${buildKaiContext(Date.now(), question)}\n\nQUESTION: ${question}`;
     let acc = '';
     try {
       await askClaudeStream(prompt, history, (chunk) => { acc += chunk; setStreaming(acc); });

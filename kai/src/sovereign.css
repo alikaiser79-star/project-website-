@@ -396,6 +396,15 @@
 .conf-quick { display: flex; gap: 8px; }
 .conf-age { font-size: 10px; color: rgba(232, 210, 190, 0.4); text-align: center; }
 
+/* §28.2 THE STATE OF BEING — the core holds a state, not a count */
+.ord-heart-icon { color: rgb(var(--being, 255,180,110)); fill: rgba(var(--being, 255,180,110), 0.18); filter: drop-shadow(0 0 calc(12px * var(--glow, 0.4)) rgba(var(--being, 255,180,110), var(--glow, 0.4))); }
+.ord-heart.v-surge .ord-heart-icon { animation-duration: calc(var(--beat) * 0.72); }
+.ord-heart.v-tight .ord-heart-icon { animation-timing-function: cubic-bezier(0.9, 0, 0.1, 1); }
+.ord-heart.v-quick .ord-heart-icon { animation-duration: calc(var(--beat) * 0.9); }
+.ord-being { display: flex; flex-direction: column; align-items: center; gap: 1px; margin-top: 3px; }
+.ord-being-label { font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: 4px; color: rgb(var(--being, 255,180,110)); }
+.ord-being-why { font-family: ui-monospace, monospace; font-size: 9.5px; color: rgba(232, 210, 190, 0.45); }
+
 /* ZONE 3 — THE DEPTHS */
 .ord-depths { border-top: 1px solid rgba(255, 190, 100, 0.1); padding-top: 12px; }
 .ord-depths-toggle {
