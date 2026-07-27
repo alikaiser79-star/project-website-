@@ -187,7 +187,7 @@ export function runPulseCore(events: PulseEvent[], now: number): PulseResult {
    no-op. Silence is always valid. Nothing ambient — this reads the Spine
    the operator's own watchers filled, within their authorized perimeter.
    ============================================================ */
-export type PulsePhase = 'wake' | 'speak' | 'midday' | 'evening' | 'dream';
+export type PulsePhase = 'wake' | 'speak' | 'midday' | 'evening' | 'dream' | 'watch';
 
 const EMPTY = { escalations: 0, anomalies: 0 };
 function firedToday(events: PulseEvent[], type: string, now: number): boolean {
@@ -202,6 +202,7 @@ export function runPulsePhase(events: PulseEvent[], now: number, phase: PulsePha
     case 'midday':  return middayPhase(events, now);               // 13:00 — quiet urgent-only scan
     case 'evening': return eveningPhase(events, now);              // 21:00 — intake nudge if unlogged
     case 'dream':   return dreamPhase(events, now);                // 02:00 — re-read, find patterns
+    case 'watch':   return watchPhase(events, now);                // hourly overnight — catch what lands
     default:        return runPulseCore(events, now);
   }
 }
@@ -216,12 +217,48 @@ function speakPhase(events: PulseEvent[], now: number): PulseResult {
   const synth = events
     .filter((e) => e.domain === 'system' && e.type === 'insight' && e.meta?.source === 'council' && now - e.ts < 36 * HOUR)
     .sort((a, b) => a.ts - b.ts).slice(-1)[0];
-  const line = synth?.meta?.text ? String(synth.meta.text) : core.dispatch;
+  const proj = events
+    .filter((e) => e.domain === 'system' && e.type === 'projection' && now - e.ts < 36 * HOUR)
+    .sort((a, b) => a.ts - b.ts).slice(-1)[0];
+  /* Rank: a cross-domain pattern > the ranked scan > last night's projection.
+     A quiet day still gets a date rather than silence. */
+  const line = synth?.meta?.text ? String(synth.meta.text)
+    : core.dispatch ? core.dispatch
+    : proj?.meta?.text ? String(proj.meta.text) : null;
   if (!line || line === core.dispatch) return core;
   /* Replace only the morning message; true alarms keep their own wording. */
   const pushes = core.pushes.map((p) => (p.tag === 'morning' ? { ...p, body: line } : p));
   if (!pushes.some((p) => p.tag === 'morning')) pushes.push({ title: 'KAI', body: line, tag: 'morning', priority: 2 });
   return { ...core, dispatch: line, pushes: pushes.slice(0, 3) };
+}
+
+/* §29.9 THE NIGHT SHIFT — hourly while he sleeps. An inquiry that lands at
+   2am must not wait until 07:35: speed is ranking on Airbnb, and a reply
+   drafted at 2:05 is the difference between the booking and the next host.
+   This marks the inquiry as needing a draft; the client's Host builds it on
+   next foreground, and it is waiting at the Gate when he wakes. */
+function watchPhase(events: PulseEvent[], now: number): PulseResult {
+  const newEvents: Omit<PulseEvent, 'id'>[] = [];
+  const replied = new Set(events.filter((e) => e.domain === 'makadi' && e.type === 'booking_replied').map((e) => String(e.meta?.thread)));
+  const drafted = new Set(events.filter((e) => e.domain === 'system' && e.type === 'night_draft').map((e) => String(e.meta?.thread)));
+  const pushes: PushMsg[] = [];
+
+  for (const e of events) {
+    if (e.domain !== 'makadi' || e.type !== 'booking_inquiry') continue;
+    const thread = String(e.meta?.thread || e.id);
+    if (replied.has(thread) || drafted.has(thread)) continue;
+    const ageMin = (now - e.ts) / 60_000;
+    if (ageMin < 3 || ageMin > 12 * 60) continue;          // fresh, not ancient
+    newEvents.push({
+      ts: now, domain: 'system', type: 'night_draft',
+      meta: { thread, guest: e.meta?.guest ?? null, reason: 'overnight inquiry', minutes: Math.round(ageMin) },
+      source: 'auto',
+    });
+    /* One quiet alarm for the first overnight inquiry — a booking is worth it. */
+    pushes.push({ title: 'KAI · INQUIRY', body: `${e.meta?.guest || 'A guest'} enquired overnight — a reply is drafted for your tap.`, tag: 'night-' + thread, priority: 3 });
+  }
+  if (newEvents.length) newEvents.push({ ts: now, domain: 'system', type: 'watch', value: newEvents.length, meta: {}, source: 'auto' });
+  return { newEvents, dispatch: null, pushes: pushes.slice(0, 1), summary: EMPTY };
 }
 
 /* 06:00 WAKE — summarise what changed overnight (operator-sourced writes in
@@ -266,12 +303,31 @@ function eveningPhase(events: PulseEvent[], now: number): PulseResult {
    text within 24h so a re-fire doesn't duplicate. */
 function dreamPhase(events: PulseEvent[], now: number): PulseResult {
   if (firedToday(events, 'dream', now)) return { newEvents: [], dispatch: null, pushes: [], summary: EMPTY };
+  /* §29.9 — run the projection while he sleeps, so the morning line can carry
+     a DATE rather than only a status. Pure arithmetic over his own ledger. */
+  const projection = projectFromEvents(events, now);
   const insights = dreamInsights(events, now);
   const recent = new Set(events.filter((e) => e.domain === 'system' && e.type === 'insight' && e.ts >= now - DAY).map((e) => String(e.meta?.text)));
   const fresh = insights.filter((t) => !recent.has(t));
   const newEvents: Omit<PulseEvent, 'id'>[] = fresh.map((text) => ({ ts: now, domain: 'system', type: 'insight', meta: { text, phase: 'dream' }, source: 'auto' }));
+  if (projection) newEvents.push({ ts: now, domain: 'system', type: 'projection', meta: { text: projection }, source: 'auto' });
   newEvents.push({ ts: now, domain: 'system', type: 'dream', value: fresh.length, meta: { count: fresh.length }, source: 'auto' });
   return { newEvents, dispatch: null, pushes: [], summary: EMPTY };
+}
+
+/* A debt-clear date from his own measured paydown. Dependency-free: this
+   module compiles inside the Edge route and must import nothing. */
+function projectFromEvents(events: PulseEvent[], now: number): string | null {
+  const since = now - 90 * DAY;
+  const pays = events.filter((e) => e.domain === 'debt' && e.type === 'payment_logged' && e.ts >= since);
+  if (pays.length < 2) return null;
+  const perMonth = pays.reduce((s, e) => s + (e.value || 0), 0) / 3;
+  if (!(perMonth > 0)) return null;
+  const bal = events.filter((e) => e.domain === 'debt' && e.type === 'balance_updated').sort((a, b) => a.ts - b.ts).slice(-1)[0];
+  const balance = bal && typeof bal.value === 'number' ? bal.value : 0;
+  if (balance <= 0) return null;
+  const when = new Date(now + (balance / perMonth) * 30 * DAY);
+  return `At ${Math.round(perMonth).toLocaleString('en-GB')} EGP/month the card clears ${when.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.`;
 }
 
 /* Deterministic overnight patterns, from EVENTS alone (works off the synced
