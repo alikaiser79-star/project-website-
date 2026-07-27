@@ -28,6 +28,7 @@ import { adaptationSummary } from './kai/adaptation';
 import { recallSummary } from './kai/memory';
 import { parseScenario, compareScenario, baselineLine } from './kai/simulator';
 import { buildCampaign, armCampaign, trackCampaign } from './kai/strategist';
+import { weeklyVerdict, verdictText } from './kai/conscience';
 import { assembleContext } from './kai/council';
 import { emitAction } from './actions';
 
@@ -237,6 +238,11 @@ export function runBuiltin(cmd: string): CmdResult | null {
     if (!c) return 'Not enough live signal for a campaign — one move at a time for now. Try "hunt".';
     if (/^arm/i.test(q)) { armCampaign(c); return `Armed — ${c.title}. ${c.verdict}`; }
     return `${c.title}: ${c.verdict}\n` + c.steps.map((st, i) => `${i + 1}. ${st.text} (+${Math.round(st.valueEgp).toLocaleString('en-GB')} EGP)`).join('\n') + '\n\nSay "arm campaign" to commit it.';
+  }
+
+  /* §28.5 THE CONSCIENCE — the Sunday verdict, gradeable and merciless. */
+  if (/^verdict$|^the verdict$|^grade me$|^week verdict$/i.test(q)) {
+    return verdictText(weeklyVerdict(assembleContext()));
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

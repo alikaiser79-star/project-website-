@@ -138,6 +138,15 @@
 .quicklog-hint.ok { color: rgba(255, 205, 130, 0.85); }
 .quicklog-hint.bad { color: rgba(255, 150, 120, 0.7); }
 
+/* §28.5 the conscience objecting before a spend */
+.quicklog-objection { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 90, 60, 0.07); border: 1px solid rgba(255, 110, 80, 0.4); }
+.quicklog-objection.note { background: rgba(255, 190, 90, 0.06); border-color: rgba(255, 190, 90, 0.34); }
+.quicklog-obj-text { font-family: ui-monospace, monospace; font-size: 12.5px; color: rgba(255, 205, 190, 0.98); line-height: 1.4; }
+.quicklog-obj-why { font-family: ui-monospace, monospace; font-size: 10.5px; color: rgba(232, 210, 190, 0.55); margin-top: 3px; }
+.quicklog-obj-actions { display: flex; gap: 8px; margin-top: 9px; }
+.quicklog-obj-go { flex: 1; padding: 7px; border-radius: 8px; cursor: pointer; background: none; border: 1px solid rgba(255, 190, 100, 0.3); color: rgba(240, 210, 170, 0.8); font-family: ui-monospace, monospace; font-size: 11px; }
+.quicklog-obj-no { flex: 1; padding: 7px; border-radius: 8px; cursor: pointer; background: rgba(120, 220, 150, 0.14); border: 1px solid rgba(120, 220, 150, 0.4); color: rgba(200, 245, 215, 0.95); font-family: ui-monospace, monospace; font-size: 11px; }
+
 /* bulk paste sheet */
 .bulk-scrim { position: fixed; inset: 0; z-index: 520; background: rgba(4, 3, 2, 0.62); backdrop-filter: blur(3px); display: flex; align-items: flex-end; justify-content: center; animation: ask-kai-fade 0.2s ease both; }
 .bulk { width: min(480px, 96vw); max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
