@@ -31,6 +31,7 @@ import { buildCampaign, armCampaign, trackCampaign } from './kai/strategist';
 import { weeklyVerdict, verdictText } from './kai/conscience';
 import { assembleContext } from './kai/council';
 import { hostPlan, hostLearning, guestBook } from './kai/host';
+import { trustLedgerText, pendingOffers, grantAutonomy, declineOffer } from './kai/apprentice';
 import { emitAction } from './actions';
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
@@ -260,6 +261,29 @@ export function runBuiltin(cmd: string): CmdResult | null {
     if (book.length) lines.push('', 'GUESTS: ' + book.map((g) => `${g.name} (${g.stays} stay${g.stays === 1 ? '' : 's'}${g.rating ? `, ${g.rating}★` : ''})`).join(' · '));
     lines.push('', hostLearning().note);
     return lines.join('\n');
+  }
+
+  /* §29.7 THE APPRENTICE — the trust ledger, and the offer he may accept. */
+  if (/^trust$|^ledger of trust$|^autonomy$|^apprentice$/i.test(q)) {
+    const offers = pendingOffers();
+    const tail = offers.length
+      ? '\n\nOFFER: ' + offers.map((o) => `${o.kind} — ${o.text} (say "grant ${o.kind}")`).join('\n')
+      : '';
+    return trustLedgerText() + tail;
+  }
+  {
+    const g = cmd.trim().match(/^(grant|revoke)\s+([a-z_]+)$/i);
+    if (g) {
+      const kind = g[2].toLowerCase() as any;
+      if (/^grant$/i.test(g[1])) {
+        const ok = grantAutonomy(kind);
+        return ok
+          ? `Granted — I'll handle ${kind} and report. One tap revokes it: "revoke ${kind}".`
+          : `No. ${kind} touches your money or your name — that stays yours forever, whatever the record says.`;
+      }
+      declineOffer(kind);
+      return `Revoked — ${kind} comes back to the Gate.`;
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

@@ -17,6 +17,7 @@
 import { read, write, uid, emit } from './store';
 import { logEvent } from './events';
 import { match as delegateMatch, recordFire as delegateRecord } from './delegate';
+import { isAutonomous, canEverAutomate } from './apprentice';
 
 export type PendingKind = 'email_send' | 'ig_publish' | 'site_commit' | 'site_deploy' | 'sms_send' | 'log_batch';
 
@@ -52,6 +53,17 @@ export function proposeAction(kind: PendingKind, summary: string, payload: unkno
   emit();
   logEvent({ domain: 'system', type: 'action_proposed', meta: { kind, summary }, source: 'ai' });
 
+  /* §29.7 THE APPRENTICE — a shape he has granted, and that is permitted to
+     be granted at all, executes itself and reports. canEverAutomate() is
+     checked HERE as well as in the setter: money and identity actions must be
+     impossible to auto-fire even if a grant were somehow present. */
+  if (canEverAutomate(kind) && isAutonomous(kind)) {
+    approveAction(a.id, true)
+      .then(() => { try { logEvent({ domain: 'system', type: 'action_autorun', meta: { kind, summary }, source: 'ai' }); } catch { /* ignore */ } })
+      .catch(() => { /* failure already recorded on the action */ });
+    return a;
+  }
+
   /* The Delegate — if a standing rule matches this proposal,
      auto-approve (or auto-reject) right now without Ali's tap.
      Logs delegate_auto_approved / delegate_auto_rejected so the
@@ -68,7 +80,7 @@ export function proposeAction(kind: PendingKind, summary: string, payload: unkno
         });
         /* Fire-and-forget; if it throws, the action marks failed
            and surfaces in the gate normally. */
-        approveAction(a.id).catch(() => { /* error already recorded on action */ });
+        approveAction(a.id, true).catch(() => { /* error already recorded on action */ });
       } else if (rule.action === 'auto_reject') {
         logEvent({
           domain: 'system', type: 'delegate_auto_rejected',
@@ -94,8 +106,9 @@ function setStatus(id: string, status: PendingAction['status'], error?: string) 
 }
 
 export function rejectAction(id: string) {
+  const a = listAll().find(x => x.id === id);
   setStatus(id, 'rejected');
-  logEvent({ domain: 'system', type: 'action_rejected', meta: { id }, source: 'user' });
+  logEvent({ domain: 'system', type: 'action_rejected', meta: { id, kind: a?.kind, summary: a?.summary }, source: 'user' });
 }
 
 async function post<T = any>(url: string, body: unknown): Promise<T> {
@@ -151,12 +164,20 @@ const EXECUTORS: Record<PendingKind, (p: any) => Promise<void>> = {
   },
 };
 
-export async function approveAction(id: string): Promise<void> {
+/* `auto` marks an Apprentice self-run. A self-run must NEVER count as an
+   approval, or KAI would cement its own autonomy by exercising it — trust is
+   earned from HIS taps, and only his. */
+export async function approveAction(id: string, auto = false): Promise<void> {
   const a = listAll().find(x => x.id === id);
   if (!a || a.status !== 'pending') return;
   try {
     await EXECUTORS[a.kind](a.payload);
     setStatus(id, 'approved');
+    /* §29.7 — the tap is the trust signal. Recorded so autonomy can be
+       EARNED from real history rather than asserted. Self-runs are excluded. */
+    if (!auto) {
+      try { logEvent({ domain: 'system', type: 'action_approved', meta: { kind: a.kind, summary: a.summary }, source: 'user' }); } catch { /* ignore */ }
+    }
   } catch (e: any) {
     /* On failure: mark failed (NOT pending) so the user sees what
        happened and can choose to retry or reject. */
