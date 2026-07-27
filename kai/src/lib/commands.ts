@@ -39,10 +39,15 @@ import { inheritanceLetter, inheritanceJson } from './kai/inheritance';
 import { debateDecision, debateMove, debateText } from './kai/opposition';
 import { assembleContext as ctxFor } from './kai/council';
 import { gardenText, logHarvest, setPrice } from './kai/livingAsset';
+import { checkConformance, conformanceText, PROTOCOL_VERSION } from './kai/protocol.spec';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
-function toastFn(kind: 'ok' | 'err', msg: string) { try { (kind === 'ok' ? toast.ok : toast.err)(msg, 'WITNESS', 7000); } catch { /* ignore */ } }
+/* §30.11 and §30.15 each arrived with their own copy of this helper. One
+   definition, with the caller naming its own channel. */
+function toastFn(kind: 'ok' | 'err', msg: string, label = 'KAI', ms = 7000) {
+  try { (kind === 'ok' ? toast.ok : toast.err)(msg, label, ms); } catch { /* ignore */ }
+}
 
 function fmt(n: number) { return n.toLocaleString(operator.locale, { maximumFractionDigits: 0 }); }
 
@@ -360,7 +365,7 @@ export function runBuiltin(cmd: string): CmdResult | null {
   if (/^verify$|^verify chain$|^integrity chain$/i.test(q)) {
     void verifyChain().then((v) => {
       try { (window as any).__kaiVerify = v; } catch { /* ignore */ }
-      toastFn(v.ok ? 'ok' : 'err', v.detail);
+      toastFn(v.ok ? 'ok' : 'err', v.detail, 'WITNESS', 7000);
     }).catch(() => {});
     return 'Verifying the chain — re-deriving every hash from genesis…';
   }
@@ -426,6 +431,15 @@ export function runBuiltin(cmd: string): CmdResult | null {
     }
     const pr = cmd.trim().match(/^price\s+(.+?)\s+(\d+(?:\.\d+)?)$/i);
     if (pr) { setPrice(pr[1].trim(), parseFloat(pr[2])); return `${pr[1].trim()} set at ${pr[2]} EGP — future harvests count.`; }
+  }
+
+  /* §30.15 THE PROTOCOL — conformance of THIS build against the spec. */
+  if (/^protocol$|^conformance$|^spec$|^am i kai$/i.test(q)) {
+    void checkConformance().then((c) => {
+      try { (window as any).__kaiConformance = c; } catch { /* ignore */ }
+      toastFn(c.ok ? 'ok' : 'err', c.summary, 'PROTOCOL', 8000);
+    }).catch(() => {});
+    return `Checking this build against KAI Protocol v${PROTOCOL_VERSION} — five clauses, evidence from the Spine.\nFull report lands in window.__kaiConformance; the spec is docs/KAI_PROTOCOL.md.`;
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
