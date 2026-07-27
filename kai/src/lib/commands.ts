@@ -36,6 +36,8 @@ import { compare as compareSeen, findDocument, watchedSubjects } from './kai/obs
 import { compsText, setMyUnit, addComp, myUnit, type View } from './kai/comps';
 import { verify as verifyChain, seal as sealChain, exportRecord, recordText } from './kai/witness';
 import { inheritanceLetter, inheritanceJson } from './kai/inheritance';
+import { debateDecision, debateMove, debateText } from './kai/opposition';
+import { assembleContext as ctxFor } from './kai/council';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -395,6 +397,16 @@ export function runBuiltin(cmd: string): CmdResult | null {
       return 'Exported — a self-describing model file, readable without this app.';
     }
     return inheritanceLetter();
+  }
+
+  /* §30.13 THE OPPOSITION — one case for, one against, same Spine. */
+  {
+    const m = cmd.trim().match(/^(?:argue|debate|both sides|challenge)\s+(.+)$/i);
+    if (m) {
+      const ctx = ctxFor();
+      const move = ctx.moves.find((o) => o.title.toLowerCase().includes(m[1].toLowerCase().slice(0, 12)));
+      return debateText(move ? debateMove(move, ctx) : debateDecision(m[1], ctx));
+    }
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
