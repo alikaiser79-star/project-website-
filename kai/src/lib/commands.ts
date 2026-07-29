@@ -48,6 +48,10 @@ import {
   gardenText as gaertnerText, compareText, gardenProfit as gProfit,
   logEnquiry, logConfirmed, logCompleted, logHarvest as gHarvest, logProduceSale,
 } from './kai/gaertner';
+import { rule as urteilRule, respond as urteilRespond, urteilText } from './kai/urteil';
+import { marktText, hausText } from './kai/markt';
+import { weltText } from './kai/welt';
+import { fillMonthChain, chainText as handText, fireChain } from './kai/hand';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -64,6 +68,44 @@ export type CmdResult = string;
 export function runBuiltin(cmd: string): CmdResult | null {
   const q = cmd.trim().toLowerCase();
   if (!q) return null;
+
+  /* §44 DIE KRONE — placed at the top so none of the five is swallowed
+     by an older, broader branch. That mistake was made once in §43. */
+  if (/^urteil$|^ruling$|^today$|^what do i do today$/i.test(q)) {
+    return urteilText(assembleContext(Date.now()));
+  }
+  {
+    const m = cmd.trim().match(/^(obey|override)(?:\s+(.+))?$/i);
+    if (m) {
+      const r = urteilRule(assembleContext(Date.now()));
+      if (!r) return 'There is no ruling to answer.';
+      const how = /obey/i.test(m[1]) ? 'obeyed' : 'overridden';
+      urteilRespond(r, how as any, m[2] || '');
+      return how === 'obeyed'
+        ? 'Recorded. I will check in three days whether it actually moved.'
+        : `Recorded as an override${m[2] ? ` — "${m[2]}"` : ''}. Not a problem: I find out later which of us was right.`;
+    }
+  }
+  if (/^markt$|^the board$|^where does the next pound go$|^returns?$/i.test(q)) return marktText();
+  if (/^haus$|^stimme des hauses$|^what do the assets say$/i.test(q)) return hausText();
+  if (/^welt$|^people$|^who owes me$|^trust$/i.test(q)) return weltText();
+  {
+    const m = cmd.trim().match(/^fill\s+(\w+)(?:\s+(\d+))?$/i);
+    if (m) {
+      const built = fillMonthChain(m[1], parseInt(m[2] || '0', 10) || 0, 2750);
+      if (!built.chain) return 'Nothing chainable in that campaign.';
+      (window as any).__kaiChain = built;
+      return handText(built.chain, built.refused) + '\n\nSay "fire" to approve all of it.';
+    }
+  }
+  if (/^fire$|^approve chain$/i.test(q)) {
+    const built = (window as any).__kaiChain;
+    if (!built?.chain) return 'No chain is waiting.';
+    const r = fireChain(built.chain);
+    return r.stoppedAt
+      ? `Stopped at "${r.stoppedAt}" after ${r.fired} step(s). Nothing further ran.`
+      : `${r.fired} steps fired. Each one is at the Gate — nothing has left the device yet.`;
+  }
 
   /* §43 DER GÄRTNER — the garden, measured like the flat. Placed BEFORE
      the broad /garden|plant/ branch so it is not swallowed by it. */
