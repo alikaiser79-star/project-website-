@@ -70,6 +70,8 @@ import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
 import CommandOrder from './components/CommandOrder';
+import DerTag from './components/DerTag';
+import DasBuch from './components/DasBuch';
 import ConfessionSheet, { type ConfessionMode } from './components/ConfessionSheet';
 import type { Fact } from './lib/kai/confession';
 import { callingReport } from './lib/kai/nowItems';
@@ -146,6 +148,15 @@ export default function App() {
   const initial = loadState();
   const [booted, setBooted]   = useState(false);
   const [view, setViewState]  = useState<ViewKey>(() => loadView());
+  /* Real URLs without pulling in a router: #/tag and #/buch survive a
+     hard refresh and can be bookmarked, which a modal cannot. */
+  const [hash, setHash] = useState(() => { try { return location.hash; } catch { return ''; } });
+  useEffect(() => {
+    const on = () => setHash(location.hash);
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  const closeHash = () => { try { location.hash = ''; } catch { /* ignore */ } };
   const [cmdOpen, setCmdOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
@@ -1053,6 +1064,9 @@ export default function App() {
         }}
       />
       <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
+      {/^#\/tag\b/.test(hash) && <div className="sheet-scrim" onClick={closeHash}><div onClick={(e) => e.stopPropagation()}><DerTag onClose={closeHash} /></div></div>}
+      {/^#\/buch\b/.test(hash) && <div className="sheet-scrim" onClick={closeHash}><div onClick={(e) => e.stopPropagation()}><DasBuch onClose={closeHash} /></div></div>}
+
       <ToastStack />
       <BuildBanner />
 

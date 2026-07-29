@@ -42,6 +42,8 @@ import { gardenText, logHarvest, setPrice } from './kai/livingAsset';
 import { checkConformance, conformanceText, PROTOCOL_VERSION } from './kai/protocol.spec';
 import { worthSpeaking, isSilent, stimmeText, recordSpoken, spokenLog } from './kai/stimme';
 import { alterText } from './kai/alter';
+import { tagText, parseTag, logTag, streak } from './kai/tag';
+import { previousMonth, chapter, chapterText } from './kai/buch';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -484,6 +486,30 @@ export function runBuiltin(cmd: string): CmdResult | null {
 
   /* §40.6 DAS ALTER — how you have changed, and what you are repeating. */
   if (/^alter$|^ag(e|ing)$|^have i changed$|^am i repeating$/i.test(q)) return alterText();
+
+  /* DER TAG — the ten-second logger. Opens the route; the text answer
+     stands alone if he just wants the streak. */
+  if (/^tag$|^der tag$|^log$|^streak$/i.test(q)) {
+    try { location.hash = '#/tag'; } catch { /* ignore */ }
+    return tagText();
+  }
+  {
+    /* "tag 340 fuel" — logs without opening anything. */
+    const m = cmd.trim().match(/^tag\s+(.+)$/i);
+    if (m) {
+      const p = parseTag(m[1]);
+      if (!p.entry) return p.problem || 'No.';
+      logTag(p.entry);
+      const s = streak();
+      return `Logged ${Math.round(p.entry.amountEgp).toLocaleString(operator.locale)} EGP · ${p.entry.word}. ${s.days} day streak. Already in the Spine — nothing to export.`;
+    }
+  }
+
+  /* DAS BUCH — the month, written from the Spine. */
+  if (/^buch$|^das buch$|^the book$|^chapter$/i.test(q)) {
+    try { location.hash = '#/buch'; } catch { /* ignore */ }
+    return chapterText(chapter(previousMonth()));
+  }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
   if (/^confess$|^correct$|^correction$|^numbers?$|^the numbers are wrong$|^fix numbers$|^بيان$|^تصحيح$/i.test(q)) {
