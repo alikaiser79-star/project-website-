@@ -40,6 +40,8 @@ import { debateDecision, debateMove, debateText } from './kai/opposition';
 import { assembleContext as ctxFor } from './kai/council';
 import { gardenText, logHarvest, setPrice } from './kai/livingAsset';
 import { checkConformance, conformanceText, PROTOCOL_VERSION } from './kai/protocol.spec';
+import { worthSpeaking, isSilent, stimmeText, recordSpoken, spokenLog } from './kai/stimme';
+import { alterText } from './kai/alter';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -463,6 +465,25 @@ export function runBuiltin(cmd: string): CmdResult | null {
     }).catch((e) => toastFn('err', 'Could not reach /api/gmail/health: ' + String(e?.message || e), 'GMAIL', 12000));
     return 'Checking Gmail end to end — env vars, the token exchange, and a real Gmail call…';
   }
+
+  /* §40.1 DIE STIMME — what, if anything, has earned a sentence. */
+  if (/^stimme$|^voice$|^say something$|^what would you say$/i.test(q)) {
+    return stimmeText(assembleContext(Date.now()));
+  }
+  if (/^speak now$|^interrupt me$/i.test(q)) {
+    const v = worthSpeaking(assembleContext(Date.now()));
+    if (isSilent(v)) return `Nothing. ${v.reason}.`;
+    recordSpoken(v);
+    return `"${v.text}"\n\nagainst it: ${v.counter}`;
+  }
+  if (/^what have you said$|^spoken$|^interruptions$/i.test(q)) {
+    const log = spokenLog();
+    if (!log.length) return 'I have never interrupted you.';
+    return log.map((x) => `${new Date(x.at).toISOString().slice(0, 16).replace('T', ' ')} — ${x.text}`).join('\n');
+  }
+
+  /* §40.6 DAS ALTER — how you have changed, and what you are repeating. */
+  if (/^alter$|^ag(e|ing)$|^have i changed$|^am i repeating$/i.test(q)) return alterText();
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */
   if (/^confess$|^correct$|^correction$|^numbers?$|^the numbers are wrong$|^fix numbers$|^بيان$|^تصحيح$/i.test(q)) {
