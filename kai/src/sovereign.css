@@ -1189,3 +1189,139 @@ body { font-variant-numeric: tabular-nums; }
   border: 1px solid rgba(255, 150, 80, 0.34); background: rgba(255, 150, 80, 0.12);
   color: rgba(255, 210, 165, 0.95); font-size: 10.5px;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   §39 DIE ZUKUNFT — the interface as language.
+
+   THE ENTIRE DESIGN SYSTEM IS THESE TOKENS. One typeface, three
+   weights, four sizes. No borders, no cards, no panel edges, no
+   icons, no glass, no neon, no grids. If a rule below wants a
+   rectangle, the rule is wrong.
+   ══════════════════════════════════════════════════════════════ */
+.zk {
+  --zk-face: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --zk-s1: clamp(26px, 7.4vw, 40px);   /* the sentence */
+  --zk-s2: clamp(16px, 4.2vw, 21px);   /* the second line */
+  --zk-s3: 13px;                        /* the input */
+  --zk-s4: 11px;                        /* the quiet words */
+  --zk-ink: rgba(255, 238, 222, 0.96);
+  --zk-ink-2: rgba(255, 226, 200, 0.56);
+  --zk-ink-3: rgba(255, 214, 184, 0.34);
+
+  position: relative;
+  min-height: 100dvh;
+  font-family: var(--zk-face);
+  /* Near-black, lifted toward blood only as far as the body warrants. */
+  background:
+    radial-gradient(120% 80% at 50% 8%,
+      rgba(var(--zk-rgb), calc(var(--zk-warmth) * 0.5)) 0%,
+      transparent 62%),
+    rgb(8, 6, 6);
+  transition: background 1.6s ease;
+}
+
+/* ── ZONE 1 — the first screen ─────────────────────────────── */
+.zk-first {
+  min-height: 100dvh;
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 0;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 40px)
+    max(env(safe-area-inset-right, 0px), 26px)
+    calc(env(safe-area-inset-bottom, 0px) + 28px)
+    max(env(safe-area-inset-left, 0px), 26px);
+  max-width: 640px; margin-inline: auto;
+}
+
+/* The only closed shape on screen, and it is a circle. */
+.zk-heart { width: 100%; display: flex; justify-content: flex-start; margin-bottom: 30px; }
+.zk-heart-core {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: rgb(var(--zk-rgb));
+  box-shadow: 0 0 calc(20px + 26px * var(--zk-glow)) rgba(var(--zk-rgb), var(--zk-glow));
+  animation: zk-beat var(--zk-tempo) ease-in-out infinite;
+}
+@keyframes zk-beat {
+  0%, 100% { transform: scale(1);    opacity: calc(0.62 + 0.2 * var(--zk-glow)); }
+  46%      { transform: scale(1.28); opacity: 1; }
+}
+
+/* THE SENTENCE. Weight comes from the body, not from a style choice. */
+.zk-say {
+  font-size: var(--zk-s1);
+  font-weight: var(--zk-weight);
+  line-height: 1.26;
+  letter-spacing: -0.018em;
+  color: var(--zk-ink);
+  opacity: var(--zk-dim);
+  text-wrap: balance;
+  margin: 0;
+  transition: font-weight 1.2s ease, opacity 1.2s ease;
+}
+.zk-say-2 {
+  margin: 18px 0 0;
+  font-size: var(--zk-s2); font-weight: 300; line-height: 1.4;
+  color: var(--zk-ink-2); text-wrap: balance;
+}
+
+/* Quiet words. Not buttons — words you can press. */
+.zk-why, .zk-down {
+  align-self: flex-start;
+  background: none; border: none; padding: 12px 0 0; margin: 0;
+  font-family: var(--zk-face); font-size: var(--zk-s4); font-weight: 400;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--zk-ink-3); cursor: pointer; min-height: 44px;
+}
+.zk-why:active, .zk-down:active { color: rgb(var(--zk-rgb)); }
+.zk-because {
+  margin: 6px 0 0; max-width: 46ch;
+  font-size: var(--zk-s4); font-weight: 300; line-height: 1.65;
+  color: var(--zk-ink-2);
+}
+
+/* ── ZONE 2 — the one input. A line, not a box. ────────────── */
+.zk-ask {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 34px; padding-bottom: 8px;
+  /* The single horizontal rule in the design — an underline, not a frame. */
+  border-bottom: 1px solid rgba(var(--zk-rgb), 0.16);
+}
+.zk-mic {
+  flex: 0 0 auto; width: 44px; height: 44px; padding: 0;
+  background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.zk-mic-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: rgba(var(--zk-rgb), 0.5); transition: all 0.25s ease;
+}
+.zk-mic.live .zk-mic-dot {
+  background: rgb(var(--zk-rgb)); transform: scale(1.5);
+  box-shadow: 0 0 20px rgba(var(--zk-rgb), 0.8);
+}
+.zk-input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px;
+  background: none; border: none; outline: none;
+  font-family: var(--zk-face); font-size: var(--zk-s3); font-weight: 300;
+  letter-spacing: 0.02em; color: var(--zk-ink);
+}
+.zk-input::placeholder { color: var(--zk-ink-3); letter-spacing: 0.16em; text-transform: uppercase; font-size: var(--zk-s4); }
+
+.zk-err {
+  margin: 14px 0 0; max-width: 46ch;
+  font-size: var(--zk-s4); font-weight: 300; line-height: 1.6;
+  color: rgba(255, 190, 150, 0.78); cursor: pointer;
+}
+.zk-err span { color: var(--zk-ink-3); letter-spacing: 0.1em; }
+
+/* ── ZONE 3 — depth. Everything that already exists. ───────── */
+.zk-depth {
+  padding: 8px 0 40px;
+  animation: zk-rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes zk-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .zk-heart-core { animation: none; }
+  .zk-depth { animation: none; }
+}

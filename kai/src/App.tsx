@@ -70,6 +70,7 @@ import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
 import CommandOrder from './components/CommandOrder';
+import Zukunft from './components/Zukunft';
 import ConfessionSheet, { type ConfessionMode } from './components/ConfessionSheet';
 import type { Fact } from './lib/kai/confession';
 import { callingReport } from './lib/kai/nowItems';
@@ -146,6 +147,10 @@ export default function App() {
   const initial = loadState();
   const [booted, setBooted]   = useState(false);
   const [view, setViewState]  = useState<ViewKey>(() => loadView());
+  /* §39 — while the first screen is showing, the old chrome is GONE. Not
+     dimmed, not collapsed: not rendered. "No tab bar, no menu" is not a
+     styling instruction. It all returns the moment depth is opened. */
+  const [zkDepth, setZkDepth] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
@@ -849,6 +854,8 @@ export default function App() {
     return () => { offAct(); };
   }, [booted, unlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const zkFirstScreen = view === 'command' && !showOrganism && !zkDepth;
+
   return (
     <>
       <Background view={view} />
@@ -861,9 +868,9 @@ export default function App() {
 
       {booted && (
         <div className={'relative z-10 min-h-screen ' + (idle ? 'idle-mode' : '')}>
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col gap-6 sm:gap-8">
+          <div className={zkFirstScreen ? 'flex flex-col' : "max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col gap-6 sm:gap-8"}>
 
-          <TopBar
+          {!zkFirstScreen && <TopBar
             onCmdK={() => setCmdOpen(true)}
             onSettings={() => setSetOpen(true)}
             onContent={() => setContentOpen(true)}
@@ -892,7 +899,7 @@ export default function App() {
             setSpeakOn={(b) => { onSettings({ ...settings, speakEnabled: b }); if (b) speakNow('Voice on.'); }}
             operatorName={settings.operatorName}
             voiceState={voiceState}
-          />
+          />}
 
           {/* Live voice status / interim transcript */}
           <VoiceBanner
@@ -910,7 +917,7 @@ export default function App() {
           <ConfirmationFloating />
 
           {/* View navigation — breaks 21 panels into 5 focused views. */}
-          <ViewNav active={view} onChange={setView} badges={navBadges} />
+          {!zkFirstScreen && <ViewNav active={view} onChange={setView} badges={navBadges} />}
 
           {/* Active view */}
           <motion.div
@@ -936,7 +943,13 @@ export default function App() {
 
             {/* §24 DIE ORDNUNG — the ordered three-zone face is the default;
                 the living organism (CORE-V6) is one tap away. */}
-            {view === 'command' && !showOrganism && <CommandOrder onOrganism={() => setShowOrganism(true)} />}
+            {/* §39 — the opening is a sentence. Everything that existed
+                before is still here, one word down, as its depth. */}
+            {view === 'command' && !showOrganism && (
+              <Zukunft onDepth={setZkDepth}>
+                <CommandOrder onOrganism={() => setShowOrganism(true)} />
+              </Zukunft>
+            )}
             {view === 'command' && showOrganism && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
             {view === 'command' && showOrganism && (
               <button className="ord-return" onClick={() => setShowOrganism(false)}>← order</button>
@@ -1010,10 +1023,10 @@ export default function App() {
       {booted && <NerveField />}
       {booted && <SpeechHint />}
       <InstallPrompt />
-      {booted && !(lockCfg.enabled && !unlocked) && <KaiEye />}
+      {booted && !zkFirstScreen && !(lockCfg.enabled && !unlocked) && <KaiEye />}
       {isMobile && <PullToRefresh />}
       {greeting && <Greeting line={greeting} onDone={() => setGreeting(null)} />}
-      {booted && !(lockCfg.enabled && !unlocked) && <PushToTalk />}
+      {booted && !zkFirstScreen && !(lockCfg.enabled && !unlocked) && <PushToTalk />}
       <NightLedger />
       <SettingsDrawer
         open={setOpen}
@@ -1053,12 +1066,14 @@ export default function App() {
         }}
       />
       <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
-      <ToastStack />
+      {/* §39 — a toast is a panel with a border and an icon. Not on the
+          first screen. It returns the moment depth is opened. */}
+      {!zkFirstScreen && <ToastStack />}
       <BuildBanner />
 
       {/* Sovereign telemetry — bottom-left on every view including
           Command (§7.1 four corners); long-press it for Rewind. */}
-      <SystemPulse hidden={false} />
+      <SystemPulse hidden={zkFirstScreen} />
 
       {/* Ask KAI — conversational core (A toggles, Esc closes). */}
       <AskKaiDrawer open={askOpen} onClose={() => setAskOpen(false)} />
