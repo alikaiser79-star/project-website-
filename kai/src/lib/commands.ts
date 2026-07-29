@@ -53,6 +53,10 @@ import { marktText, hausText } from './kai/markt';
 import { weltText } from './kai/welt';
 import { fillMonthChain, chainText as handText, fireChain } from './kai/hand';
 import { ordenText, onboard as ordenOnboard, recordVerdict, mayProductize } from './kai/orden';
+import {
+  parseBodyCommand, logBody, setMed, meds, medAlerts, MED_BOUNDARY,
+  hoursMonth, closeOnes, closeNames, setCloseNames, answerWeek, theYear, THE_QUESTION, mannText, coOccurrence,
+} from './kai/mann';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -69,6 +73,74 @@ export type CmdResult = string;
 export function runBuiltin(cmd: string): CmdResult | null {
   const q = cmd.trim().toLowerCase();
   if (!q) return null;
+
+  /* §46 DER MANN — FIRST, and deliberately so. These are three-word
+     lines typed in a bad moment; if one gets swallowed by a broader
+     branch further down he stops typing them, and this is the one part
+     of the system that is worthless the moment it is not used. */
+  {
+    const b = parseBodyCommand(cmd.trim());
+    if (b) {
+      logBody(b);
+      switch (b.kind) {
+        case 'sleep':       return `${b.value}h logged.`;
+        case 'med_skipped': return `Logged: no ${b.what}, ${new Date(b.at).toLocaleDateString(operator.locale)}. A date on a record, nothing more — I have no view on it.`;
+        case 'med_taken':   return `Logged: ${b.what} taken.`;
+        case 'flare':       return 'Logged. Nothing else — I am not going to guess what it means.';
+        case 'weight':      return `${b.value} logged.`;
+        case 'day_off':     return 'Logged as yours.';
+        default:            return 'Logged.';
+      }
+    }
+  }
+  if (/^mann$|^der mann$|^me$|^how am i$/i.test(q)) return mannText(Date.now(), closeNames());
+  if (/^meds?$|^medication$/i.test(q)) {
+    const a = medAlerts();
+    const list = meds();
+    if (!list.length) return `Nothing on file. Add one with "med Humira every 14 days" or "med Elvanse stock 12".\n\n${MED_BOUNDARY}`;
+    const L = a.length ? a.map((x) => '  ' + x.text) : ['  Nothing inside seven days, by the dates on record.'];
+    return [`${list.length} on file:`, ...L, '', MED_BOUNDARY].join('\n');
+  }
+  {
+    /* "med Humira every 14 days" / "med Elvanse stock 12" / "med Humira taken today" */
+    const m = cmd.trim().match(/^med\s+(\w+)\s+(?:every\s+(\d+)\s*days?|stock\s+(\d+)|taken(?:\s+today)?)$/i);
+    if (m) {
+      const name = m[1][0].toUpperCase() + m[1].slice(1);
+      const prev = meds().find((x) => x.name.toLowerCase() === name.toLowerCase()) || { name };
+      if (m[2]) setMed({ ...prev, name, everyDays: Number(m[2]) });
+      else if (m[3]) setMed({ ...prev, name, stock: Number(m[3]) });
+      else setMed({ ...prev, name, lastAt: Date.now() });
+      return `${name} on file. ${MED_BOUNDARY}`;
+    }
+  }
+  if (/^hours$|^my hours$|^where did the month go$/i.test(q)) return hoursMonth().line;
+  if (/^sleep$|^body$/i.test(q)) return coOccurrence().line;
+  {
+    /* "close Katie Mum" names them, once. "close" alone reads them back.
+       NOT "people" — that is §44's WELT and was already taken. */
+    const m = cmd.trim().match(/^(?:close|the people)(?:\s+(.+))?$/i);
+    if (m) {
+      const names = m[1] ? setCloseNames(m[1].split(/[,\s]+/)) : closeNames();
+      if (!names.length) return 'Nobody named yet. "close Katie Mum" — your call, not something I will infer from who you transact with most.';
+      return closeOnes(names).map((c) => c.line).join('\n');
+    }
+  }
+  {
+    /* The one question. His words go in unchanged and nothing reads them
+       back. NOT "week <words>" — "week verdict" and "week review" were
+       already commands, and filing "verdict" as his honest answer to how
+       the week went is the single worst thing this feature could do. */
+    const m = cmd.trim().match(/^(?:honestly|answer)\s+([\s\S]+)$/i);
+    if (m) return answerWeek(m[1]).reason;
+  }
+  if (/^the question$|^how was this week$/i.test(q)) {
+    return `"${THE_QUESTION}"\n  Answer with: honestly <one sentence>. It is recorded and never judged.`;
+  }
+  if (/^the year$|^my year$/i.test(q)) {
+    const y = theYear();
+    if (!y.length) return 'No weeks answered yet.';
+    return y.map((r) => `${r.week}  ${fmt(r.earnedEgp)} EGP   "${r.words}"`).join('\n');
+  }
 
   /* §45 DER ORDEN — tier 1 only, and the gate on 2 and 3. */
   if (/^orden$|^circle$|^the circle$|^proof$/i.test(q)) return ordenText();
