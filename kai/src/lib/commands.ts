@@ -52,6 +52,7 @@ import { rule as urteilRule, respond as urteilRespond, urteilText } from './kai/
 import { marktText, hausText } from './kai/markt';
 import { weltText } from './kai/welt';
 import { fillMonthChain, chainText as handText, fireChain } from './kai/hand';
+import { ordenText, onboard as ordenOnboard, recordVerdict, mayProductize } from './kai/orden';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -68,6 +69,20 @@ export type CmdResult = string;
 export function runBuiltin(cmd: string): CmdResult | null {
   const q = cmd.trim().toLowerCase();
   if (!q) return null;
+
+  /* §45 DER ORDEN — tier 1 only, and the gate on 2 and 3. */
+  if (/^orden$|^circle$|^the circle$|^proof$/i.test(q)) return ordenText();
+  if (/^tier ?2$|^tier ?3$|^productize$|^sell it$|^standard$/i.test(q)) return mayProductize().reason;
+  {
+    /* "onboard Katie commitments,money" */
+    const m = cmd.trim().match(/^onboard\s+(\S+)\s+(.+)$/i);
+    if (m) return ordenOnboard(m[1], m[2].split(/[,\s]+/).filter(Boolean), 'Ali').reason;
+  }
+  {
+    /* "verdict yes <words>" — refused unless it is them. */
+    const m = cmd.trim().match(/^verdict\s+(yes|no)\s+([\s\S]+)$/i);
+    if (m) return recordVerdict(/yes/i.test(m[1]), m[2], 'owner').reason;
+  }
 
   /* §44 DIE KRONE — placed at the top so none of the five is swallowed
      by an older, broader branch. That mistake was made once in §43. */
