@@ -44,6 +44,10 @@ import { worthSpeaking, isSilent, stimmeText, recordSpoken, spokenLog } from './
 import { alterText } from './kai/alter';
 import { tagText, parseTag, logTag, streak } from './kai/tag';
 import { previousMonth, chapter, chapterText } from './kai/buch';
+import {
+  gardenText as gaertnerText, compareText, gardenProfit as gProfit,
+  logEnquiry, logConfirmed, logCompleted, logHarvest as gHarvest, logProduceSale,
+} from './kai/gaertner';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -60,6 +64,42 @@ export type CmdResult = string;
 export function runBuiltin(cmd: string): CmdResult | null {
   const q = cmd.trim().toLowerCase();
   if (!q) return null;
+
+  /* §43 DER GÄRTNER — the garden, measured like the flat. Placed BEFORE
+     the broad /garden|plant/ branch so it is not swallowed by it. */
+  if (/^g(ä|ae)rtner$|^gardener$|^garden ledger$|^garden profit$|^garden line$/i.test(q)) {
+    return gaertnerText();
+  }
+  if (/^compare$|^makadi vs garden$|^which asset$|^where does the next hour go$/i.test(q)) {
+    return compareText();
+  }
+  {
+    /* "event confirmed Mona evening 12000 in 10 days" and friends. */
+    const m = cmd.trim().match(/^event\s+(enquiry|confirmed|completed)\s+(\S+)\s+(\S+)\s+([\d,]+)(?:\s+in\s+(\d+)\s*days?)?$/i);
+    if (m) {
+      const price = parseFloat(m[4].replace(/,/g, ''));
+      const date = Date.now() + (parseInt(m[5] || '0', 10) * 86_400_000);
+      const g = { guest: m[2], pkg: m[3], priceEgp: price, date };
+      if (/enquiry/i.test(m[1])) { logEnquiry(g); return `Enquiry logged — ${g.guest}, ${g.pkg}.`; }
+      if (/confirmed/i.test(m[1])) { logConfirmed(g); return `Confirmed — ${g.guest}, ${g.pkg}, ${fmt(price)} EGP. Not counted as earned until it is completed.`; }
+      logCompleted(g);
+      return `Completed — ${g.guest}, ${fmt(price)} EGP earned. ${gProfit().verdict}`;
+    }
+  }
+  {
+    /* "harvest lemons 4 kg 400" · "sold tomatoes 300" */
+    const h = cmd.trim().match(/^harvest\s+(\S+)\s+([\d.]+)\s*(\S+)\s+([\d,]+)$/i);
+    if (h) {
+      gHarvest(h[1], parseFloat(h[2]), h[3], parseFloat(h[4].replace(/,/g, '')));
+      return `Harvest logged — ${h[2]}${h[3]} ${h[1]}, ${fmt(parseFloat(h[4].replace(/,/g, '')))} EGP at market. Not revenue until it is sold.`;
+    }
+    const sd = cmd.trim().match(/^sold\s+(\D\S*)\s+([\d,]+)$/i);
+    if (sd) {
+      logProduceSale(sd[1], parseFloat(sd[2].replace(/,/g, '')));
+      return `Sale logged — ${sd[1]}, ${fmt(parseFloat(sd[2].replace(/,/g, '')))} EGP. That one is revenue.`;
+    }
+  }
+
 
   if (/^(status|status report|sitrep|summary)$/i.test(q)) {
     const s = loadState();
