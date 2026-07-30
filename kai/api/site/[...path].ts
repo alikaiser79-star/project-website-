@@ -1,3 +1,4 @@
+import { guardNode } from '../_guard';
 /* /api/site/* — single Vercel function, dispatches to
    per-action handlers. See gmail/[...path].ts for the
    rationale. */
@@ -7,6 +8,11 @@ import deploy from './_deploy.js';
 import deploys from './_deploys.js';
 
 export default async function handler(req: any, res: any) {
+  /* THE reason this file changed. commit and deploy write to Ali's
+     GitHub with a read+write PAT and trigger Vercel deploys; before
+     this line they accepted a request from anyone on the internet. */
+  if (!guardNode(req, res)) return;
+
   const slug = req.query?.path;
   const action = Array.isArray(slug) ? String(slug[0] || '') : String(slug || '');
   switch (action) {

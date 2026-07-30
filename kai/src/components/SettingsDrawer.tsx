@@ -1,3 +1,4 @@
+import { apiSecret, hasApiSecret, setApiSecret } from '../lib/apiAuth';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, X, Volume2, Mic, Palette, RotateCcw, User, Download, Upload, Bell, MapPin, Clock, Compass, Wallet, Plus, Trash2, Target, Flame, Leaf, Bed, AtSign, ShieldCheck, Fingerprint, KeyRound, Cloud, Copy, RefreshCw, Moon } from 'lucide-react';
@@ -273,6 +274,10 @@ export default function SettingsDrawer({ open, onClose, onSettings, onTour, focu
 
               <Section icon={<ShieldCheck size={12} />} title="Security">
                 <SecurityEditor />
+              </Section>
+
+              <Section icon={<ShieldCheck size={12} />} title="API key">
+                <ApiKeySection />
               </Section>
 
               <Section icon={<Cloud size={12} />} title="Spine sync">
@@ -560,6 +565,51 @@ function ShadowSection() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/* The device's half of the server gate. Deliberately NOT prefilled from
+   anything: the secret cannot ship in the bundle, so it has to be typed
+   here once per device. */
+function ApiKeySection() {
+  const [val, setVal] = useState(() => apiSecret());
+  const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null);
+  const [show, setShow] = useState(false);
+  const set = hasApiSecret();
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] leading-relaxed text-steel">
+        {set
+          ? 'Set on this device. Guarded routes — Gmail, Instagram, Claude, the agent, the calendar, site deploys — will accept it.'
+          : 'NOT SET. Every guarded route will refuse this device with a 401 until it matches KAI_API_SECRET in Vercel.'}
+      </p>
+      <div className="flex gap-2">
+        <input
+          type={show ? 'text' : 'password'}
+          value={val}
+          onChange={(e) => { setVal(e.target.value); setMsg(null); }}
+          placeholder="paste KAI_API_SECRET"
+          autoComplete="off"
+          spellCheck={false}
+          className="flex-1 bg-black/30 border border-steel/30 rounded px-2 py-1.5 text-[12px] font-mono"
+        />
+        <button onClick={() => setShow(!show)} className="px-2 border border-steel/30 rounded text-[10px] uppercase text-steel">
+          {show ? 'hide' : 'show'}
+        </button>
+      </div>
+      <button
+        onClick={() => { const r = setApiSecret(val); setMsg({ text: r.reason, bad: !r.ok }); }}
+        className="w-full px-2 py-2 border border-amber/40 text-amber hover:border-amber rounded text-[11px] tracking-[0.14em] uppercase"
+      >
+        Save key
+      </button>
+      {msg && <p className={'text-[11px] leading-relaxed ' + (msg.bad ? 'text-red-400' : 'text-steel')}>{msg.text}</p>}
+      <p className="text-[10px] leading-relaxed text-steel/70">
+        Stored only in this browser, never in the app bundle. Set the same string in the Vercel project
+        environment (Production) as KAI_API_SECRET, then redeploy. Each device needs it pasted once.
+      </p>
     </div>
   );
 }

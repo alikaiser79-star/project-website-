@@ -20,6 +20,8 @@
    the client's own kill switch (status flips to paused/failed).
    ============================================================ */
 
+import { guardEdge, corsFor, rateLimit, limitBody } from '../_guard';
+
 export const config = { runtime: 'edge' };
 
 const MODEL = 'claude-sonnet-4-6';
@@ -146,7 +148,7 @@ async function watchSweep(key: string, body: any): Promise<Response> {
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST,OPTIONS' } });
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsFor(req as any) });
 
   /* §19 health — GET /api/agent/search?health reports which keys the
      Radar needs are present. Booleans only; never leaks a value. */
@@ -156,6 +158,14 @@ export default async function handler(req: Request): Promise<Response> {
     return j({ ok: true, anthropic, tavily, ready: anthropic && tavily });
   }
   if (req.method !== 'POST') return j({ error: 'method_not_allowed' }, 405);
+
+  /* Guarded on POST only: the GET above is the health check and returns
+     booleans, never a value. Everything past here spends ANTHROPIC_API_KEY
+     and TAVILY_API_KEY, so the check comes before the keys are read. */
+  const denied = guardEdge(req);
+  if (denied) return denied;
+  const lim = await rateLimit('agent', 40, 600);
+  if (!lim.ok) return j(limitBody(lim), 429);
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return j({ error: 'no_api_key' }, 503);

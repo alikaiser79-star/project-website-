@@ -7,18 +7,29 @@
    SSE response straight back. No key ever reaches the browser.
    ============================================================ */
 
+import { guardEdge, rateLimit, limitBody } from './_guard';
+
 export const config = { runtime: 'edge' };
 
+/* Spending money for a stranger was the old behaviour. Both of these
+   run BEFORE the key is read, so an unauthorised caller never reaches
+   Anthropic and never costs anything. */
+const MAX_CALLS = 60;
+const WINDOW_SEC = 600;
+
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: corsHeaders(),
-    });
-  }
+  const denied = guardEdge(req);
+  if (denied) return denied;
+
   if (req.method !== 'POST') {
     return json({ error: 'method_not_allowed' }, 405);
   }
+
+  /* One global bucket, deliberately. There is exactly one secret and
+     one owner, so there is no per-caller identity to bucket on — this
+     is a ceiling on total spend, not fairness between users. */
+  const lim = await rateLimit('claude', MAX_CALLS, WINDOW_SEC);
+  if (!lim.ok) return json(limitBody(lim), 429);
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {
@@ -60,14 +71,11 @@ export default async function handler(req: Request): Promise<Response> {
   });
 }
 
+/* Was a flat `access-control-allow-origin: *`, which let any site in a
+   logged-in browser call this route. corsFor echoes the origin only
+   when it is this same deployment (or localhost for dev). */
 function corsHeaders(): Record<string, string> {
-  /* Same-origin in production; permissive in case the user wires up
-     a separate dev origin (e.g. vite on :5173 + vercel dev on :3000). */
-  return {
-    'access-control-allow-origin': '*',
-    'access-control-allow-methods': 'POST, OPTIONS',
-    'access-control-allow-headers': 'content-type',
-  };
+  return { 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-allow-headers': 'content-type,x-kai-key' };
 }
 
 function json(payload: unknown, status: number): Response {

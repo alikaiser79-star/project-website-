@@ -1,3 +1,4 @@
+import { guardNode } from './_guard';
 /* ============================================================
    /api/calendar — read-only Google Calendar via secret iCal URL.
 
@@ -39,6 +40,11 @@ let cache: Result | null = null;
 let cacheAt = 0;
 
 export default async function handler(req: any, res: any) {
+  /* Lowest risk on the list — it proxies a read-only iCal feed — but the
+     feed URL is a capability in itself: anyone holding it reads his
+     calendar forever. */
+  if (!guardNode(req, res)) return;
+
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=120');
 
