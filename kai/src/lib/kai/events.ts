@@ -38,7 +38,7 @@ export interface KaiEvent {
 }
 
 const KEY = 'kai.events';
-const CAP = 2000;
+export const CAP = 2000;
 
 export function logEvent(e: Omit<KaiEvent, 'id' | 'ts'> & { ts?: number }): KaiEvent {
   const ev: KaiEvent = {

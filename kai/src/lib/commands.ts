@@ -54,6 +54,11 @@ import { weltText } from './kai/welt';
 import { fillMonthChain, chainText as handText, fireChain } from './kai/hand';
 import { ordenText, onboard as ordenOnboard, recordVerdict, mayProductize } from './kai/orden';
 import {
+  briefText, sealLetter, readLetter, survival, exportText, recordExport,
+  vaultText, setVault, setLetterDay, letterDay,
+  setDraft, sendDraft, discardDraft,
+} from './kai/brief';
+import {
   parseBodyCommand, logBody, setMed, meds, medAlerts, MED_BOUNDARY,
   hoursMonth, closeOnes, closeNames, setCloseNames, answerWeek, theYear, THE_QUESTION, mannText, coOccurrence,
 } from './kai/mann';
@@ -140,6 +145,62 @@ export function runBuiltin(cmd: string): CmdResult | null {
     const y = theYear();
     if (!y.length) return 'No weeks answered yet.';
     return y.map((r) => `${r.week}  ${fmt(r.earnedEgp)} EGP   "${r.words}"`).join('\n');
+  }
+
+  /* §47 DER BRIEF. NOT "brief" — that is the daily briefing and has been
+     since §2. These are "letters". */
+  if (/^letters$|^der brief$|^the letters$/i.test(q)) return briefText();
+  if (/^survival$|^will it last$/i.test(q)) return survival().line;
+  if (/^vault$/i.test(q)) return vaultText();
+  {
+    /* Matches ANY "letter day …" so a typo cannot fall through to the
+       letter itself. It used to, and "letter day nonsense" sealed the
+       words "day nonsense" as his one letter for the year. */
+    const m = cmd.trim().match(/^letter day\b\s*(.*)$/i);
+    if (m) {
+      if (!m[1].trim()) return `The day is ${letterDay()}. Change it with "letter day MM-DD".`;
+      return setLetterDay(m[1].trim())
+        ? `The day is ${m[1].trim()}. A convention, not a meaning — it is yours to move.`
+        : `"${m[1].trim()}" is not a date. Give it as MM-DD. Nothing was written.`;
+    }
+  }
+  {
+    const m = cmd.trim().match(/^vault\s+(\w+)\s+([\s\S]+)$/i);
+    if (m) return setVault(m[1].toLowerCase(), m[2]).reason;
+  }
+  if (/^send letter$|^send it$/i.test(q)) return sendDraft().reason;
+  if (/^discard letter$/i.test(q)) { discardDraft(); return 'Thrown away. Nothing was sealed.'; }
+  {
+    /* Held, not sealed. The seal is a second, deliberate act. */
+    const m = cmd.trim().match(/^letter\s+([\s\S]+)$/i);
+    if (m) return setDraft(m[1]).reason;
+  }
+  {
+    const m = cmd.trim().match(/^for whoever\s+([\s\S]+)$/i);
+    if (m) return sealLetter('for_whoever', m[1]).reason;
+  }
+  {
+    /* Anchored on the id shape so it cannot swallow "open the garden". */
+    const m = cmd.trim().match(/^open\s+((?:to_self|counter|for_whoever)-\d{4}-[0-9a-z]{6})$/i);
+    if (m) {
+      const rd = readLetter(m[1]);
+      return rd.ok ? `${rd.reason}\n\n${rd.text}` : rd.reason;
+    }
+  }
+  if (/^export brief$|^export letters$|^export the record$/i.test(q)) {
+    try {
+      const blob = new Blob([exportText()], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `kai-sealed-record-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      /* Recorded only after the download actually fired — marking letters
+         safe on an export that threw would be the one lie that matters. */
+      recordExport();
+      return 'Exported. Plain text, dated, readable by anything. Put it somewhere backed up and copy it forward when you change machines — that file is the vault now, not this browser.';
+    } catch {
+      return 'The export did not run, so nothing is marked as saved. Nothing changed.';
+    }
   }
 
   /* §45 DER ORDEN — tier 1 only, and the gate on 2 and 3. */
