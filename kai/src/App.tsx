@@ -503,23 +503,39 @@ export default function App() {
     });
   }, []);
 
-  /* Relock after the tab has been hidden for ≥ 5 minutes. The base
-     idle-watermark fires sooner (5 min of inactivity in this tab),
-     but visibility hiding is the stronger signal — the user
-     switched apps / locked the device. */
+  /* AUTO-LOCK, on two signals rather than one.
+
+     Hidden was the only trigger and its threshold was five minutes —
+     so handing over an unlocked phone, or leaving it face-up on a
+     table, left everything open indefinitely. Hiding is now treated as
+     the strong signal it is (screen off, app switched) and cut to 60
+     seconds, and in-tab inactivity re-locks on its own at five minutes.
+
+     Both are cheap to recover from — one biometric touch — and the
+     asymmetry is the point: the cost of re-locking too eagerly is a
+     second of his time; the cost of re-locking too late is the card
+     balance on a screen somebody else is holding. */
+  const HIDDEN_RELOCK_MS = 60_000;
   useEffect(() => {
     if (!lockCfg.enabled) return;
     let hiddenAt = 0;
     function onVis() {
       if (document.hidden) {
         hiddenAt = Date.now();
-      } else if (hiddenAt && Date.now() - hiddenAt > 5 * 60_000) {
+      } else if (hiddenAt && Date.now() - hiddenAt > HIDDEN_RELOCK_MS) {
         setUnlocked(false);
       }
     }
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [lockCfg.enabled]);
+
+  /* Inactivity in this tab. `idle` is the existing 5-minute watermark
+     that already dims the dashboard — it was drawing a standby veil
+     over live data instead of locking it. */
+  useEffect(() => {
+    if (lockCfg.enabled && idle) setUnlocked(false);
+  }, [idle, lockCfg.enabled]);
 
   /* Offer setup once after boot, if the user has never been asked
      and the device has any unlock capability. Null-safe — if the
@@ -849,6 +865,33 @@ export default function App() {
     return () => { offAct(); };
   }, [booted, unlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* ── THE LOCK, ENFORCED BY NOT RENDERING ──────────────────────
+     The overlay used to be painted ON TOP of a fully-rendered
+     dashboard. Three things were wrong with that and all three were
+     reproducible: the tiles sat in the DOM (readable in devtools, in
+     view-source, and in the accessibility tree regardless of what was
+     drawn over them); .wc-scrim (z-index 540) and .sheet-scrim (600)
+     both outranked the overlay's z-[500], so an open sheet showed the
+     card balance straight through it; and the overlay animated in from
+     opacity 0 at 92% alpha, so it never fully covered anything and
+     there was a visible window before it tried.
+
+     An early return fixes all three at once by never building the tree.
+     Every hook has already run above this line, so the ordering is
+     stable — this is a render decision, not a conditional hook. */
+  if (lockCfg.enabled && !unlocked) {
+    return (
+      <>
+        <div className="fixed inset-0" style={{ background: '#05070b' }} />
+        <LockOverlay
+          mode="unlock"
+          onUnlocked={() => setUnlocked(true)}
+          onSetupDone={() => {}}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <Background view={view} />
@@ -1088,13 +1131,6 @@ export default function App() {
 
       {/* Biometric / PIN lock. Setup is one-time, unlock gates every
           relaunch + post-idle resume when enabled. */}
-      {lockCfg.enabled && !unlocked && (
-        <LockOverlay
-          mode="unlock"
-          onUnlocked={() => setUnlocked(true)}
-          onSetupDone={() => {}}
-        />
-      )}
       {showSetup && !lockCfg.enabled && (
         <LockOverlay
           mode="setup"

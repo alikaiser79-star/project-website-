@@ -173,14 +173,22 @@ export default function LockOverlay({ mode, onUnlocked, onSetupDone, reason }: P
   /* ── Render ─────────────────────────────────────────── */
 
   return (
+    /* No fade-in, fully opaque, above everything.
+       - The old `initial={{ opacity: 0 }}` meant a quarter-second in
+         which whatever sat behind was visible. On a lock screen the
+         animation IS the vulnerability.
+       - 0.92 alpha is not a cover. A blur over 8% of the real pixels
+         still leaks layout, and large digits stay legible through it.
+       - z-[500] lost to .wc-scrim (540) and .sheet-scrim (600), so an
+         open sheet drew straight over the lock. 10000 beats every
+         surface in the app; ErrorBoundary shares 9999 and is meant to
+         win when it fires. */
     <motion.div
       key="lock-overlay"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-      className="fixed inset-0 z-[500] flex items-center justify-center px-4"
-      style={{ background: 'rgba(8,11,16,0.92)', backdropFilter: 'blur(10px)' }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-[10000] flex items-center justify-center px-4"
+      style={{ background: '#05070b' }}
     >
       <motion.div
         initial={{ y: 12, scale: 0.97, opacity: 0 }}
