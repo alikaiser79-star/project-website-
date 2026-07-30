@@ -40,6 +40,37 @@ import { debateDecision, debateMove, debateText } from './kai/opposition';
 import { assembleContext as ctxFor } from './kai/council';
 import { gardenText, logHarvest, setPrice } from './kai/livingAsset';
 import { checkConformance, conformanceText, PROTOCOL_VERSION } from './kai/protocol.spec';
+import { worthSpeaking, isSilent, stimmeText, recordSpoken, spokenLog } from './kai/stimme';
+import { alterText } from './kai/alter';
+import { tagText, parseTag, logTag, streak } from './kai/tag';
+import { previousMonth, chapter, chapterText } from './kai/buch';
+import {
+  gardenText as gaertnerText, compareText, gardenProfit as gProfit,
+  logEnquiry, logConfirmed, logCompleted, logHarvest as gHarvest, logProduceSale,
+} from './kai/gaertner';
+import { rule as urteilRule, respond as urteilRespond, urteilText } from './kai/urteil';
+import { marktText, hausText } from './kai/markt';
+import { weltText } from './kai/welt';
+import { fillMonthChain, chainText as handText, fireChain } from './kai/hand';
+import { ordenText, onboard as ordenOnboard, recordVerdict, mayProductize } from './kai/orden';
+import {
+  endeText, readQueue, capture, attestVerified, refuseToBuild,
+} from './kai/ende';
+import {
+  preisText, setRates, claimValue, logKaiHours, logDelay, answerQuarter, THE_QUARTERLY,
+} from './kai/preis';
+import {
+  canonicalBrief, uebergabeText, seedFounding, contradictionText, recordEntry, exportBrief,
+} from './kai/uebergabe';
+import {
+  briefText, sealLetter, readLetter, survival, exportText, recordExport,
+  vaultText, setVault, setLetterDay, letterDay,
+  setDraft, sendDraft, discardDraft,
+} from './kai/brief';
+import {
+  parseBodyCommand, logBody, setMed, meds, medAlerts, MED_BOUNDARY,
+  hoursMonth, closeOnes, closeNames, setCloseNames, answerWeek, theYear, THE_QUESTION, mannText, coOccurrence,
+} from './kai/mann';
 import { emitAction } from './actions';
 import { toast } from '../hooks/useToasts';
 
@@ -56,6 +87,324 @@ export type CmdResult = string;
 export function runBuiltin(cmd: string): CmdResult | null {
   const q = cmd.trim().toLowerCase();
   if (!q) return null;
+
+  /* §46 DER MANN — FIRST, and deliberately so. These are three-word
+     lines typed in a bad moment; if one gets swallowed by a broader
+     branch further down he stops typing them, and this is the one part
+     of the system that is worthless the moment it is not used. */
+  {
+    const b = parseBodyCommand(cmd.trim());
+    if (b) {
+      logBody(b);
+      switch (b.kind) {
+        case 'sleep':       return `${b.value}h logged.`;
+        case 'med_skipped': return `Logged: no ${b.what}, ${new Date(b.at).toLocaleDateString(operator.locale)}. A date on a record, nothing more — I have no view on it.`;
+        case 'med_taken':   return `Logged: ${b.what} taken.`;
+        case 'flare':       return 'Logged. Nothing else — I am not going to guess what it means.';
+        case 'weight':      return `${b.value} logged.`;
+        case 'day_off':     return 'Logged as yours.';
+        default:            return 'Logged.';
+      }
+    }
+  }
+  if (/^mann$|^der mann$|^me$|^how am i$/i.test(q)) return mannText(Date.now(), closeNames());
+  if (/^meds?$|^medication$/i.test(q)) {
+    const a = medAlerts();
+    const list = meds();
+    if (!list.length) return `Nothing on file. Add one with "med Humira every 14 days" or "med Elvanse stock 12".\n\n${MED_BOUNDARY}`;
+    const L = a.length ? a.map((x) => '  ' + x.text) : ['  Nothing inside seven days, by the dates on record.'];
+    return [`${list.length} on file:`, ...L, '', MED_BOUNDARY].join('\n');
+  }
+  {
+    /* "med Humira every 14 days" / "med Elvanse stock 12" / "med Humira taken today" */
+    const m = cmd.trim().match(/^med\s+(\w+)\s+(?:every\s+(\d+)\s*days?|stock\s+(\d+)|taken(?:\s+today)?)$/i);
+    if (m) {
+      const name = m[1][0].toUpperCase() + m[1].slice(1);
+      const prev = meds().find((x) => x.name.toLowerCase() === name.toLowerCase()) || { name };
+      if (m[2]) setMed({ ...prev, name, everyDays: Number(m[2]) });
+      else if (m[3]) setMed({ ...prev, name, stock: Number(m[3]) });
+      else setMed({ ...prev, name, lastAt: Date.now() });
+      return `${name} on file. ${MED_BOUNDARY}`;
+    }
+  }
+  if (/^hours$|^my hours$|^where did the month go$/i.test(q)) return hoursMonth().line;
+  if (/^sleep$|^body$/i.test(q)) return coOccurrence().line;
+  {
+    /* "close Katie Mum" names them, once. "close" alone reads them back.
+       NOT "people" — that is §44's WELT and was already taken. */
+    const m = cmd.trim().match(/^(?:close|the people)(?:\s+(.+))?$/i);
+    if (m) {
+      const names = m[1] ? setCloseNames(m[1].split(/[,\s]+/)) : closeNames();
+      if (!names.length) return 'Nobody named yet. "close Katie Mum" — your call, not something I will infer from who you transact with most.';
+      return closeOnes(names).map((c) => c.line).join('\n');
+    }
+  }
+  {
+    /* The one question. His words go in unchanged and nothing reads them
+       back. NOT "week <words>" — "week verdict" and "week review" were
+       already commands, and filing "verdict" as his honest answer to how
+       the week went is the single worst thing this feature could do. */
+    const m = cmd.trim().match(/^(?:honestly|answer)\s+([\s\S]+)$/i);
+    if (m) return answerWeek(m[1]).reason;
+  }
+  if (/^the question$|^how was this week$/i.test(q)) {
+    return `"${THE_QUESTION}"\n  Answer with: honestly <one sentence>. It is recorded and never judged.`;
+  }
+  if (/^the year$|^my year$/i.test(q)) {
+    const y = theYear();
+    if (!y.length) return 'No weeks answered yet.';
+    return y.map((r) => `${r.week}  ${fmt(r.earnedEgp)} EGP   "${r.words}"`).join('\n');
+  }
+
+  /* §47 DER BRIEF. NOT "brief" — that is the daily briefing and has been
+     since §2. These are "letters". */
+  if (/^letters$|^der brief$|^the letters$/i.test(q)) return briefText();
+  if (/^survival$|^will it last$/i.test(q)) return survival().line;
+  if (/^vault$/i.test(q)) return vaultText();
+  {
+    /* Matches ANY "letter day …" so a typo cannot fall through to the
+       letter itself. It used to, and "letter day nonsense" sealed the
+       words "day nonsense" as his one letter for the year. */
+    const m = cmd.trim().match(/^letter day\b\s*(.*)$/i);
+    if (m) {
+      if (!m[1].trim()) return `The day is ${letterDay()}. Change it with "letter day MM-DD".`;
+      return setLetterDay(m[1].trim())
+        ? `The day is ${m[1].trim()}. A convention, not a meaning — it is yours to move.`
+        : `"${m[1].trim()}" is not a date. Give it as MM-DD. Nothing was written.`;
+    }
+  }
+  {
+    const m = cmd.trim().match(/^vault\s+(\w+)\s+([\s\S]+)$/i);
+    if (m) return setVault(m[1].toLowerCase(), m[2]).reason;
+  }
+  if (/^send letter$|^send it$/i.test(q)) return sendDraft().reason;
+  if (/^discard letter$/i.test(q)) { discardDraft(); return 'Thrown away. Nothing was sealed.'; }
+  {
+    /* Held, not sealed. The seal is a second, deliberate act. */
+    const m = cmd.trim().match(/^letter\s+([\s\S]+)$/i);
+    if (m) return setDraft(m[1]).reason;
+  }
+  {
+    const m = cmd.trim().match(/^for whoever\s+([\s\S]+)$/i);
+    if (m) return sealLetter('for_whoever', m[1]).reason;
+  }
+  {
+    /* Anchored on the id shape so it cannot swallow "open the garden". */
+    const m = cmd.trim().match(/^open\s+((?:to_self|counter|for_whoever)-\d{4}-[0-9a-z]{6})$/i);
+    if (m) {
+      const rd = readLetter(m[1]);
+      return rd.ok ? `${rd.reason}\n\n${rd.text}` : rd.reason;
+    }
+  }
+  if (/^export brief$|^export letters$|^export the record$/i.test(q)) {
+    try {
+      const blob = new Blob([exportText()], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `kai-sealed-record-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      /* Recorded only after the download actually fired — marking letters
+         safe on an export that threw would be the one lie that matters. */
+      recordExport();
+      return 'Exported. Plain text, dated, readable by anything. Put it somewhere backed up and copy it forward when you change machines — that file is the vault now, not this browser.';
+    } catch {
+      return 'The export did not run, so nothing is marked as saved. Nothing changed.';
+    }
+  }
+
+  /* §50 DAS ENDE DES BAUENS — the lock, and the last one. */
+  if (/^ende$|^freeze$|^das ende$|^am i frozen$/i.test(q)) return endeText();
+  if (/^queue$|^the queue$/i.test(q)) {
+    const r = readQueue();
+    return r.ok ? [r.reason, '', ...r.ideas!.map((i, n) => `  ${n + 1}. ${i.text}`)].join('\n') : r.reason;
+  }
+  {
+    const m = cmd.trim().match(/^capture\s+([\s\S]+)$/i);
+    if (m) return capture(m[1]).reason;
+  }
+  {
+    /* Deliberately loose here so attestVerified does the validating and
+       he gets its message. Anchoring the SHA shape in the ROUTE meant a
+       typo fell straight through and answered nothing at all. */
+    const m = cmd.trim().match(/^verified\s+(\S+)(?:\s+([\s\S]+))?$/i);
+    if (m) return attestVerified(m[1], m[2] || '').reason;
+  }
+  {
+    /* The refusal. Anything that reads as "build me a new section" gets
+       answered by the freeze, not by a plan. */
+    const m = cmd.trim().match(/^(?:build|add|design|spec|plan)\s+(?:me\s+)?(?:an?\s+)?(?:new\s+)?(?:section|organ|feature|module)\s*([\s\S]*)$/i);
+    if (m) {
+      const no = refuseToBuild(m[1] || 'a new section');
+      if (no) return no;
+    }
+  }
+
+  /* §49 DER PREIS. NOT "verdict" or "price" — both were taken in §29
+     and §36 long before this. */
+  if (/^preis$|^the price$|^what do you cost$|^do you deserve me$/i.test(q)) return preisText();
+  if (/^cost$|^organs$|^what do i use$/i.test(q)) return preisText();
+  {
+    const m = cmd.trim().match(/^rates\s+([\d.]+)\s+([\d.]+)(?:\s+(\w+))?$/i);
+    if (m) {
+      return setRates(Number(m[1]), Number(m[2]), (m[3] || 'USD').toUpperCase())
+        ? `Rates set: ${m[1]} in / ${m[2]} out per million tokens. Now I can price myself in ${(m[3] || 'USD').toUpperCase()} instead of counting tokens at you.`
+        : 'Both rates must be above zero. "rates 15 75" — dollars per million tokens, in then out.';
+    }
+  }
+  {
+    /* His attribution, and only his. KAI has no command for this. */
+    const m = cmd.trim().match(/^(earned|saved)\s+([\d,.]+)\s+([\s\S]+)$/i);
+    if (m) return claimValue(m[1].toLowerCase() as any, Number(m[2].replace(/,/g, '')), m[3], 'user').reason;
+  }
+  {
+    const m = cmd.trim().match(/^(caught|changed)\s+([\s\S]+)$/i);
+    if (m) return claimValue(m[1].toLowerCase() === 'caught' ? 'caught' : 'decision', 0, m[2], 'user').reason;
+  }
+  {
+    const m = cmd.trim().match(/^kai hours\s+([\d.]+)$/i);
+    if (m) return logKaiHours(Number(m[1])) ? `${m[1]} hours on me, logged. It goes on the cost side, where it belongs.` : 'Give a number above zero.';
+  }
+  {
+    const m = cmd.trim().match(/^delayed\s+(\d+)\s+([\s\S]+)$/i);
+    if (m) return logDelay(Number(m[1]), m[2])
+      ? `${m[1]} days recorded as delayed. Your figure — I have no way to measure work that did not happen.`
+      : 'Give a number of days above zero.';
+  }
+  {
+    const m = cmd.trim().match(/^quarter\s+([\s\S]+)$/i);
+    if (m) return answerQuarter(m[1]).reason;
+  }
+  if (/^the quarterly$|^quarterly question$/i.test(q)) {
+    return `"${THE_QUARTERLY}"\n  Answer with: quarter <words>. Recorded, never scored, and never used to argue with you.`;
+  }
+
+  /* §48 DIE ÜBERGABE — what every next model reads first. */
+  if (/^handover$|^canonical brief$|^read this first$/i.test(q)) return canonicalBrief();
+  if (/^ledger$|^session ledger$/i.test(q)) return uebergabeText();
+  if (/^seed handover$|^seed ledger$/i.test(q)) return seedFounding().reason;
+  {
+    /* "handover <advice>" — check it against the record before acting. */
+    const m = cmd.trim().match(/^(?:handover|check)\s+([\s\S]+)$/i);
+    if (m) return contradictionText(m[1]);
+  }
+  {
+    /* decided|warned|lesson|failed|question  <what> :: <why> [:: who]
+       The reason is mandatory at the syntax level too — no separator
+       means no entry, rather than an entry with an empty why. */
+    const m = cmd.trim().match(/^(decided|warned|lesson|failed|question)\s+([\s\S]+)$/i);
+    if (m) {
+      const kind = ({ decided: 'decision', warned: 'warning', lesson: 'lesson', failed: 'failure', question: 'open' } as const)[m[1].toLowerCase() as 'decided'];
+      const parts = m[2].split('::').map((s) => s.trim());
+      if (parts.length < 2 || !parts[1]) {
+        return `Give the reason too: "${m[1].toLowerCase()} <what> :: <why>". Without a why the next model can only obey it blindly or bin it, and it will bin it.`;
+      }
+      /* Named third party → recorded as an assistant's advice, which does
+         NOT carry his precedence. Unnamed → his own call. */
+      const who = parts[2] || operator.name;
+      const by = parts[2] ? 'assistant' : 'user';
+      return recordEntry(kind, parts[0], parts[1], by as any, who).reason;
+    }
+  }
+  if (/^export handover$|^export the brief$/i.test(q)) {
+    try {
+      const blob = new Blob([exportBrief()], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `kai-handover-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return 'Exported. Hand it to whoever or whatever helps next and ask them to read it before they advise. Regenerate rather than reusing it — the computed half moves.';
+    } catch {
+      return 'The export did not run. Nothing changed.';
+    }
+  }
+
+  /* §45 DER ORDEN — tier 1 only, and the gate on 2 and 3. */
+  if (/^orden$|^circle$|^the circle$|^proof$/i.test(q)) return ordenText();
+  if (/^tier ?2$|^tier ?3$|^productize$|^sell it$|^standard$/i.test(q)) return mayProductize().reason;
+  {
+    /* "onboard Katie commitments,money" */
+    const m = cmd.trim().match(/^onboard\s+(\S+)\s+(.+)$/i);
+    if (m) return ordenOnboard(m[1], m[2].split(/[,\s]+/).filter(Boolean), 'Ali').reason;
+  }
+  {
+    /* "verdict yes <words>" — refused unless it is them. */
+    const m = cmd.trim().match(/^verdict\s+(yes|no)\s+([\s\S]+)$/i);
+    if (m) return recordVerdict(/yes/i.test(m[1]), m[2], 'owner').reason;
+  }
+
+  /* §44 DIE KRONE — placed at the top so none of the five is swallowed
+     by an older, broader branch. That mistake was made once in §43. */
+  if (/^urteil$|^ruling$|^today$|^what do i do today$/i.test(q)) {
+    return urteilText(assembleContext(Date.now()));
+  }
+  {
+    const m = cmd.trim().match(/^(obey|override)(?:\s+(.+))?$/i);
+    if (m) {
+      const r = urteilRule(assembleContext(Date.now()));
+      if (!r) return 'There is no ruling to answer.';
+      const how = /obey/i.test(m[1]) ? 'obeyed' : 'overridden';
+      urteilRespond(r, how as any, m[2] || '');
+      return how === 'obeyed'
+        ? 'Recorded. I will check in three days whether it actually moved.'
+        : `Recorded as an override${m[2] ? ` — "${m[2]}"` : ''}. Not a problem: I find out later which of us was right.`;
+    }
+  }
+  if (/^markt$|^the board$|^where does the next pound go$|^returns?$/i.test(q)) return marktText();
+  if (/^haus$|^stimme des hauses$|^what do the assets say$/i.test(q)) return hausText();
+  if (/^welt$|^people$|^who owes me$|^trust$/i.test(q)) return weltText();
+  {
+    const m = cmd.trim().match(/^fill\s+(\w+)(?:\s+(\d+))?$/i);
+    if (m) {
+      const built = fillMonthChain(m[1], parseInt(m[2] || '0', 10) || 0, 2750);
+      if (!built.chain) return 'Nothing chainable in that campaign.';
+      (window as any).__kaiChain = built;
+      return handText(built.chain, built.refused) + '\n\nSay "fire" to approve all of it.';
+    }
+  }
+  if (/^fire$|^approve chain$/i.test(q)) {
+    const built = (window as any).__kaiChain;
+    if (!built?.chain) return 'No chain is waiting.';
+    const r = fireChain(built.chain);
+    return r.stoppedAt
+      ? `Stopped at "${r.stoppedAt}" after ${r.fired} step(s). Nothing further ran.`
+      : `${r.fired} steps fired. Each one is at the Gate — nothing has left the device yet.`;
+  }
+
+  /* §43 DER GÄRTNER — the garden, measured like the flat. Placed BEFORE
+     the broad /garden|plant/ branch so it is not swallowed by it. */
+  if (/^g(ä|ae)rtner$|^gardener$|^garden ledger$|^garden profit$|^garden line$/i.test(q)) {
+    return gaertnerText();
+  }
+  if (/^compare$|^makadi vs garden$|^which asset$|^where does the next hour go$/i.test(q)) {
+    return compareText();
+  }
+  {
+    /* "event confirmed Mona evening 12000 in 10 days" and friends. */
+    const m = cmd.trim().match(/^event\s+(enquiry|confirmed|completed)\s+(\S+)\s+(\S+)\s+([\d,]+)(?:\s+in\s+(\d+)\s*days?)?$/i);
+    if (m) {
+      const price = parseFloat(m[4].replace(/,/g, ''));
+      const date = Date.now() + (parseInt(m[5] || '0', 10) * 86_400_000);
+      const g = { guest: m[2], pkg: m[3], priceEgp: price, date };
+      if (/enquiry/i.test(m[1])) { logEnquiry(g); return `Enquiry logged — ${g.guest}, ${g.pkg}.`; }
+      if (/confirmed/i.test(m[1])) { logConfirmed(g); return `Confirmed — ${g.guest}, ${g.pkg}, ${fmt(price)} EGP. Not counted as earned until it is completed.`; }
+      logCompleted(g);
+      return `Completed — ${g.guest}, ${fmt(price)} EGP earned. ${gProfit().verdict}`;
+    }
+  }
+  {
+    /* "harvest lemons 4 kg 400" · "sold tomatoes 300" */
+    const h = cmd.trim().match(/^harvest\s+(\S+)\s+([\d.]+)\s*(\S+)\s+([\d,]+)$/i);
+    if (h) {
+      gHarvest(h[1], parseFloat(h[2]), h[3], parseFloat(h[4].replace(/,/g, '')));
+      return `Harvest logged — ${h[2]}${h[3]} ${h[1]}, ${fmt(parseFloat(h[4].replace(/,/g, '')))} EGP at market. Not revenue until it is sold.`;
+    }
+    const sd = cmd.trim().match(/^sold\s+(\D\S*)\s+([\d,]+)$/i);
+    if (sd) {
+      logProduceSale(sd[1], parseFloat(sd[2].replace(/,/g, '')));
+      return `Sale logged — ${sd[1]}, ${fmt(parseFloat(sd[2].replace(/,/g, '')))} EGP. That one is revenue.`;
+    }
+  }
+
 
   if (/^(status|status report|sitrep|summary)$/i.test(q)) {
     const s = loadState();
@@ -462,6 +811,49 @@ export function runBuiltin(cmd: string): CmdResult | null {
       toastFn(d.ok ? 'ok' : 'err', L.join('\n'), 'GMAIL', 30000);
     }).catch((e) => toastFn('err', 'Could not reach /api/gmail/health: ' + String(e?.message || e), 'GMAIL', 12000));
     return 'Checking Gmail end to end — env vars, the token exchange, and a real Gmail call…';
+  }
+
+  /* §40.1 DIE STIMME — what, if anything, has earned a sentence. */
+  if (/^stimme$|^voice$|^say something$|^what would you say$/i.test(q)) {
+    return stimmeText(assembleContext(Date.now()));
+  }
+  if (/^speak now$|^interrupt me$/i.test(q)) {
+    const v = worthSpeaking(assembleContext(Date.now()));
+    if (isSilent(v)) return `Nothing. ${v.reason}.`;
+    recordSpoken(v);
+    return `"${v.text}"\n\nagainst it: ${v.counter}`;
+  }
+  if (/^what have you said$|^spoken$|^interruptions$/i.test(q)) {
+    const log = spokenLog();
+    if (!log.length) return 'I have never interrupted you.';
+    return log.map((x) => `${new Date(x.at).toISOString().slice(0, 16).replace('T', ' ')} — ${x.text}`).join('\n');
+  }
+
+  /* §40.6 DAS ALTER — how you have changed, and what you are repeating. */
+  if (/^alter$|^ag(e|ing)$|^have i changed$|^am i repeating$/i.test(q)) return alterText();
+
+  /* DER TAG — the ten-second logger. Opens the route; the text answer
+     stands alone if he just wants the streak. */
+  if (/^tag$|^der tag$|^log$|^streak$/i.test(q)) {
+    try { location.hash = '#/tag'; } catch { /* ignore */ }
+    return tagText();
+  }
+  {
+    /* "tag 340 fuel" — logs without opening anything. */
+    const m = cmd.trim().match(/^tag\s+(.+)$/i);
+    if (m) {
+      const p = parseTag(m[1]);
+      if (!p.entry) return p.problem || 'No.';
+      logTag(p.entry);
+      const s = streak();
+      return `Logged ${Math.round(p.entry.amountEgp).toLocaleString(operator.locale)} EGP · ${p.entry.word}. ${s.days} day streak. Already in the Spine — nothing to export.`;
+    }
+  }
+
+  /* DAS BUCH — the month, written from the Spine. */
+  if (/^buch$|^das buch$|^the book$|^chapter$/i.test(q)) {
+    try { location.hash = '#/buch'; } catch { /* ignore */ }
+    return chapterText(chapter(previousMonth()));
   }
 
   /* §26 DIE BEICHTE — the guided correction pass over every headline number. */

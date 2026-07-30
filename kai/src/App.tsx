@@ -70,6 +70,11 @@ import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
 import CommandOrder from './components/CommandOrder';
+import SectionTiles from './components/SectionTiles';
+import DerTag from './components/DerTag';
+import DerBrief from './components/DerBrief';
+import { dismissToday as briefDismiss } from './lib/kai/brief';
+import DasBuch from './components/DasBuch';
 import ConfessionSheet, { type ConfessionMode } from './components/ConfessionSheet';
 import type { Fact } from './lib/kai/confession';
 import { callingReport } from './lib/kai/nowItems';
@@ -146,6 +151,15 @@ export default function App() {
   const initial = loadState();
   const [booted, setBooted]   = useState(false);
   const [view, setViewState]  = useState<ViewKey>(() => loadView());
+  /* Real URLs without pulling in a router: #/tag and #/buch survive a
+     hard refresh and can be bookmarked, which a modal cannot. */
+  const [hash, setHash] = useState(() => { try { return location.hash; } catch { return ''; } });
+  useEffect(() => {
+    const on = () => setHash(location.hash);
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  const closeHash = () => { try { location.hash = ''; } catch { /* ignore */ } };
   const [cmdOpen, setCmdOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
@@ -979,6 +993,9 @@ export default function App() {
 
             {/* §24 DIE ORDNUNG — the ordered three-zone face is the default;
                 the living organism (CORE-V6) is one tap away. */}
+            {/* The four sections worth a permanent surface. Above the
+                order so they are seen, not scrolled past. */}
+            {view === 'command' && !showOrganism && <SectionTiles />}
             {view === 'command' && !showOrganism && <CommandOrder onOrganism={() => setShowOrganism(true)} />}
             {view === 'command' && showOrganism && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
             {view === 'command' && showOrganism && (
@@ -1096,6 +1113,13 @@ export default function App() {
         }}
       />
       <Tour open={tourOpen} onClose={() => setTourOpen(false)} />
+      {/^#\/tag\b/.test(hash) && <div className="sheet-scrim" onClick={closeHash}><div onClick={(e) => e.stopPropagation()}><DerTag onClose={closeHash} /></div></div>}
+      {/^#\/buch\b/.test(hash) && <div className="sheet-scrim" onClick={closeHash}><div onClick={(e) => e.stopPropagation()}><DasBuch onClose={closeHash} /></div></div>}
+      {/* §47 — its own full-screen black surface, so no scrim and no
+          click-outside: a letter half-written is not something to lose
+          to a stray tap on the backdrop. */}
+      {/^#\/brief\b/.test(hash) && <DerBrief onClose={() => { briefDismiss(); closeHash(); }} />}
+
       <ToastStack />
       <BuildBanner />
 

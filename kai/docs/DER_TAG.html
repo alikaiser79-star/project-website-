@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>DER TAG</title>
+<style>
+  :root { --ink:#f0e2d0; --ink2:rgba(240,226,208,.5); --ink3:rgba(240,226,208,.28);
+          --gold:#ffb46e; --bg:#080606; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; min-height:100dvh; background:
+      radial-gradient(120% 70% at 50% 0%, rgba(255,180,110,.05), transparent 60%), var(--bg);
+    color:var(--ink); font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    font-weight:300; -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:6vh max(env(safe-area-inset-left),1.4rem) calc(env(safe-area-inset-bottom) + 6vh); }
+  main { width:100%; max-width:30rem; margin:0 auto; }
+  .kicker { font-size:.62rem; letter-spacing:.34em; text-transform:uppercase; color:var(--ink3); }
+  .streak { font-size:clamp(2.4rem,12vw,3.6rem); font-weight:300; letter-spacing:-.03em; margin:.3rem 0 0; }
+  .streak span { color:var(--gold); }
+  .sub { font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink2); margin-top:.4rem; }
+  form { display:flex; align-items:center; gap:.9rem; margin:2.6rem 0 0;
+         padding-bottom:.6rem; border-bottom:1px solid rgba(255,180,110,.18); }
+  #mic { width:44px; height:44px; flex:0 0 auto; border:none; background:none; cursor:pointer;
+         display:flex; align-items:center; justify-content:center; }
+  #mic i { width:9px; height:9px; border-radius:50%; background:rgba(255,180,110,.5); transition:.25s; display:block; }
+  #mic.live i { background:var(--gold); transform:scale(1.6); box-shadow:0 0 18px rgba(255,180,110,.8); }
+  input { flex:1 1 auto; min-width:0; min-height:44px; background:none; border:none; outline:none;
+          font:inherit; font-size:1rem; color:var(--ink); }
+  input::placeholder { color:var(--ink3); }
+  .msg { min-height:1.2rem; margin-top:.9rem; font-size:.78rem; color:var(--ink2); }
+  .msg.err { color:#ffab84; }
+  ul { list-style:none; margin:2.4rem 0 0; padding:0; }
+  li { display:flex; gap:.9rem; padding:.5rem 0; font-size:.82rem; color:var(--ink2);
+       border-bottom:1px solid rgba(255,255,255,.04); }
+  li b { font-weight:400; color:var(--ink); font-variant-numeric:tabular-nums; }
+  li span { margin-left:auto; color:var(--ink3); }
+  footer { margin-top:2.6rem; font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink3); line-height:1.9; }
+</style>
+</head><body><main>
+  <div class="kicker">Der Tag</div>
+  <div class="streak"><span id="n">0</span> day streak</div>
+  <div class="sub" id="sub">amount and one word</div>
+
+  <form id="f" autocomplete="off">
+    <button type="button" id="mic" aria-label="hold to speak"><i></i></button>
+    <input id="i" placeholder="340 fuel" enterkeyhint="done" autocapitalize="none">
+  </form>
+  <div class="msg" id="m"></div>
+
+  <ul id="list"></ul>
+
+  <footer>
+    Standalone copy — stores locally in this file's browser.<br>
+    The version inside KAI writes every entry straight to the Spine.
+  </footer>
+</main>
+<script>
+(function () {
+  var KEY = 'dertag.entries.v1';
+  var $ = function (id) { return document.getElementById(id); };
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
+  function save(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+  function dayKey(ts) { return new Date(ts).toISOString().slice(0, 10); }
+
+  /* Same parse rule as the in-app version: a number and a word, or nothing. */
+  var STOP = ['on','for','the','a','of','to','at','spent','paid','bought','got','in','egp','le','pounds'];
+  function parse(line) {
+    var raw = (line || '').trim();
+    if (!raw) return { err: 'Nothing to log.' };
+    var m = raw.match(/(-|\+)?\s*(\d[\d,.]*)\s*(k\b)?/i);
+    if (!m) return { err: 'It needs a number and a word — "340 fuel".' };
+    var amt = parseFloat(m[2].replace(/,/g, ''));
+    if (m[3]) amt *= 1000;
+    if (!isFinite(amt) || amt <= 0) return { err: 'That is not an amount I can use.' };
+    var word = raw.replace(m[0], ' ').split(/[^A-Za-zÀ-ɏ؀-ۿ]+/)
+      .filter(function (w) { return w.length > 1 && STOP.indexOf(w.toLowerCase()) < 0; })[0];
+    if (!word) return { err: '"' + Math.round(amt).toLocaleString('en-GB') + '" what? One word.' };
+    var income = /^\+/.test(raw) || /\b(in|got|earned|received|income)\b/i.test(raw);
+    return { amount: amt, word: word.toLowerCase(), income: income, at: Date.now() };
+  }
+
+  function streak(list) {
+    var days = {}; list.forEach(function (e) { days[dayKey(e.at)] = 1; });
+    var today = !!days[dayKey(Date.now())], n = 0, i = today ? 0 : 1;
+    for (;; i++) { if (!days[dayKey(Date.now() - i * 86400000)]) break; n++; }
+    return { n: n, today: today };
+  }
+
+  function render() {
+    var list = load(), s = streak(list);
+    $('n').textContent = s.n;
+    $('sub').textContent = list.length
+      ? (s.today ? list.length + ' entries' : 'today is still open · ' + list.length + ' entries')
+      : 'amount and one word';
+    var byDay = {};
+    list.forEach(function (e) {
+      var d = dayKey(e.at);
+      byDay[d] = byDay[d] || { egp: 0, words: [] };
+      byDay[d].egp += (e.income ? 1 : -1) * e.amount;
+      if (byDay[d].words.indexOf(e.word) < 0) byDay[d].words.push(e.word);
+    });
+    $('list').innerHTML = Object.keys(byDay).sort().reverse().slice(0, 10).map(function (d) {
+      var x = byDay[d];
+      return '<li><b>' + (x.egp >= 0 ? '+' : '−') +
+        Math.abs(Math.round(x.egp)).toLocaleString('en-GB') + '</b>' + x.words.join(' · ') +
+        '<span>' + d.slice(5) + '</span></li>';
+    }).join('');
+  }
+
+  $('f').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var r = parse($('i').value);
+    if (r.err) { $('m').className = 'msg err'; $('m').textContent = r.err; return; }
+    var list = load(); list.push(r); save(list);
+    $('i').value = ''; $('m').className = 'msg';
+    $('m').textContent = 'Logged ' + Math.round(r.amount).toLocaleString('en-GB') + ' · ' + r.word;
+    render();
+  });
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null;
+  $('mic').addEventListener('pointerdown', function () {
+    if (!window.isSecureContext) { $('m').className = 'msg err'; $('m').textContent = 'The microphone needs HTTPS.'; return; }
+    if (!SR) { $('m').className = 'msg err'; $('m').textContent = 'This browser has no speech recognition — type it.'; return; }
+    rec = new SR(); rec.continuous = false; rec.interimResults = true;
+    try { rec.lang = navigator.language || 'en-GB'; } catch (e) {}
+    $('mic').classList.add('live');
+    rec.onresult = function (e) {
+      var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      $('i').value = t;
+    };
+    rec.onerror = function (e) { $('m').className = 'msg err'; $('m').textContent = 'Voice: ' + (e.error || 'failed'); };
+    rec.onend = function () { $('mic').classList.remove('live'); };
+    try { rec.start(); } catch (e) { $('mic').classList.remove('live'); }
+  });
+  $('mic').addEventListener('pointerup', function () { try { rec && rec.stop(); } catch (e) {} });
+
+  render();
+})();
+</script>
+</body></html>

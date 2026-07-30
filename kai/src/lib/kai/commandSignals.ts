@@ -23,7 +23,7 @@
    etc.) so tapping an organ actually does something.
    ============================================================ */
 
-import type { OrganSignal } from './commandCore';
+import type { OrganSignal } from '../../types';
 import { loadState } from '../store';
 import { listExpenses, monthlyTotal } from '../expenses';
 import { listQueue, queueCount } from '../content';

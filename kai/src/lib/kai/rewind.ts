@@ -11,7 +11,7 @@ import { getEvents } from './events';
 import { getCommandSignals } from './commandSignals';
 import { operator } from '../../kaiConfig';
 import { fmtMoney } from './money';
-import type { OrganSignal } from './commandCore';
+import type { OrganSignal } from '../../types';
 import type { Currency } from '../../types';
 
 const DAY = 86_400_000;

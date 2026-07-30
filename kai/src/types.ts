@@ -193,3 +193,18 @@ export type KaiPersisted = {
      runway. Editable in Settings; 0 means "not set yet". */
   liquidCash: number;
 };
+
+/* ── ORGAN SIGNAL ────────────────────────────────────────────
+   Lived in commandCore.ts (the V4 renderer). V6 replaced V4 for every
+   actual render, but rewind.ts and commandSignals.ts still imported
+   this ONE TYPE from it — so 55 KB of superseded animation code shipped
+   in every bundle to carry an interface. It lives here now, and
+   commandCore.ts is gone. Deliberately NOT placed in src/lib/kai/:
+   the §50 freeze blocks new modules there, and this is a relocation,
+   not a section. */
+export interface OrganSignal {
+  formatted: string;            // display value, e.g. "$12,480"
+  calling: boolean;             // domain says "needs you"
+  victory?: boolean;            // §9 — a money milestone landed; pulse GOLD, not crimson
+  intensity?: number;           // 0..1 call strength (default 1). <1 = a gentle call, not an urgent one.
+}
