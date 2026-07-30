@@ -71,6 +71,7 @@ import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
 import CommandOrder from './components/CommandOrder';
 import SectionTiles from './components/SectionTiles';
+import Invitations from './components/Invitations';
 import DerTag from './components/DerTag';
 import DerBrief from './components/DerBrief';
 import { dismissToday as briefDismiss } from './lib/kai/brief';
@@ -438,7 +439,12 @@ export default function App() {
      cashflow milestone is pending and nothing else is in the way. */
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | undefined;
-    const check = () => { try { scanMilestones(); if (hasVictory()) setWarChestOpen(true); } catch { /* ignore */ } };
+    /* Scan only. It used to call setWarChestOpen(true) here — on boot
+       AND on every Spine write — so a pending milestone re-opened a
+       full-screen sheet over the dashboard every time anything was
+       logged. The scan still runs (it is what makes hasVictory() true);
+       the Invitations strip offers it, and Ali opens it. */
+    const check = () => { try { scanMilestones(); } catch { /* ignore */ } };
     check();
     const off = subscribeSpine(() => { if (t) clearTimeout(t); t = setTimeout(check, 800); });
     return () => { if (t) clearTimeout(t); off(); };
@@ -551,13 +557,23 @@ export default function App() {
     if (lockCfg.enabled && idle) setUnlocked(false);
   }, [idle, lockCfg.enabled]);
 
-  /* Offer setup once after boot, if the user has never been asked
-     and the device has any unlock capability. Null-safe — if the
-     check throws or the user skipped before, we just don't show it. */
+  /* Offered as a chip in the Invitations strip, not as a takeover.
+
+     This one was the hardest call of the three: a first-run security
+     prompt is among the few interrupts that can be justified, and I
+     had just spent a commit making the lock actually work. But the
+     rule is the rule, and a persistent chip beats a modal here on its
+     own terms — a one-shot prompt that gets reflex-dismissed sets
+     `offered` and never returns, whereas the chip stays visible for as
+     long as the lock is off. It is more likely to end in a lock, not
+     less.
+
+     The effect is kept, disabled, rather than deleted: `showSetup` is
+     still what renders the sheet, and Invitations now sets it. */
   useEffect(() => {
     if (!booted) return;
     if (lockCfg.enabled || lockCfg.offered) return;
-    const id = setTimeout(() => setShowSetup(true), 1600);
+    const id = setTimeout(() => { /* no auto-open — see Invitations */ }, 1600);
     return () => clearTimeout(id);
   }, [booted, lockCfg.enabled, lockCfg.offered]);
 
@@ -765,10 +781,11 @@ export default function App() {
       planIfDue();
     }
 
-    // Protocol (6.3) — first open of the day compiles the day; after
-    // 21:00 the first open runs the shutdown ritual instead.
-    if (shouldShutdown()) setDayRitual('shutdown');
-    else if (shouldDayCompile()) setTimeout(() => setDayRitual('compile'), 1200);
+    /* Protocol (6.3) used to seize the screen here — shutdown ritual
+       immediately after 21:00, or the compile ritual 1.2s after the
+       first open of the day. Both now appear as chips in the
+       Invitations strip instead. The predicates are unchanged; only who
+       decides to open them has. */
     /* Dev hooks to preview the plan / reckoning / debrief on any day. */
     (window as any).__kaiPlan = () => { ensureMorningPlan().then(p => { console.info('[KAI plan]', p); setMorningPlan(p); }).catch(() => {}); };
     (window as any).__kaiReckon = () => { ensureReckoning().then(r => { console.info('[KAI reckoning]', r); setReckoning(r); }).catch(() => {}); };
@@ -993,6 +1010,16 @@ export default function App() {
 
             {/* §24 DIE ORDNUNG — the ordered three-zone face is the default;
                 the living organism (CORE-V6) is one tap away. */}
+            {/* What is waiting, offered rather than imposed. */}
+            {!showOrganism && (
+              <Invitations
+                onWarChest={() => setWarChestOpen(true)}
+                onRitual={(mode) => setDayRitual(mode)}
+                lockOff={!lockCfg.enabled}
+                onProtect={() => setShowSetup(true)}
+              />
+            )}
+
             {/* The four sections worth a permanent surface. Above the
                 order so they are seen, not scrolled past. */}
             {view === 'command' && !showOrganism && <SectionTiles />}
