@@ -1016,7 +1016,11 @@ export default function App() {
                 onWarChest={() => setWarChestOpen(true)}
                 onRitual={(mode) => setDayRitual(mode)}
                 lockOff={!lockCfg.enabled}
-                onProtect={() => setShowSetup(true)}
+                noPinBackup={lockCfg.enabled && !!lockCfg.credentialId && !lockCfg.pinHash}
+                /* Straight to Settings → Security, where the PIN fields
+                   live. The old first-run sheet only ever offered setup
+                   ONCE; this is the durable route. */
+                onProtect={() => { setFocusSettingsSection('Security'); setSetOpen(true); }}
               />
             )}
 

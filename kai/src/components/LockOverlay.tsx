@@ -20,7 +20,7 @@ import {
   type LockConfig,
   loadLockConfig, saveLockConfig,
   platformAuthAvailable, webAuthnSupported,
-  registerCredential, verifyCredential,
+  registerCredential, verifyCredential, clearLock,
   setPin, verifyPin,
 } from '../lib/lock';
 
@@ -127,12 +127,29 @@ export default function LockOverlay({ mode, onUnlocked, onSetupDone, reason }: P
 
   /* ── Unlock actions ─────────────────────────────────── */
 
+  /* Can this screen actually be opened right now? */
+  const canBiometric = !!cfg.credentialId && webAuthnSupported();
+  const canPin = !!cfg.pinHash;
+  const stuck = !canPin && (!canBiometric || bioFails >= 2);
+
+  /* A hung authenticator is a lockout too. verifyCredential() can sit
+     unresolved — no platform authenticator, a permission prompt that
+     never appears, a PWA context the OS will not service — and while it
+     does, unlockBusy keeps the only button disabled and the screen
+     reads "Waiting for authenticator…" forever with nothing else on it.
+     A timeout converts that silence into a countable failure, which is
+     what surfaces the recovery path. */
+  const BIO_TIMEOUT_MS = 25_000;
+
   async function tryBiometricUnlock() {
     if (!cfg.credentialId) return;
     setUnlockBusy(true);
     setErr(null);
     try {
-      const ok = await verifyCredential(cfg.credentialId);
+      const ok = await Promise.race([
+        verifyCredential(cfg.credentialId),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), BIO_TIMEOUT_MS)),
+      ]);
       if (ok) {
         onUnlocked();
       } else {
@@ -140,7 +157,9 @@ export default function LockOverlay({ mode, onUnlocked, onSetupDone, reason }: P
       }
     } catch (e: any) {
       bumpFails();
-      setErr(humanizeWebAuthnError(e));
+      setErr(String(e?.message) === 'timeout'
+        ? 'The authenticator never answered. If this device cannot do biometrics, there is no way in without a PIN.'
+        : humanizeWebAuthnError(e));
     } finally {
       setUnlockBusy(false);
     }
@@ -356,11 +375,55 @@ export default function LockOverlay({ mode, onUnlocked, onSetupDone, reason }: P
                 </>
               )}
 
-              {!cfg.credentialId && !cfg.pinHash && (
-                <div className="px-3 py-2 border border-danger/40 text-danger text-[11px] leading-relaxed rounded flex items-start gap-2">
-                  <X size={12} className="mt-0.5 shrink-0" />
-                  Lock is enabled but no unlock method is registered.
-                  Reset KAI state from Settings → Danger zone to recover.
+              {/* NO USABLE WAY IN. Three states reach here and all three
+                  are lockouts, not forgotten passwords:
+
+                    · nothing registered at all;
+                    · a biometric credential registered but THIS browser
+                      cannot do WebAuthn — a different browser, a PWA
+                      reinstall, an OS change. The unlock button only
+                      renders when webAuthnSupported(), so the screen
+                      showed "Waiting for authenticator…" and nothing
+                      else, forever;
+                    · biometric supported but failing repeatedly, with no
+                      PIN to fall back to. bumpFails() only reveals the
+                      PIN when cfg.pinHash exists, so without one the
+                      failures led nowhere.
+
+                  The old copy sent the user to "Settings → Danger zone",
+                  which sits BEHIND the lock and is unreachable — an
+                  instruction that cannot be followed, printed at the one
+                  moment it is the only thing on screen.
+
+                  Security cost of the button: none that is not already
+                  paid. These states cannot be opened by any credential,
+                  and anyone holding the device can clear the same key
+                  from devtools in five seconds. This lock is device-
+                  local shoulder-surfing protection and has never claimed
+                  otherwise; a permanent lockout of the owner is the
+                  worse failure by a wide margin. It clears the lock
+                  config only — Spine, settings and sealed letters are
+                  untouched. */}
+              {stuck && (
+                <div className="space-y-2">
+                  <div className="px-3 py-2 border border-danger/40 text-danger text-[11px] leading-relaxed rounded flex items-start gap-2">
+                    <X size={12} className="mt-0.5 shrink-0" />
+                    {!cfg.credentialId && !cfg.pinHash
+                      ? 'The lock is on but nothing is registered to open it — no biometric, no PIN. There is no code that works, so this is not a forgotten password; it is a broken lock.'
+                      : !canBiometric
+                        ? 'A biometric is registered, but this browser cannot use it and no PIN was ever set. There is no way in from here.'
+                        : 'The biometric has failed repeatedly and no PIN was set as a fallback. There is nothing left to try.'}
+                  </div>
+                  <button
+                    onClick={() => { clearLock(); location.reload(); }}
+                    className="w-full px-3 py-2 border border-amber text-amber hover:bg-amber/10 rounded text-[11px] tracking-[0.16em] uppercase"
+                  >
+                    Clear the lock and continue
+                  </button>
+                  <p className="text-steel/80 text-[10px] leading-relaxed">
+                    Clears the lock only. Your data, settings and sealed letters are not touched.
+                    Set a PIN afterwards in Settings → Security.
+                  </p>
                 </div>
               )}
 

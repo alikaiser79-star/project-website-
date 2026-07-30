@@ -24,7 +24,7 @@ import { hasVictory } from '../lib/kai/warchest';
 import { useKaiVersion } from '../lib/kai/mirror';
 
 export default function Invitations({
-  onWarChest, onRitual, lockOff, onProtect,
+  onWarChest, onRitual, lockOff, onProtect, noPinBackup,
 }: {
   onWarChest: () => void;
   onRitual: (mode: 'compile' | 'shutdown') => void;
@@ -33,6 +33,10 @@ export default function Invitations({
      was dismissed and never came back. */
   lockOff: boolean;
   onProtect: () => void;
+  /* Lock ON, biometric registered, NO PIN. One browser change, one PWA
+     reinstall or one OS update away from a device that cannot be
+     opened at all — and nothing anywhere said so. */
+  noPinBackup: boolean;
 }) {
   useKaiVersion();
 
@@ -40,7 +44,7 @@ export default function Invitations({
   const shutdown = (() => { try { return shouldShutdown(); } catch { return false; } })();
   const compile  = (() => { try { return !shutdown && shouldDayCompile(); } catch { return false; } })();
 
-  if (!victory && !shutdown && !compile && !lockOff) return null;
+  if (!victory && !shutdown && !compile && !lockOff && !noPinBackup) return null;
 
   const chip =
     'px-3 py-1.5 rounded-full border border-amber/35 hover:border-amber text-amber ' +
@@ -53,6 +57,7 @@ export default function Invitations({
       {shutdown && <button className={chip} onClick={() => onRitual('shutdown')}>Shut down the day</button>}
       {compile && <button className={chip} onClick={() => onRitual('compile')}>Compile the day</button>}
       {lockOff && <button className={chip} onClick={onProtect}>Protect KAI</button>}
+      {noPinBackup && <button className={chip} onClick={onProtect}>Add a PIN backup</button>}
     </div>
   );
 }
