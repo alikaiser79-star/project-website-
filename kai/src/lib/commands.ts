@@ -54,6 +54,9 @@ import { weltText } from './kai/welt';
 import { fillMonthChain, chainText as handText, fireChain } from './kai/hand';
 import { ordenText, onboard as ordenOnboard, recordVerdict, mayProductize } from './kai/orden';
 import {
+  preisText, setRates, claimValue, logKaiHours, logDelay, answerQuarter, THE_QUARTERLY,
+} from './kai/preis';
+import {
   canonicalBrief, uebergabeText, seedFounding, contradictionText, recordEntry, exportBrief,
 } from './kai/uebergabe';
 import {
@@ -204,6 +207,45 @@ export function runBuiltin(cmd: string): CmdResult | null {
     } catch {
       return 'The export did not run, so nothing is marked as saved. Nothing changed.';
     }
+  }
+
+  /* §49 DER PREIS. NOT "verdict" or "price" — both were taken in §29
+     and §36 long before this. */
+  if (/^preis$|^the price$|^what do you cost$|^do you deserve me$/i.test(q)) return preisText();
+  if (/^cost$|^organs$|^what do i use$/i.test(q)) return preisText();
+  {
+    const m = cmd.trim().match(/^rates\s+([\d.]+)\s+([\d.]+)(?:\s+(\w+))?$/i);
+    if (m) {
+      return setRates(Number(m[1]), Number(m[2]), (m[3] || 'USD').toUpperCase())
+        ? `Rates set: ${m[1]} in / ${m[2]} out per million tokens. Now I can price myself in ${(m[3] || 'USD').toUpperCase()} instead of counting tokens at you.`
+        : 'Both rates must be above zero. "rates 15 75" — dollars per million tokens, in then out.';
+    }
+  }
+  {
+    /* His attribution, and only his. KAI has no command for this. */
+    const m = cmd.trim().match(/^(earned|saved)\s+([\d,.]+)\s+([\s\S]+)$/i);
+    if (m) return claimValue(m[1].toLowerCase() as any, Number(m[2].replace(/,/g, '')), m[3], 'user').reason;
+  }
+  {
+    const m = cmd.trim().match(/^(caught|changed)\s+([\s\S]+)$/i);
+    if (m) return claimValue(m[1].toLowerCase() === 'caught' ? 'caught' : 'decision', 0, m[2], 'user').reason;
+  }
+  {
+    const m = cmd.trim().match(/^kai hours\s+([\d.]+)$/i);
+    if (m) return logKaiHours(Number(m[1])) ? `${m[1]} hours on me, logged. It goes on the cost side, where it belongs.` : 'Give a number above zero.';
+  }
+  {
+    const m = cmd.trim().match(/^delayed\s+(\d+)\s+([\s\S]+)$/i);
+    if (m) return logDelay(Number(m[1]), m[2])
+      ? `${m[1]} days recorded as delayed. Your figure — I have no way to measure work that did not happen.`
+      : 'Give a number of days above zero.';
+  }
+  {
+    const m = cmd.trim().match(/^quarter\s+([\s\S]+)$/i);
+    if (m) return answerQuarter(m[1]).reason;
+  }
+  if (/^the quarterly$|^quarterly question$/i.test(q)) {
+    return `"${THE_QUARTERLY}"\n  Answer with: quarter <words>. Recorded, never scored, and never used to argue with you.`;
   }
 
   /* §48 DIE ÜBERGABE — what every next model reads first. */
