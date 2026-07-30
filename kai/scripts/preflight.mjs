@@ -78,6 +78,47 @@ head('4. esbuild compile (every api/ route)');
     catch(e){ bad(relative(ROOT,r)+' — '+((e.stderr?.toString()||e.message).split('\n').find(l=>/error/i.test(l))||'')); }
   }
 }
+head('4b. §50 feature freeze');
+{
+  /* The only mechanism in §50 with real teeth, because preflight is the
+     gate every push already goes through. It fails on a NEW section
+     module in src/lib/kai while the freeze holds — not on edits, so
+     fixing what exists stays free, which is the entire point of a
+     freeze on BUILDING rather than a freeze on working.
+
+     Deliberately overridable: blocking a genuine emergency fix would be
+     worse than the freeze is good. The override is loud and the bypass
+     is a visible act rather than a silent one. */
+  try {
+    const f = JSON.parse(readFileSync(join(ROOT,'FREEZE.json'),'utf8'));
+    const start = Date.parse(f.startedAt + 'T00:00:00Z');
+    const ends = start + (Number(f.days)||90) * 86400000;
+    const left = Math.ceil((ends - Date.now()) / 86400000);
+    if (left <= 0) {
+      ok(`freeze lifted ${new Date(ends).toISOString().slice(0,10)} — build what you learned`);
+    } else {
+      const known = new Set(f.modules || []);
+      const current = readdirSync(join(ROOT,'src/lib/kai')).filter(n=>n.endsWith('.ts'));
+      const added = current.filter(n=>!known.has(n));
+      if (!added.length) ok(`frozen, ${left} day(s) left — no new section modules`);
+      else if (process.env.KAI_FREEZE_OVERRIDE === '1') {
+        ok(`FREEZE OVERRIDDEN for ${added.length} new module(s): ${added.join(', ')}`);
+        log('       \x1b[33mYou chose to build during the freeze. That is allowed and it is recorded here.\x1b[0m');
+      } else {
+        bad(`${added.length} new section module(s) with ${left} day(s) left on the §50 freeze:`);
+        added.forEach(n=>log('       · src/lib/kai/'+n));
+        log('       Fixes to existing modules are free — only NEW sections are blocked.');
+        log('       Deliberate? KAI_FREEZE_OVERRIDE=1 node scripts/preflight.mjs');
+        log('       Or open it properly: all three proof-gate conditions, checked in the app.');
+      }
+    }
+  } catch (e) {
+    /* No FREEZE.json is not a failure — it is the state before §50 and
+       after the freeze is retired. */
+    ok('no FREEZE.json — nothing frozen');
+  }
+}
+
 head('5. vite build');
 try { execSync('npx vite build',{cwd:ROOT,stdio:'pipe'}); ok('frontend build clean'); }
 catch(e){ bad('vite build failed:'); process.stdout.write((e.stdout?.toString()||e.message).slice(0,4000)+'\n'); }

@@ -54,6 +54,9 @@ import { weltText } from './kai/welt';
 import { fillMonthChain, chainText as handText, fireChain } from './kai/hand';
 import { ordenText, onboard as ordenOnboard, recordVerdict, mayProductize } from './kai/orden';
 import {
+  endeText, readQueue, capture, attestVerified, refuseToBuild,
+} from './kai/ende';
+import {
   preisText, setRates, claimValue, logKaiHours, logDelay, answerQuarter, THE_QUARTERLY,
 } from './kai/preis';
 import {
@@ -206,6 +209,33 @@ export function runBuiltin(cmd: string): CmdResult | null {
       return 'Exported. Plain text, dated, readable by anything. Put it somewhere backed up and copy it forward when you change machines — that file is the vault now, not this browser.';
     } catch {
       return 'The export did not run, so nothing is marked as saved. Nothing changed.';
+    }
+  }
+
+  /* §50 DAS ENDE DES BAUENS — the lock, and the last one. */
+  if (/^ende$|^freeze$|^das ende$|^am i frozen$/i.test(q)) return endeText();
+  if (/^queue$|^the queue$/i.test(q)) {
+    const r = readQueue();
+    return r.ok ? [r.reason, '', ...r.ideas!.map((i, n) => `  ${n + 1}. ${i.text}`)].join('\n') : r.reason;
+  }
+  {
+    const m = cmd.trim().match(/^capture\s+([\s\S]+)$/i);
+    if (m) return capture(m[1]).reason;
+  }
+  {
+    /* Deliberately loose here so attestVerified does the validating and
+       he gets its message. Anchoring the SHA shape in the ROUTE meant a
+       typo fell straight through and answered nothing at all. */
+    const m = cmd.trim().match(/^verified\s+(\S+)(?:\s+([\s\S]+))?$/i);
+    if (m) return attestVerified(m[1], m[2] || '').reason;
+  }
+  {
+    /* The refusal. Anything that reads as "build me a new section" gets
+       answered by the freeze, not by a plan. */
+    const m = cmd.trim().match(/^(?:build|add|design|spec|plan)\s+(?:me\s+)?(?:an?\s+)?(?:new\s+)?(?:section|organ|feature|module)\s*([\s\S]*)$/i);
+    if (m) {
+      const no = refuseToBuild(m[1] || 'a new section');
+      if (no) return no;
     }
   }
 
