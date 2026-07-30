@@ -54,6 +54,9 @@ import { weltText } from './kai/welt';
 import { fillMonthChain, chainText as handText, fireChain } from './kai/hand';
 import { ordenText, onboard as ordenOnboard, recordVerdict, mayProductize } from './kai/orden';
 import {
+  canonicalBrief, uebergabeText, seedFounding, contradictionText, recordEntry, exportBrief,
+} from './kai/uebergabe';
+import {
   briefText, sealLetter, readLetter, survival, exportText, recordExport,
   vaultText, setVault, setLetterDay, letterDay,
   setDraft, sendDraft, discardDraft,
@@ -200,6 +203,46 @@ export function runBuiltin(cmd: string): CmdResult | null {
       return 'Exported. Plain text, dated, readable by anything. Put it somewhere backed up and copy it forward when you change machines — that file is the vault now, not this browser.';
     } catch {
       return 'The export did not run, so nothing is marked as saved. Nothing changed.';
+    }
+  }
+
+  /* §48 DIE ÜBERGABE — what every next model reads first. */
+  if (/^handover$|^canonical brief$|^read this first$/i.test(q)) return canonicalBrief();
+  if (/^ledger$|^session ledger$/i.test(q)) return uebergabeText();
+  if (/^seed handover$|^seed ledger$/i.test(q)) return seedFounding().reason;
+  {
+    /* "handover <advice>" — check it against the record before acting. */
+    const m = cmd.trim().match(/^(?:handover|check)\s+([\s\S]+)$/i);
+    if (m) return contradictionText(m[1]);
+  }
+  {
+    /* decided|warned|lesson|failed|question  <what> :: <why> [:: who]
+       The reason is mandatory at the syntax level too — no separator
+       means no entry, rather than an entry with an empty why. */
+    const m = cmd.trim().match(/^(decided|warned|lesson|failed|question)\s+([\s\S]+)$/i);
+    if (m) {
+      const kind = ({ decided: 'decision', warned: 'warning', lesson: 'lesson', failed: 'failure', question: 'open' } as const)[m[1].toLowerCase() as 'decided'];
+      const parts = m[2].split('::').map((s) => s.trim());
+      if (parts.length < 2 || !parts[1]) {
+        return `Give the reason too: "${m[1].toLowerCase()} <what> :: <why>". Without a why the next model can only obey it blindly or bin it, and it will bin it.`;
+      }
+      /* Named third party → recorded as an assistant's advice, which does
+         NOT carry his precedence. Unnamed → his own call. */
+      const who = parts[2] || operator.name;
+      const by = parts[2] ? 'assistant' : 'user';
+      return recordEntry(kind, parts[0], parts[1], by as any, who).reason;
+    }
+  }
+  if (/^export handover$|^export the brief$/i.test(q)) {
+    try {
+      const blob = new Blob([exportBrief()], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `kai-handover-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return 'Exported. Hand it to whoever or whatever helps next and ask them to read it before they advise. Regenerate rather than reusing it — the computed half moves.';
+    } catch {
+      return 'The export did not run. Nothing changed.';
     }
   }
 
