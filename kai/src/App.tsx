@@ -70,9 +70,10 @@ import { runDriftWatch } from './lib/kai/twin';
 import HunterDrawer from './components/HunterDrawer';
 import { runHunt, hunterLedger } from './lib/kai/hunter';
 import CommandOrder from './components/CommandOrder';
+import SectionTiles from './components/SectionTiles';
 import DerTag from './components/DerTag';
 import DerBrief from './components/DerBrief';
-import { shouldOpen as briefShouldOpen, dismissToday as briefDismiss } from './lib/kai/brief';
+import { dismissToday as briefDismiss } from './lib/kai/brief';
 import DasBuch from './components/DasBuch';
 import ConfessionSheet, { type ConfessionMode } from './components/ConfessionSheet';
 import type { Fact } from './lib/kai/confession';
@@ -159,15 +160,6 @@ export default function App() {
     return () => window.removeEventListener('hashchange', on);
   }, []);
   const closeHash = () => { try { location.hash = ''; } catch { /* ignore */ } };
-  /* §47 — on the fixed day, and only then, KAI takes the whole screen.
-     Once per day: "not tonight" has to stick or he learns to dismiss it
-     without reading, which costs the letter more surely than never
-     asking would. */
-  useEffect(() => {
-    try {
-      if (briefShouldOpen() && !/^#\/brief\b/.test(location.hash)) location.hash = '#/brief';
-    } catch { /* ignore */ }
-  }, []);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
   const [brainOpen, setBrainOpen] = useState(false);
@@ -958,6 +950,9 @@ export default function App() {
 
             {/* §24 DIE ORDNUNG — the ordered three-zone face is the default;
                 the living organism (CORE-V6) is one tap away. */}
+            {/* The four sections worth a permanent surface. Above the
+                order so they are seen, not scrolled past. */}
+            {view === 'command' && !showOrganism && <SectionTiles />}
             {view === 'command' && !showOrganism && <CommandOrder onOrganism={() => setShowOrganism(true)} />}
             {view === 'command' && showOrganism && (isMobile ? <MobileCommand /> : <CommandCorePanel />)}
             {view === 'command' && showOrganism && (
