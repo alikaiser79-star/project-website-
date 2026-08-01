@@ -20,7 +20,7 @@ import {
   type LockConfig,
   loadLockConfig, saveLockConfig,
   platformAuthAvailable, webAuthnSupported,
-  registerCredential, verifyCredential, clearLock,
+  registerCredential, verifyCredential, clearLock, canEnable,
   setPin, verifyPin,
 } from '../lib/lock';
 
@@ -97,7 +97,11 @@ export default function LockOverlay({ mode, onUnlocked, onSetupDone, reason }: P
     setErr(null);
     let next: LockConfig = loadLockConfig();
 
-    if (pin || pin2) {
+    /* The PIN is REQUIRED, not one of two options. It used to be
+       optional whenever a biometric had been registered, which is one
+       of the three routes into a lock that cannot be opened. */
+    if (!next.pinHash || pin || pin2) {
+      if (!pin && !pin2)            { setErr('Set a PIN. It is the key that always works.'); return; }
       if (pin !== pin2)             { setErr("PINs don't match.");           return; }
       if (!/^\d{4,6}$/.test(pin))   { setErr('PIN must be 4-6 digits.');     return; }
       try {
@@ -108,11 +112,8 @@ export default function LockOverlay({ mode, onUnlocked, onSetupDone, reason }: P
       }
     }
 
-    /* Must have SOME unlock method to enable. */
-    if (!next.credentialId && !next.pinHash) {
-      setErr('Set a PIN or enable Face ID before turning the lock on.');
-      return;
-    }
+    const rule = canEnable(next);
+    if (!rule.ok) { setErr(rule.reason); return; }
 
     next = { ...next, enabled: true, offered: true };
     saveLockConfig(next);

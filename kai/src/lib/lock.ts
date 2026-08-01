@@ -221,3 +221,42 @@ function constantTimeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+
+/* ── THE INVARIANT: LOCK ENABLED ⇒ A PIN EXISTS ──────────────
+   A lock whose only key is a platform authenticator is one browser
+   change, one PWA reinstall or one OS update away from being
+   unopenable — and that state was REACHABLE three different ways:
+
+     · LockOverlay setup accepted a biometric with no PIN;
+     · Settings "Require lock on launch" accepted the same;
+     · Settings "forget PIN" only disabled the lock when there was NO
+       biometric, so with one registered it happily left biometric-only.
+
+   Warning about it was not enough. The rule is enforced here, in one
+   place, and every mutation path asks these two questions rather than
+   re-deriving the condition and getting it subtly different — which is
+   how the three paths disagreed in the first place.
+
+   A biometric is optional and always was. The PIN is the floor. */
+
+export interface LockRule { ok: boolean; reason: string }
+
+export function canEnable(cfg: LockConfig): LockRule {
+  if (!cfg.pinHash) {
+    return {
+      ok: false,
+      reason: 'Set a PIN first. Biometrics stop working — a new browser, a reinstalled app, an OS update — and a lock with no PIN behind it cannot be opened at all. The PIN is the key that always works.',
+    };
+  }
+  return { ok: true, reason: '' };
+}
+
+export function canClearPin(cfg: LockConfig): LockRule {
+  if (cfg.enabled) {
+    return {
+      ok: false,
+      reason: 'The lock is on and the PIN is its only guaranteed key. Turn the lock off first, or set a new PIN instead of removing this one.',
+    };
+  }
+  return { ok: true, reason: '' };
+}

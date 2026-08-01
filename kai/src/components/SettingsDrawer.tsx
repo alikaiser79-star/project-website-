@@ -21,6 +21,7 @@ import { voice } from '../lib/speech';
 import { toast } from '../hooks/useToasts';
 import { listReminders, cancelReminder } from '../lib/reminders';
 import {
+  canEnable, canClearPin,
   loadLockConfig, saveLockConfig, clearLock,
   webAuthnSupported, platformAuthAvailable,
   registerCredential, verifyCredential,
@@ -1303,10 +1304,10 @@ function SecurityEditor() {
   async function toggleLock(next: boolean) {
     setErr(null);
     if (next) {
-      if (!cfg.credentialId && !cfg.pinHash) {
-        setErr('Register Face ID or set a PIN before turning the lock on.');
-        return;
-      }
+      /* Was "credential OR pin". A biometric-only lock is the state that
+         becomes unopenable when the authenticator stops working. */
+      const rule = canEnable(cfg);
+      if (!rule.ok) { setErr(rule.reason); return; }
       const updated = { ...cfg, enabled: true, offered: true };
       saveLockConfig(updated); setCfg(updated);
       flash('Lock armed.');
@@ -1342,7 +1343,9 @@ function SecurityEditor() {
       const id = await registerCredential('KAI Operator');
       const updated = { ...loadLockConfig(), credentialId: id, offered: true };
       saveLockConfig(updated); setCfg(updated);
-      flash('Biometric registered.');
+      flash(updated.pinHash
+        ? 'Biometric registered.'
+        : 'Biometric registered. Set a PIN below — the lock will not turn on without one.');
     } catch (e: any) {
       setErr(humanize(e));
     } finally {
@@ -1380,10 +1383,14 @@ function SecurityEditor() {
   }
 
   function clearPin() {
-    const updated = { ...cfg, pinHash: undefined, pinSalt: undefined };
-    if (!updated.credentialId) updated.enabled = false;
+    /* The hole. This used to disable the lock only when there was NO
+       biometric — so with one registered it left the lock ON with the
+       PIN gone, which is exactly the unopenable state. */
+    const rule = canClearPin(cfg);
+    if (!rule.ok) { setErr(rule.reason); return; }
+    const updated = { ...cfg, pinHash: undefined, pinSalt: undefined, enabled: false };
     saveLockConfig(updated); setCfg(updated);
-    flash('PIN cleared.');
+    flash('PIN cleared. The lock is off — it cannot run without one.');
   }
 
   function fullReset() {
